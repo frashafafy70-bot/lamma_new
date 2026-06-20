@@ -50,6 +50,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   final TextEditingController _postFromCtrl = TextEditingController();
   final TextEditingController _postToCtrl = TextEditingController();
   final TextEditingController _postTimeCtrl = TextEditingController();
+  // ✅ المتحكم الجديد لنوع العربية في رحلات السفر
+  final TextEditingController _postVehicleTypeCtrl = TextEditingController();
   final TextEditingController _postSeatsCtrl = TextEditingController();
   final TextEditingController _postPriceCtrl = TextEditingController();
 
@@ -68,11 +70,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       if (permission == LocationPermission.denied) {
         await Geolocator.requestPermission();
       }
-      
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true, badge: true, sound: true,
-      );
-
+      await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
       await _saveDeviceToken();
     } catch (e) {
       debugPrint("Error requesting permissions: $e");
@@ -121,6 +119,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     _postFromCtrl.dispose();
     _postToCtrl.dispose();
     _postTimeCtrl.dispose();
+    _postVehicleTypeCtrl.dispose(); // ✅ إغلاق المتحكم الجديد
     _postSeatsCtrl.dispose();
     _postPriceCtrl.dispose();
     _mapSearchController.dispose();
@@ -365,18 +364,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               ),
             ),
           ),
-        
-        Positioned(
-          bottom: isPickingMap ? 140 : 16, 
-          right: 16, 
-          child: FloatingActionButton(
-            mini: true, 
-            backgroundColor: Colors.white, 
-            foregroundColor: royalGreen, 
-            onPressed: _getUserLocation, 
-            child: const Icon(Icons.my_location_rounded)
-          )
-        ),
 
         if (isPickingMap)
           Positioned(
@@ -384,27 +371,41 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             child: SafeArea(
               child: Column(
                 children: [
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: TextField(
-                      controller: _mapSearchController,
-                      onChanged: _searchPlaces, 
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        hintText: 'ابحث عن مكان...',
-                        prefixIcon: IconButton(
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 20), 
-                          onPressed: () { 
-                            setState(() { _mapSelectionMode = 'none'; _placePredictions = []; }); 
-                            FocusScope.of(context).unfocus(); 
-                          }
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Card(
+                          elevation: 8,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: TextField(
+                            controller: _mapSearchController,
+                            onChanged: _searchPlaces, 
+                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
+                            decoration: InputDecoration(
+                              hintText: 'ابحث عن مكان...',
+                              prefixIcon: IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 20), 
+                                onPressed: () { 
+                                  setState(() { _mapSelectionMode = 'none'; _placePredictions = []; }); 
+                                  FocusScope.of(context).unfocus(); 
+                                }
+                              ),
+                              suffixIcon: IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _mapSearchController.clear(); setState(() => _placePredictions = []); }),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
+                          ),
                         ),
-                        suffixIcon: IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _mapSearchController.clear(); setState(() => _placePredictions = []); }),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      FloatingActionButton(
+                        mini: true, 
+                        backgroundColor: Colors.white, 
+                        foregroundColor: royalGreen, 
+                        onPressed: _getUserLocation, 
+                        child: const Icon(Icons.my_location_rounded)
+                      ),
+                    ],
                   ),
                   if (_placePredictions.isNotEmpty)
                     Card(
@@ -622,7 +623,10 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     const Divider(),
                     Text('من: ${data['fromCity']} ➡️ إلى: ${data['toCity']}', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text('الموعد: ${data['time']} | المقاعد المتاحة: ${data['availableSeats']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo')),
+                    // ✅ عرض نوع العربية للعميل في تفاصيل الرحلة المتاحة
+                    Text('المركبة: ${data['vehicleType'] ?? 'سيارة'} | المقاعد المتاحة: ${data['availableSeats']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo')),
+                    const SizedBox(height: 4),
+                    Text('الموعد: ${data['time']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo')),
                     const SizedBox(height: 12),
                     SizedBox(width: double.infinity, child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), onPressed: () => _bookDriverPost(trips[index].id, data['driverId']), icon: const Icon(Icons.event_seat_rounded, size: 18), label: const Text('حجز مقعد والتواصل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))))
                   ],
@@ -637,13 +641,19 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Widget _buildPassengerMyRequestsTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).where('isDeletedForPassenger', isNotEqualTo: true).snapshots(),
+      stream: FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        var trips = snapshot.data!.docs.where((doc) => (doc.data() as Map)['isDriverPost'] != true).toList();
+        
+        var trips = snapshot.data!.docs.where((doc) {
+          var data = doc.data() as Map<String, dynamic>;
+          bool isNotDriverPost = data['isDriverPost'] != true;
+          bool isNotDeleted = data['isDeletedForPassenger'] != true;
+          return isNotDriverPost && isNotDeleted;
+        }).toList();
+
         trips.sort((a, b) => ((b.data() as Map)['createdAt'] as Timestamp?)?.compareTo(((a.data() as Map)['createdAt'] as Timestamp?) ?? Timestamp.now()) ?? 0);        
         
-        // ✅ التعديل السحري: رسالة شيك جداً تمنع التحميل اللانهائي لما تكون القائمة فاضية
         if (trips.isEmpty) {
           return const Center(
             child: Column(
@@ -693,7 +703,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                             const Text('تم إلغاء هذه الرحلة 🚫', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                             const Spacer(),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: const Icon(Icons.close, color: Colors.red),
                               onPressed: () => _deleteTripForUser(doc.id, 'passenger'),
                             )
                           ],
@@ -813,7 +823,16 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               const SizedBox(height: 16),
               TextField(controller: _postTimeCtrl, decoration: InputDecoration(labelText: 'موعد وتاريخ التحرك', prefixIcon: const Icon(Icons.access_time), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
-              Row(children: [Expanded(child: TextField(controller: _postSeatsCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'المقاعد المتاحة', prefixIcon: const Icon(Icons.airline_seat_recline_normal), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))))), const SizedBox(width: 12), Expanded(child: TextField(controller: _postPriceCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'سعر المقعد (ج)', prefixIcon: const Icon(Icons.payments_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))))]),
+              
+              // ✅ الحقل الجديد المضاف للكابتن عشان يكتب فيه نوع عربيته
+              TextField(controller: _postVehicleTypeCtrl, decoration: InputDecoration(labelText: 'نوع العربية (مثال: ملاكي، ميكروباص 14)', prefixIcon: const Icon(Icons.directions_car_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+              const SizedBox(height: 16),
+              
+              Row(children: [
+                Expanded(child: TextField(controller: _postSeatsCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'المقاعد المتاحة', prefixIcon: const Icon(Icons.airline_seat_recline_normal), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))))), 
+                const SizedBox(width: 12), 
+                Expanded(child: TextField(controller: _postPriceCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'سعر المقعد (ج)', prefixIcon: const Icon(Icons.payments_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))))
+              ]),
               const SizedBox(height: 24),
               ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: _postNewTrip, child: const Text('نشر الرحلة للعملاء', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))
             ],
@@ -825,12 +844,14 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Widget _buildDriverActiveTripsTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('isDeletedForDriver', isNotEqualTo: true).snapshots(),
+      stream: FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var trips = snapshot.data!.docs.where((doc) {
            var data = doc.data() as Map<String, dynamic>;
-           return data['status'] == 'negotiating' || data['status'] == 'accepted' || data['status'] == 'canceled';
+           bool isNotDeleted = data['isDeletedForDriver'] != true;
+           bool isValidStatus = data['status'] == 'negotiating' || data['status'] == 'accepted' || data['status'] == 'canceled';
+           return isNotDeleted && isValidStatus;
         }).toList();
         
         if (trips.isEmpty) return const Center(child: Text('لا توجد رحلات/طلبات نشطة حالياً.', style: TextStyle(fontFamily: 'Cairo')));
@@ -862,7 +883,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                             const Text('تم إلغاء هذه الرحلة 🚫', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                             const Spacer(),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: const Icon(Icons.close, color: Colors.red),
                               onPressed: () => _deleteTripForUser(trips[index].id, 'driver'),
                             )
                           ],
@@ -874,7 +895,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     else ...[
                       Row(
                         children: [
-                          // ✅ تم إصلاح خطأ الـ VS Code وإعادة الـ Named Parameter بالكامل (tripId:)
                           Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trips[index].id))), icon: const Icon(Icons.chat, color: Colors.white, size: 18), label: const Text('محادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
                           const SizedBox(width: 4),
                           Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _showRatingDialog(trips[index].id, isDriver: true), icon: const Icon(Icons.done_all, color: Colors.white, size: 18), label: const Text('إنهاء', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
@@ -963,8 +983,29 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Future<void> _postNewTrip() async {
     if (_postFromCtrl.text.isEmpty) return;
-    await FirebaseFirestore.instance.collection('trips').add({'isDriverPost': true, 'driverId': currentUserId, 'driverName': 'كابتن', 'fromCity': _postFromCtrl.text.trim(), 'toCity': _postToCtrl.text.trim(), 'time': _postTimeCtrl.text.trim(), 'availableSeats': _postSeatsCtrl.text.trim(), 'price': _postPriceCtrl.text.trim(), 'status': 'available', 'createdAt': FieldValue.serverTimestamp()});
-    if(mounted) { _postFromCtrl.clear(); _tabController.animateTo(2); }
+    await FirebaseFirestore.instance.collection('trips').add({
+      'isDriverPost': true, 
+      'driverId': currentUserId, 
+      'driverName': 'كابتن', 
+      'fromCity': _postFromCtrl.text.trim(), 
+      'toCity': _postToCtrl.text.trim(), 
+      'time': _postTimeCtrl.text.trim(), 
+      // ✅ حفظ نوع العربية في الفايربيز
+      'vehicleType': _postVehicleTypeCtrl.text.trim().isNotEmpty ? _postVehicleTypeCtrl.text.trim() : 'سيارة',
+      'availableSeats': _postSeatsCtrl.text.trim(), 
+      'price': _postPriceCtrl.text.trim(), 
+      'status': 'available', 
+      'createdAt': FieldValue.serverTimestamp()
+    });
+    if(mounted) { 
+      _postFromCtrl.clear(); 
+      _postToCtrl.clear();
+      _postTimeCtrl.clear();
+      _postVehicleTypeCtrl.clear(); // تفريغ حقل نوع العربية
+      _postSeatsCtrl.clear();
+      _postPriceCtrl.clear();
+      _tabController.animateTo(2); 
+    }
   }
 
   Future<void> _bookDriverPost(String tripId, String driverId) async {
@@ -1000,8 +1041,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // ✅ التعديل الاحترافي: إزالة الدبابيس العشوائية وتوسيط العنوان بشياكة كاملة
-        title: Text(widget.isDriver ? 'لوحة الكابتن 🚖' : 'خدمات لَمَّة', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+        title: Text(widget.isDriver ? 'لوحة الكابتن' : 'خدمات لَمَّة', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: royalGreen, foregroundColor: Colors.white, centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.home_rounded), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()))),
         
@@ -1015,7 +1055,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             ),
             child: TabBar(
               controller: _tabController,
-              navigator: null,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent, 
               indicator: BoxDecoration(
