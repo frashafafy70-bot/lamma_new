@@ -50,17 +50,11 @@ exports.sendTripMessageNotification = functions.firestore
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
-                data: { 
-                    type: 'trip_chat', 
-                    tripId: context.params.tripId 
-                }
+                data: { type: 'trip_chat', tripId: context.params.tripId }
             };
 
             await admin.messaging().send(message);
-            console.log('تم إرسال إشعار رسالة الرحلة بنجاح');
-        } catch (error) { 
-            console.error('خطأ في إرسال إشعار رسالة الرحلة:', error); 
-        }
+        } catch (error) { console.error('خطأ في إرسال إشعار رسالة الرحلة:', error); }
     });
 
 // ============================================================================
@@ -104,17 +98,11 @@ exports.sendLegalMessageNotification = functions.firestore
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
-                data: { 
-                    type: 'legal_chat', 
-                    requestId: context.params.requestId 
-                }
+                data: { type: 'legal_chat', requestId: context.params.requestId }
             };
 
             await admin.messaging().send(message);
-            console.log('تم إرسال إشعار رسالة الاستشارة بنجاح');
-        } catch (error) { 
-            console.error('خطأ في إرسال إشعار رسالة الاستشارة:', error); 
-        }
+        } catch (error) { console.error('خطأ في إرسال إشعار رسالة الاستشارة:', error); }
     });
 
 // ============================================================================
@@ -151,17 +139,11 @@ exports.sendNewRequestNotification = functions.firestore
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
-                data: { 
-                    type: 'new_legal_request', 
-                    requestId: context.params.requestId 
-                }
+                data: { type: 'new_legal_request', requestId: context.params.requestId }
             };
 
             await admin.messaging().sendEachForMulticast(message);
-            console.log('تم إرسال إشعار الطلب القانوني الجديد بنجاح');
-        } catch (error) { 
-            console.error('خطأ في إرسال إشعار الطلب القانوني الجديد:', error); 
-        }
+        } catch (error) { console.error('خطأ في إرسال إشعار الطلب القانوني الجديد:', error); }
     });
 
 // ============================================================================
@@ -171,10 +153,12 @@ exports.sendNewTripNotification = functions.firestore
     .document('trips/{tripId}')
     .onCreate(async (snap, context) => {
         const tripData = snap.data();
+        if (tripData.isDriverPost === true) return null; // لا ترسل إشعار إذا كانت رحلة سفر من الكابتن
+
         const timeString = getCurrentTimeFormatted();
 
         try {
-            const price = tripData.offeredPrice || tripData.price || tripData.fare || 'غير محدد';
+            const price = tripData.offeredPrice || tripData.price || tripData.suggestedPrice || 'غير محدد';
 
             const message = {
                 topic: 'drivers_radar',
@@ -190,15 +174,68 @@ exports.sendNewTripNotification = functions.firestore
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
-                data: { 
-                    type: 'new_trip_request', 
-                    tripId: context.params.tripId 
-                }
+                data: { type: 'new_trip_request', tripId: context.params.tripId }
             };
 
             await admin.messaging().send(message);
-            console.log('تم إرسال إشعار المشوار الجديد بنجاح');
-        } catch (error) { 
-            console.error('خطأ في إرسال إشعار المشوار الجديد:', error); 
+        } catch (error) { console.error('خطأ في إرسال إشعار المشوار الجديد:', error); }
+    });
+
+// ============================================================================
+// 5. إشعارات إلغاء الرحلة (جديد 🚀)
+// ============================================================================
+exports.sendTripCancellationNotification = functions.firestore
+    .document('trips/{tripId}')
+    .onUpdate(async (change, context) => {
+        const beforeData = change.before.data();
+        const afterData = change.after.data();
+
+        // نتحقق إذا كانت الحالة تحولت إلى ملغي
+        if (beforeData.status !== 'canceled' && afterData.status === 'canceled') {
+            const timeString = getCurrentTimeFormatted();
+            const canceledBy = afterData.canceledBy; // 'driver' أو 'passenger'
+            
+            let receiverId = null;
+            let title = '';
+            let body = `تم إلغاء الرحلة المتفق عليها | 🕒 ${timeString}`;
+
+            if (canceledBy === 'passenger' && afterData.driverId) {
+                // العميل لغى، نبلغ الكابتن
+                receiverId = afterData.driverId;
+                title = 'تم إلغاء الطلب من قبل العميل 🚫';
+            } else if (canceledBy === 'driver' && afterData.passengerId) {
+                // الكابتن لغى، نبلغ العميل
+                receiverId = afterData.passengerId;
+                title = 'اعتذر الكابتن عن المشوار 🚫';
+            }
+
+            if (!receiverId) return null; // لو مفيش طرف تاني متبعتش حاجة
+
+            try {
+                const userDoc = await admin.firestore().collection('users').doc(receiverId).get();
+                if (!userDoc.exists || !userDoc.data().fcmToken) return null;
+
+                const message = {
+                    token: userDoc.data().fcmToken,
+                    notification: {
+                        title: title,
+                        body: body
+                    },
+                    android: {
+                        priority: "high",
+                        notification: {
+                            channelId: "lamma_final_sound",
+                            sound: "default",
+                            clickAction: "FLUTTER_NOTIFICATION_CLICK"
+                        }
+                    },
+                    data: { type: 'trip_canceled', tripId: context.params.tripId }
+                };
+
+                await admin.messaging().send(message);
+            } catch (error) {
+                console.error('خطأ في إرسال إشعار الإلغاء:', error);
+            }
         }
+        return null;
     });

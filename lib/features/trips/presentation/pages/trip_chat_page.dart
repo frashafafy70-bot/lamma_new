@@ -25,36 +25,59 @@ class _TripChatPageState extends State<TripChatPage> {
 
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
+  
+  // 💡 الحل الاحترافي: الاشتراكات في الخلفية (بدون StreamBuilder)
   StreamSubscription<Position>? _locationSubscription;
+  StreamSubscription<QuerySnapshot>? _messagesSubscription;
+  StreamSubscription<DocumentSnapshot>? _tripSubscription;
+  
+  List<QueryDocumentSnapshot> _messages = [];
+  Map<String, dynamic>? _tripData;
   
   bool _isDriver = false;
-  bool _isLoading = true;
+  bool _isMessagesLoading = true; // متغير للتحكم في اللودينج مرة واحدة فقط
   String _otherPartyName = 'جاري التحميل...';
   LatLng? _currentLatLng; 
-
-  // 💡 التعديل الجذري: تعريف الـ Streams هنا عشان الشاشة متعيدش تحميلهم مع الكيبورد
-  late Stream<QuerySnapshot> _messagesStream;
-  late Stream<DocumentSnapshot> _tripStream;
 
   @override
   void initState() {
     super.initState();
-    
-    // 💡 تهيئة الـ Streams مرة واحدة فقط
-    _messagesStream = FirebaseFirestore.instance
+    _getCurrentLocation(); 
+    _checkUserRoleAndSetupTracking();
+    _startListeningToData(); // 🚀 تشغيل مستمع البيانات
+  }
+
+  // 🚀 دالة سحب البيانات وتخزينها في الذاكرة (تمنع التهنيج مع الكيبورد نهائياً)
+  void _startListeningToData() {
+    // 1. الاستماع للرسايل
+    _messagesSubscription = FirebaseFirestore.instance
         .collection('trips')
         .doc(widget.tripId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
-        .snapshots();
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _messages = snapshot.docs;
+          _isMessagesLoading = false;
+        });
+      }
+    });
 
-    _tripStream = FirebaseFirestore.instance
+    // 2. الاستماع لبيانات الرحلة والخريطة
+    _tripSubscription = FirebaseFirestore.instance
         .collection('trips')
         .doc(widget.tripId)
-        .snapshots();
-
-    _getCurrentLocation(); 
-    _checkUserRoleAndSetupTracking();
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted && snapshot.exists) {
+        setState(() {
+          _tripData = snapshot.data() as Map<String, dynamic>;
+          _updateMarkers(_tripData!);
+        });
+      }
+    });
   }
 
   @override
@@ -62,6 +85,8 @@ class _TripChatPageState extends State<TripChatPage> {
     _messageController.dispose();
     _scrollController.dispose();
     _locationSubscription?.cancel();
+    _messagesSubscription?.cancel();
+    _tripSubscription?.cancel();
     super.dispose();
   }
 
@@ -85,7 +110,8 @@ class _TripChatPageState extends State<TripChatPage> {
         _currentLatLng = LatLng(position.latitude, position.longitude);
       });
       if (_mapController != null) {
-        _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
+        // 🗺️ زووم عالي 18.5 لتوضيح الشوارع والمباني باحترافية
+        _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 18.5));
       }
     }
   }
@@ -107,7 +133,6 @@ class _TripChatPageState extends State<TripChatPage> {
       setState(() {
         _isDriver = data['driverId'] == currentUserId;
         _otherPartyName = _isDriver ? (data['passengerName'] ?? 'العميل') : (data['driverName'] ?? 'الكابتن');
-        _isLoading = false;
       });
       if (_isDriver) _startLiveTracking();
     }
@@ -167,8 +192,6 @@ class _TripChatPageState extends State<TripChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return Scaffold(body: Center(child: CircularProgressIndicator(color: royalGreen)));
-    
     bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
@@ -186,7 +209,7 @@ class _TripChatPageState extends State<TripChatPage> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            // 🗺️ الخريطة: استخدمنا _tripStream هنا عشان متعيدش تحميل مع الكيبورد
+            // 🗺️ الخريطة: ثابتة ومستقرة ومفيش StreamBuilder يعملها ريفريش
             Visibility(
               visible: !isKeyboardOpen,
               maintainState: true,
@@ -194,21 +217,17 @@ class _TripChatPageState extends State<TripChatPage> {
               maintainSize: false,
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: _tripStream, // 💡 التعديل هنا
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data!.data() != null) {
-                      var tripData = snapshot.data!.data() as Map<String, dynamic>;
-                      _updateMarkers(tripData);
-                      
-                      LatLng initialTarget = _currentLatLng ?? const LatLng(30.0444, 31.2357);
-                      if (tripData['pickupLocation'] != null) {
-                        initialTarget = LatLng(tripData['pickupLocation'].latitude, tripData['pickupLocation'].longitude);
-                      }
-                      
-                      return GoogleMap(
+                child: _tripData == null
+                    ? Center(child: CircularProgressIndicator(color: royalGreen))
+                    : GoogleMap(
                         mapType: MapType.normal,
-                        initialCameraPosition: CameraPosition(target: initialTarget, zoom: 16),
+                        // 🚀 زووم احترافي عالي
+                        initialCameraPosition: CameraPosition(
+                          target: _tripData!['pickupLocation'] != null 
+                              ? LatLng(_tripData!['pickupLocation'].latitude, _tripData!['pickupLocation'].longitude) 
+                              : (_currentLatLng ?? const LatLng(30.0444, 31.2357)), 
+                          zoom: 18.5
+                        ),
                         markers: _markers,
                         myLocationEnabled: true, 
                         myLocationButtonEnabled: true, 
@@ -217,14 +236,10 @@ class _TripChatPageState extends State<TripChatPage> {
                         onMapCreated: (controller) {
                            _mapController = controller;
                            if (_currentLatLng != null) {
-                             _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
+                             _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 18.5));
                            }
                         },
-                      );
-                    }
-                    return Center(child: CircularProgressIndicator(color: royalGreen));
-                  }
-                ),
+                      ),
               ),
             ),
 
@@ -240,75 +255,67 @@ class _TripChatPageState extends State<TripChatPage> {
               ),
             ),
 
-            // 💬 منطقة الرسائل
+            // 💬 منطقة الرسائل (أصبحت بتأخد من الذاكرة مباشرة)
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _messagesStream, // 💡 التعديل هنا للرسايل
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  var messages = snapshot.data!.docs;
+              child: _isMessagesLoading 
+                  ? Center(child: CircularProgressIndicator(color: royalGreen))
+                  : _messages.isEmpty
+                      ? Center(child: Text('لا توجد رسائل حتى الآن. ابدأ المحادثة 👋', style: TextStyle(color: Colors.grey.shade500, fontFamily: 'Cairo')))
+                      : ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            var msg = _messages[index].data() as Map<String, dynamic>;
+                            bool isMe = msg['senderId'] == currentUserId;
 
-                  if (messages.isEmpty) {
-                    return Center(child: Text('لا توجد رسائل حتى الآن. ابدأ المحادثة 👋', style: TextStyle(color: Colors.grey.shade500, fontFamily: 'Cairo')));
-                  }
+                            DateTime dt;
+                            if (msg['timestamp'] != null) {
+                              dt = (msg['timestamp'] as Timestamp).toDate();
+                            } else {
+                              dt = DateTime.now(); 
+                            }
+                            String period = dt.hour >= 12 ? 'م' : 'ص';
+                            int hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+                            String minute = dt.minute.toString().padLeft(2, '0');
+                            String timeText = '$hour:$minute $period';
 
-                  return ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      var msg = messages[index].data() as Map<String, dynamic>;
-                      bool isMe = msg['senderId'] == currentUserId;
-
-                      DateTime dt;
-                      if (msg['timestamp'] != null) {
-                        dt = (msg['timestamp'] as Timestamp).toDate();
-                      } else {
-                        dt = DateTime.now(); 
-                      }
-                      String period = dt.hour >= 12 ? 'م' : 'ص';
-                      int hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-                      String minute = dt.minute.toString().padLeft(2, '0');
-                      String timeText = '$hour:$minute $period';
-
-                      return Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isMe ? royalGreen : Colors.white,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(isMe ? 16 : 0),
-                              bottomRight: Radius.circular(isMe ? 0 : 16),
-                            ),
-                            border: isMe ? null : Border.all(color: Colors.grey.shade300),
-                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                msg['text'] ?? '',
-                                style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontFamily: 'Cairo', fontSize: 14),
+                            return Align(
+                              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isMe ? royalGreen : Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(16),
+                                    topRight: const Radius.circular(16),
+                                    bottomLeft: Radius.circular(isMe ? 16 : 0),
+                                    bottomRight: Radius.circular(isMe ? 0 : 16),
+                                  ),
+                                  border: isMe ? null : Border.all(color: Colors.grey.shade300),
+                                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      msg['text'] ?? '',
+                                      style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontFamily: 'Cairo', fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      timeText,
+                                      style: TextStyle(color: isMe ? Colors.white70 : Colors.black54, fontFamily: 'Cairo', fontSize: 10),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                timeText,
-                                style: TextStyle(color: isMe ? Colors.white70 : Colors.black54, fontFamily: 'Cairo', fontSize: 10),
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
             ),
 
             // ✍️ حقل إدخال الرسالة
