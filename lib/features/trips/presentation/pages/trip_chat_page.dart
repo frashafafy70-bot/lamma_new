@@ -32,9 +32,27 @@ class _TripChatPageState extends State<TripChatPage> {
   String _otherPartyName = 'جاري التحميل...';
   LatLng? _currentLatLng; 
 
+  // 💡 التعديل الجذري: تعريف الـ Streams هنا عشان الشاشة متعيدش تحميلهم مع الكيبورد
+  late Stream<QuerySnapshot> _messagesStream;
+  late Stream<DocumentSnapshot> _tripStream;
+
   @override
   void initState() {
     super.initState();
+    
+    // 💡 تهيئة الـ Streams مرة واحدة فقط
+    _messagesStream = FirebaseFirestore.instance
+        .collection('trips')
+        .doc(widget.tripId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+
+    _tripStream = FirebaseFirestore.instance
+        .collection('trips')
+        .doc(widget.tripId)
+        .snapshots();
+
     _getCurrentLocation(); 
     _checkUserRoleAndSetupTracking();
   }
@@ -47,7 +65,6 @@ class _TripChatPageState extends State<TripChatPage> {
     super.dispose();
   }
 
-  // 📍 جلب الموقع الفعلي لتحديد مكان الكاميرا 
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -114,7 +131,7 @@ class _TripChatPageState extends State<TripChatPage> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
     String text = _messageController.text.trim();
-    _messageController.clear(); // تفريغ الحقل فوراً عشان السلاسة
+    _messageController.clear(); 
 
     await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).collection('messages').add({
       'senderId': currentUserId,
@@ -169,7 +186,7 @@ class _TripChatPageState extends State<TripChatPage> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            // التعديل السحري: الخريطة بتختفي لما الكيبورد تفتح بس بتفضل شغالة في الميموري عشان متعملش لاج!
+            // 🗺️ الخريطة: استخدمنا _tripStream هنا عشان متعيدش تحميل مع الكيبورد
             Visibility(
               visible: !isKeyboardOpen,
               maintainState: true,
@@ -178,7 +195,7 @@ class _TripChatPageState extends State<TripChatPage> {
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots(),
+                  stream: _tripStream, // 💡 التعديل هنا
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data!.data() != null) {
                       var tripData = snapshot.data!.data() as Map<String, dynamic>;
@@ -226,7 +243,7 @@ class _TripChatPageState extends State<TripChatPage> {
             // 💬 منطقة الرسائل
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).collection('messages').orderBy('timestamp', descending: true).snapshots(),
+                stream: _messagesStream, // 💡 التعديل هنا للرسايل
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                   var messages = snapshot.data!.docs;
