@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
 import 'package:hive_flutter/hive_flutter.dart'; 
 import 'package:flutter_localizations/flutter_localizations.dart'; 
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ مكتبة إخفاء المفاتيح
 import 'firebase_options.dart';
 
 import 'features/auth/presentation/pages/login_page.dart'; 
@@ -34,6 +35,9 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // ✅ قراءة ملف الـ .env عشان مفتاح جوجل يشتغل
+  await dotenv.load(fileName: ".env");
+  
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -43,8 +47,7 @@ void main() async {
   const InitializationSettings initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
   
-  // ✅ التعديل الأول: رجعنا كلمة settings: عشان المحرر طالبها
-  // وتم إضافة onDidReceiveNotificationResponse لضمان فتح التطبيق عند الضغط على إشعار الـ Foreground
+  // ✅ التعديل هنا: رجعناها كلمة settings زي ما المحرر بتاعك طالبها بالظبط!
   await flutterLocalNotificationsPlugin.initialize(
     settings: initializationSettings, 
     onDidReceiveNotificationResponse: (NotificationResponse response) {
@@ -88,7 +91,6 @@ class _LammaAppState extends State<LammaApp> {
       AndroidNotification? android = message.notification?.android;
 
       if (notification != null && android != null) {
-        // ✅ التعديل الثاني: رجعنا الأسماء (id, title, body, notificationDetails) 
         flutterLocalNotificationsPlugin.show(
           id: notification.hashCode, 
           title: notification.title,

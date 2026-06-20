@@ -1,8 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import '../trip_chat_page.dart';
 
 class DriverActiveTripsTab extends StatefulWidget {
@@ -16,11 +18,51 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   final Color royalGreen = const Color(0xFF1B4332);
   final Map<String, bool> _cancellationTimers = {};
+  
+  StreamSubscription<Position>? _positionStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLiveTracking();
+  }
+
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  // بث الموقع المباشر لقاعدة البيانات
+  void _startLiveTracking() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) return;
+    }
+
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 5)
+    ).listen((Position position) {
+      // تحديث موقع الكابتن في كل الرحلات النشطة الخاصة به
+      FirebaseFirestore.instance.collection('trips')
+        .where('driverId', isEqualTo: currentUserId)
+        .where('status', isEqualTo: 'accepted')
+        .get().then((snapshot) {
+          for (var doc in snapshot.docs) {
+            doc.reference.update({
+              'driverLocation': GeoPoint(position.latitude, position.longitude),
+              'driverHeading': position.heading,
+            });
+          }
+        });
+    });
+  }
 
   Future<void> _deleteTripForUser(String tripId) async {
-    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-      'isDeletedForDriver': true
-    });
+    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'isDeletedForDriver': true});
   }
 
   Future<void> _cancelTrip(String tripId) async {
@@ -37,21 +79,13 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
     ) ?? false;
 
     if (confirm) {
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-        'status': 'canceled',
-        'canceledBy': 'driver' 
-      });
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء الرحلة بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
-      }
+      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'canceled', 'canceledBy': 'driver'});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء الرحلة بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
     }
   }
 
   Future<void> _acceptOffer(String tripId, String acceptedPrice) async {
-    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-      'status': 'accepted',
-      'finalPrice': acceptedPrice
-    });
+    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted', 'finalPrice': acceptedPrice});
   }
 
   void _showNegotiationDialog(String tripId) {
@@ -61,13 +95,8 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
       builder: (ctx) => AlertDialog(
         title: const Text('التفاوض على الأجرة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
         content: TextField(
-          controller: offerCtrl, 
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'اكتب سعرك المقترح',
-            suffixText: 'جنيه',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
-          ),
+          controller: offerCtrl, keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: 'اكتب سعرك المقترح', suffixText: 'جنيه', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))
         ), 
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))),
@@ -75,11 +104,7 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen),
             onPressed: () async { 
               if (offerCtrl.text.isEmpty) return;
-              await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-                'status': 'negotiating', 
-                'negotiationPrice': offerCtrl.text,
-                'lastNegotiator': 'driver'
-              }); 
+              await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'negotiating', 'negotiationPrice': offerCtrl.text, 'lastNegotiator': 'driver'}); 
               if(mounted) Navigator.pop(ctx); 
             }, 
             child: const Text('إرسال', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
@@ -91,7 +116,6 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
 
   void _showRatingDialog(String tripId) {
     int stars = 5; 
-
     showDialog(
       context: context, barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
@@ -106,15 +130,11 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
                 const Text('تم إنهاء الرحلة!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                 const SizedBox(height: 16),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (index) => IconButton(icon: Icon(index < stars ? Icons.star_rounded : Icons.star_border_rounded, color: Colors.amber, size: 35), onPressed: () => setDialogState(() => stars = index + 1)))),
-                
                 const SizedBox(height: 16),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: royalGreen, minimumSize: const Size(double.infinity, 45)), 
                   onPressed: () async { 
-                    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-                      'driverRatingForPassenger': stars, 
-                      'status': 'completed'
-                    }); 
+                    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'driverRatingForPassenger': stars, 'status': 'completed'}); 
                     if(mounted) Navigator.pop(ctx); 
                   }, 
                   child: const Text('إرسال التقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo'))
@@ -168,47 +188,36 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
                     const SizedBox(height: 12),
                     
                     if (isCanceled)
-                      Column(
-                        children: [
-                          Container(
-                            width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), // تم التعديل هنا
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('تم إلغاء هذه الرحلة', textAlign: TextAlign.center, style: TextStyle(color: royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                                const Spacer(),
-                                IconButton(
-                                  icon: Icon(Icons.close, color: royalGreen),
-                                  onPressed: () => _deleteTripForUser(trips[index].id),
-                                )
-                              ],
-                            )
-                          )
-                        ],
+                      Container(
+                        width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('تم إلغاء هذه الرحلة', textAlign: TextAlign.center, style: TextStyle(color: royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                            const Spacer(),
+                            IconButton(icon: Icon(Icons.close, color: royalGreen), onPressed: () => _deleteTripForUser(trips[index].id))
+                          ],
+                        )
                       )
                     else if (isNegotiating)
-                      Column(
-                        children: [
-                          if (data['lastNegotiator'] == 'driver')
-                            Text('في انتظار رد العميل على عرضك (${data['negotiationPrice']} ج)', style: const TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
-                          else
-                            Column(
+                      if (data['lastNegotiator'] == 'driver')
+                        Text('في انتظار رد العميل على عرضك (${data['negotiationPrice']} ج)', style: const TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
+                      else
+                        Column(
+                          children: [
+                            Text('العميل يعرض عليك أجرة: ${data['negotiationPrice']} ج', style: const TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Row(
                               children: [
-                                Text('العميل يعرض عليك أجرة: ${data['negotiationPrice']} ج', style: const TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _acceptOffer(trips[index].id, data['negotiationPrice']), child: const Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
-                                    const SizedBox(width: 4),
-                                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _showNegotiationDialog(trips[index].id), child: const Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
-                                    const SizedBox(width: 4),
-                                    Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _cancelTrip(trips[index].id), child: const Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))),
-                                  ],
-                                )
+                                Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _acceptOffer(trips[index].id, data['negotiationPrice']), child: const Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                                const SizedBox(width: 4),
+                                Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _showNegotiationDialog(trips[index].id), child: const Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                                const SizedBox(width: 4),
+                                Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _cancelTrip(trips[index].id), child: const Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))),
                               ],
                             )
-                        ],
-                      )
+                          ],
+                        )
                     else
                       Column(
                         children: [
@@ -216,7 +225,7 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> {
                             children: [
                               Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trips[index].id))), icon: const Icon(Icons.chat, color: Colors.white, size: 18), label: const Text('محادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
                               const SizedBox(width: 4),
-                              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _showRatingDialog(trips[index].id), icon: const Icon(Icons.done_all, color: Colors.white, size: 18), label: const Text('إنهاء وتقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _showRatingDialog(trips[index].id), icon: const Icon(Icons.done_all, color: Colors.white, size: 18), label: const Text('إنهاء', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
                             ],
                           ),
                           const SizedBox(height: 8),

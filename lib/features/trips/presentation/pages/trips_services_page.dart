@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../home/home_page.dart';
+import 'trip_chat_page.dart'; // تأكد من مسار صفحة الشات
 
 // استدعاءات ملفات الكابتن 
 import 'driver_tabs/driver_radar_tab.dart';
@@ -36,7 +37,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     _setupPushNotifications();
   }
 
-  // --- تهيئة إشعارات الكابتن ---
   void _setupPushNotifications() async {
     await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
     await _saveDeviceToken();
@@ -46,6 +46,15 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     } else {
       await FirebaseMessaging.instance.unsubscribeFromTopic('drivers_radar');
     }
+
+    // التوجيه الذكي عند الضغط على الإشعار والتطبيق مفتوح في الخلفية
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      if (message.data['type'] == 'chat' && message.data['tripId'] != null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: message.data['tripId'])));
+      } else if (message.data['type'] == 'new_request' && widget.isDriver) {
+        _tabController.animateTo(0); // يروح للرادار
+      }
+    });
   }
 
   Future<void> _saveDeviceToken() async {
@@ -68,6 +77,31 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
+  // دالة لرسم التاب مع نقطة حمراء (Badge) لو فيه داتا
+  Widget _buildBadgeTab(String text, Stream<QuerySnapshot> stream) {
+    return Tab(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: stream,
+        builder: (context, snapshot) {
+          bool hasItems = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(text, style: const TextStyle(fontSize: 12)),
+              if (hasItems) ...[
+                const SizedBox(width: 4),
+                Container(
+                  width: 10, height: 10,
+                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                )
+              ]
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,15 +117,16 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.15), // تم التعديل هنا
+              color: Colors.black.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TabBar(
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
               indicator: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: Colors.white,
@@ -99,10 +134,18 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               ),
               labelColor: royalGreen,
               unselectedLabelColor: Colors.white,
-              labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
+              labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
               tabs: widget.isDriver
-                  ? const [Tab(text: 'رادار الطلبات'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')]
-                  : const [Tab(text: 'طلب مشوار'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
+                  ? [
+                      _buildBadgeTab('رادار الطلبات', FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').where('isDriverPost', isEqualTo: false).snapshots()),
+                      const Tab(text: 'إضافة رحلة'),
+                      _buildBadgeTab('طلباتي النشطة', FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
+                    ]
+                  : [
+                      const Tab(text: 'طلب مشوار'),
+                      const Tab(text: 'رحلات السفر'),
+                      _buildBadgeTab('متابعة طلباتي', FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
+                    ],
             ),
           ),
         ),

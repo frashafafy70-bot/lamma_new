@@ -34,6 +34,47 @@ class _DriverPostTripTabState extends State<DriverPostTripTab> {
     super.dispose();
   }
 
+  Future<void> _selectDateTime(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(primary: royalGreen, onPrimary: Colors.white, onSurface: Colors.black),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.light(primary: royalGreen, onPrimary: Colors.white, onSurface: Colors.black),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          String amPm = pickedTime.period == DayPeriod.am ? 'ص' : 'م';
+          int hour12 = pickedTime.hourOfPeriod == 0 ? 12 : pickedTime.hourOfPeriod;
+          String minute = pickedTime.minute.toString().padLeft(2, '0');
+          _postTimeCtrl.text = "${pickedDate.year}/${pickedDate.month}/${pickedDate.day} - $hour12:$minute $amPm";
+        });
+      }
+    }
+  }
+
   Future<void> _postNewTrip() async {
     if (_postFromCtrl.text.isEmpty) return;
     await FirebaseFirestore.instance.collection('trips').add({
@@ -77,7 +118,12 @@ class _DriverPostTripTabState extends State<DriverPostTripTab> {
               const SizedBox(height: 16),
               TextField(controller: _postToCtrl, decoration: InputDecoration(labelText: 'مدينة الوصول', prefixIcon: const Icon(Icons.flag), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
-              TextField(controller: _postTimeCtrl, decoration: InputDecoration(labelText: 'موعد وتاريخ التحرك', prefixIcon: const Icon(Icons.access_time), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+              TextField(
+                controller: _postTimeCtrl, 
+                readOnly: true, 
+                onTap: () => _selectDateTime(context),
+                decoration: InputDecoration(labelText: 'موعد وتاريخ التحرك', prefixIcon: const Icon(Icons.calendar_month), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))
+              ),
               const SizedBox(height: 16),
               TextField(controller: _postVehicleTypeCtrl, decoration: InputDecoration(labelText: 'نوع العربية (مثال: ملاكي، ميكروباص 14)', prefixIcon: const Icon(Icons.directions_car_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
