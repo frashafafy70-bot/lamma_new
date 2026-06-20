@@ -47,7 +47,7 @@ class _TripChatPageState extends State<TripChatPage> {
     super.dispose();
   }
 
-  // 📍 جلب الموقع الفعلي لتحديد مكان الكاميرا (بالطريقة الحديثة)
+  // 📍 جلب الموقع الفعلي لتحديد مكان الكاميرا 
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -67,7 +67,6 @@ class _TripChatPageState extends State<TripChatPage> {
       setState(() {
         _currentLatLng = LatLng(position.latitude, position.longitude);
       });
-      // تحريك الكاميرا فوراً لمكانك
       if (_mapController != null) {
         _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
       }
@@ -77,7 +76,6 @@ class _TripChatPageState extends State<TripChatPage> {
   Future<void> _checkUserRoleAndSetupTracking() async {
     DocumentSnapshot tripDoc = await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).get();
     
-    // الاحتفاظ بالتوكن وتحديثه فوراً عند فتح صفحة الشات لضمان وصول الرسائل الفورية
     try {
       String? token = await FirebaseMessaging.instance.getToken();
       if (token != null && currentUserId.isNotEmpty) {
@@ -118,15 +116,12 @@ class _TripChatPageState extends State<TripChatPage> {
     String text = _messageController.text.trim();
     _messageController.clear(); // تفريغ الحقل فوراً عشان السلاسة
 
-    // 1️⃣ إرسال الرسالة لقاعدة البيانات
-    // الإشعارات هتتبعت تلقائياً عن طريق كود index.js في السيرفر
     await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).collection('messages').add({
       'senderId': currentUserId,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // 2️⃣ النزول لآخر رسالة بنعومة
     if (_scrollController.hasClients) {
       _scrollController.animateTo(0.0, curve: Curves.easeOut, duration: const Duration(milliseconds: 300));
     }
@@ -157,7 +152,6 @@ class _TripChatPageState extends State<TripChatPage> {
   Widget build(BuildContext context) {
     if (_isLoading) return Scaffold(body: Center(child: CircularProgressIndicator(color: royalGreen)));
     
-    // متغير للتحقق إذا كانت لوحة المفاتيح مفتوحة أم لا
     bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
@@ -175,9 +169,13 @@ class _TripChatPageState extends State<TripChatPage> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            // 🗺️ الخريطة (بتختفي بنعومة لما الكيبورد تفتح)
-            if (!isKeyboardOpen)
-              SizedBox(
+            // التعديل السحري: الخريطة بتختفي لما الكيبورد تفتح بس بتفضل شغالة في الميموري عشان متعملش لاج!
+            Visibility(
+              visible: !isKeyboardOpen,
+              maintainState: true,
+              maintainAnimation: true,
+              maintainSize: false,
+              child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
                 child: StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots(),
@@ -186,7 +184,6 @@ class _TripChatPageState extends State<TripChatPage> {
                       var tripData = snapshot.data!.data() as Map<String, dynamic>;
                       _updateMarkers(tripData);
                       
-                      // 🌍 ضبط نقطة البداية
                       LatLng initialTarget = _currentLatLng ?? const LatLng(30.0444, 31.2357);
                       if (tripData['pickupLocation'] != null) {
                         initialTarget = LatLng(tripData['pickupLocation'].latitude, tripData['pickupLocation'].longitude);
@@ -212,6 +209,7 @@ class _TripChatPageState extends State<TripChatPage> {
                   }
                 ),
               ),
+            ),
 
             // ⚠️ شريط التنبيه
             Container(

@@ -44,8 +44,12 @@ void main() async {
       InitializationSettings(android: initializationSettingsAndroid);
   
   // ✅ التعديل الأول: رجعنا كلمة settings: عشان المحرر طالبها
+  // وتم إضافة onDidReceiveNotificationResponse لضمان فتح التطبيق عند الضغط على إشعار الـ Foreground
   await flutterLocalNotificationsPlugin.initialize(
     settings: initializationSettings, 
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      debugPrint("✅ تم الضغط على الإشعار والتطبيق مفتوح: ${response.payload}");
+    },
   );
 
   await flutterLocalNotificationsPlugin
