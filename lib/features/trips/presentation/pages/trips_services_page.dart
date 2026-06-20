@@ -38,7 +38,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   String _mapSelectionMode = 'none'; // 'none', 'pickup', 'destination'
   LatLng? _tempMapCenter; 
 
-  // 🔍 متغيرات بحث جوجل الحي (Places API) - مخصصة لمصر
+  // 🔍 متغيرات بحث جوجل الحي (Places API)
   final TextEditingController _mapSearchController = TextEditingController();
   final String googleApiKey = 'AIzaSyBTrwg28lBwTQt8owA9Cy9DOq_LQjFWwOA'; // 🔑 مفتاح جوجل
   List<dynamic> _placePredictions = [];
@@ -85,50 +85,67 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
-  // 🔔 دالة تسجيل الإشعارات
-  Future<void> _sendNotification(String receiverId, String title, String body) async {
-    if (receiverId.isEmpty) return;
-    await FirebaseFirestore.instance.collection('notifications').add({
-      'receiverId': receiverId,
-      'title': title,
-      'body': body,
-      'isRead': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-  }
-
-  // 📍 الحصول على الموقع بأعلى دقة ممكنة
+  // 📍 الحصول على الموقع بأعلى دقة ممكنة (مع تنبيهات وحل مشاكل الصلاحيات)
   Future<void> _getUserLocation() async {
+    setState(() => _isLoadingMap = true);
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) setState(() => _isLoadingMap = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ الرجاء تفعيل الـ GPS (الموقع) في الموبايل', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
+        setState(() => _isLoadingMap = false);
+      }
       return;
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _isLoadingMap = false);
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ تم إعطاء رفض لصلاحية الموقع', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+          setState(() => _isLoadingMap = false);
+        }
         return;
       }
     }
 
-    Position position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation));
-    if (mounted) {
-      LatLng newLoc = LatLng(position.latitude, position.longitude);
-      setState(() {
-        _pickupLocation = newLoc;
-        _isLoadingMap = false;
-        _markers.removeWhere((m) => m.markerId.value == 'pickup');
-        _markers.add(Marker(markerId: const MarkerId('pickup'), position: newLoc, infoWindow: const InfoWindow(title: 'موقعك الحالي'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)));
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ الصلاحية مرفوضة نهائياً. افتح الإعدادات لتفعيلها', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        Geolocator.openAppSettings();
+        setState(() => _isLoadingMap = false);
+      }
+      return;
+    }
+
+    // إذا وصلنا هنا، الصلاحيات تمام والـ GPS شغال
+    try {
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation);
+      if (mounted) {
+        LatLng newLoc = LatLng(position.latitude, position.longitude);
+        setState(() {
+          _pickupLocation = newLoc;
+          _isLoadingMap = false;
+          _markers.removeWhere((m) => m.markerId.value == 'pickup');
+          _markers.add(Marker(markerId: const MarkerId('pickup'), position: newLoc, infoWindow: const InfoWindow(title: 'موقعك الحالي'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)));
+          
+          if (_mapSelectionMode != 'none') {
+            _tempMapCenter = newLoc; 
+          }
+        });
         
-        if (_mapSelectionMode != 'none') {
-          _tempMapCenter = newLoc; 
+        if (_mapController != null) {
+          _mapController!.animateCamera(CameraUpdate.newLatLngZoom(newLoc, 18.5));
         }
-      });
-      // 🔍 زووم عالي جداً لتوضيح تفاصيل الشوارع
-      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(newLoc, 19.5));
+        
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ تم تحديد موقعك بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ في تحديد الموقع: $e', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+         setState(() => _isLoadingMap = false);
+      }
     }
   }
 
@@ -159,7 +176,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         var location = json.decode(response.body)['result']['geometry']['location'];
         LatLng latLng = LatLng(location['lat'], location['lng']);
         
-        _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 19.5)); 
+        _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 18.5)); 
         
         setState(() {
           _mapSearchController.text = description;
@@ -190,7 +207,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     });
     
     if (_mapController != null && _tempMapCenter != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_tempMapCenter!, 19.5));
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_tempMapCenter!, 18.5));
     }
   }
 
@@ -210,7 +227,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 mapType: MapType.normal, 
                 cloudMapId: '7dfd9ecde137762b8dc518b0', 
                 buildingsEnabled: true, 
-                initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 19.5),
+                initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 18.5),
                 myLocationEnabled: true, 
                 myLocationButtonEnabled: false, 
                 zoomControlsEnabled: false,
@@ -800,7 +817,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Future<void> _acceptTripRequest(String tripId, String agreedPrice, String passengerId) async {
     await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted', 'driverId': currentUserId, 'driverName': 'كابتن لَمَّة', 'finalPrice': agreedPrice});
-    await _sendNotification(passengerId, 'تم قبول طلبك! 🎉', 'الكابتن جاي في الطريق دلوقتي.');
     if(mounted) _tabController.animateTo(2); 
   }
 
@@ -818,7 +834,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             onPressed: () async {
               if (offerCtrl.text.isEmpty) return;
               await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'negotiating', 'driverId': currentUserId, 'driverName': 'كابتن لَمَّة', 'driverOffer': offerCtrl.text.trim()});
-              await _sendNotification(passengerId, 'عرض أجرة جديد 💰', 'كابتن لَمَّة عرض ${offerCtrl.text.trim()} جنيه لتوصيل طلبك.');
               if(mounted) { Navigator.pop(ctx); _tabController.animateTo(2); }
             },
             child: const Text('إرسال العرض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')),
@@ -830,12 +845,10 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Future<void> _acceptDriverOffer(String tripId, String driverId) async {
     await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted'});
-    await _sendNotification(driverId, 'عرضك اتقبل! ✅', 'العميل وافق على السعر، اتوكل على الله.');
   }
 
   Future<void> _rejectDriverOffer(String tripId, String driverId) async {
     await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'pending', 'driverId': null, 'driverOffer': null});
-    await _sendNotification(driverId, 'تم رفض العرض ❌', 'العميل رفض عرض السعر بتاعك للأسف.');
   }
 
   Future<void> _postNewTrip() async {
@@ -857,7 +870,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Future<void> _bookDriverPost(String tripId, String driverId) async {
     await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted', 'passengerId': currentUserId});
-    await _sendNotification(driverId, 'حجز جديد لرحلتك! 🧳', 'في عميل حجز مقعد معاك في رحلة السفر، تواصل معاه.');
     if(mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)));
   }
 

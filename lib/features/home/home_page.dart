@@ -960,7 +960,7 @@ class _HomePageState extends State<HomePage> {
               _buildListTile(
                 icon: Icons.person_outline_rounded, color: primaryNavy, title: 'تعديل البيانات الشخصية', 
                 onTap: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) =>  EditProfilePage()));
                   _loadUserProfile(); 
                 }
               ),
