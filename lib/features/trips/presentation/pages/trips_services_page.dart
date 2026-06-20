@@ -39,7 +39,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   List<dynamic> _placePredictions = [];
 
   String _tripCategory = 'داخلي'; 
-  String _vehicleType = 'سيارة'; // سيارة، موتوسيكل، توكتوك
+  String _vehicleType = 'سيارة'; 
   final TextEditingController _pickupController = TextEditingController(text: 'موقعي الحالي 📍');
   final TextEditingController _destinationController = TextEditingController();
   final TextEditingController _priceController = TextEditingController(); 
@@ -124,7 +124,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     _postSeatsCtrl.dispose();
     _postPriceCtrl.dispose();
     _mapSearchController.dispose();
-    // تأمين الـ Controller
     if (_mapController != null) {
       _mapController!.dispose();
       _mapController = null;
@@ -132,7 +131,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
-  // 📍 تم حل مشكلة الـ Crash بإضافة `if (mounted && _mapController != null)`
   Future<void> _getUserLocation() async {
     setState(() => _isLoadingMap = true);
 
@@ -168,7 +166,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           if (_mapSelectionMode != 'none') _tempMapCenter = newLoc; 
         });
         
-        // التأكد التام من أن الخريطة مازالت موجودة قبل عمل انيميشن (منع الكراش)
         if (mounted && _mapController != null) {
           try {
              _mapController!.animateCamera(CameraUpdate.newLatLngZoom(newLoc, 18.5));
@@ -176,7 +173,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             debugPrint("Map animation ignored due to dispose: $e");
           }
         }
-        // ✅ تم إخفاء رسالة (تم تحديد موقعك بنجاح) بناء على طلبك
       }
     } catch (e) {
       if (mounted) setState(() => _isLoadingMap = false);
@@ -241,7 +237,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
   }
 
-  // 🚀 تصميم أنيق وجديد لاختيار نوع المركبة (أفقي)
   Widget _buildVehicleTypeSelector() {
     List<Map<String, dynamic>> vehicles = [
       {'name': 'سيارة', 'icon': Icons.directions_car_rounded, 'color': Colors.blue},
@@ -450,22 +445,35 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     ],
 
                     if (!isErrand) ...[
-                      _buildVehicleTypeSelector(), // التصميم الجديد الأفقي
+                      _buildVehicleTypeSelector(), 
                       const SizedBox(height: 16),
                     ],
 
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: _pickupController, readOnly: true, onTap: () => _openMapSelection('pickup'), style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), decoration: InputDecoration(labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك', prefixIcon: IconButton(icon: Icon(isErrand ? Icons.storefront : Icons.my_location, color: Colors.green), onPressed: () => _openMapSelection('pickup')), border: const UnderlineInputBorder()))),
-                        IconButton(icon: const Icon(Icons.map_rounded, color: Colors.blue, size: 28), onPressed: () => _openMapSelection('pickup'))
-                      ],
+                    // ✅ تعديل: تم إزالة أيقونة الخريطة الزرقاء الجانبية 
+                    TextField(
+                      controller: _pickupController, 
+                      readOnly: true, 
+                      onTap: () => _openMapSelection('pickup'), 
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
+                      decoration: InputDecoration(
+                        labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك', 
+                        prefixIcon: IconButton(icon: Icon(isErrand ? Icons.storefront : Icons.my_location, color: Colors.green), onPressed: () => _openMapSelection('pickup')), 
+                        border: const UnderlineInputBorder()
+                      )
                     ),
+                    const SizedBox(height: 8),
                     
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: _destinationController, readOnly: true, onTap: () => _openMapSelection('destination'), style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), decoration: InputDecoration(labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول', prefixIcon: IconButton(icon: const Icon(Icons.flag, color: Colors.red), onPressed: () => _openMapSelection('destination')), border: const UnderlineInputBorder()))),
-                        IconButton(icon: const Icon(Icons.map_rounded, color: Colors.blue, size: 28), onPressed: () => _openMapSelection('destination'))
-                      ],
+                    // ✅ تعديل: تم إزالة أيقونة الخريطة الزرقاء الجانبية
+                    TextField(
+                      controller: _destinationController, 
+                      readOnly: true, 
+                      onTap: () => _openMapSelection('destination'), 
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
+                      decoration: InputDecoration(
+                        labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول', 
+                        prefixIcon: IconButton(icon: const Icon(Icons.flag, color: Colors.red), onPressed: () => _openMapSelection('destination')), 
+                        border: const UnderlineInputBorder()
+                      )
                     ),
 
                     const SizedBox(height: 12),
@@ -731,7 +739,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                         ],
                       ),
                       const SizedBox(height: 8),
-                      // زرار الإلغاء للكابتن
                       OutlinedButton.icon(onPressed: () => _cancelTrip(trips[index].id, 'driver'), icon: const Icon(Icons.cancel, color: Colors.red, size: 18), label: const Text('إلغاء واعتذار', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))
                   ],
                 ),
@@ -774,7 +781,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
   }
 
-  // 🚀 دالة الإلغاء الجديدة
   Future<void> _cancelTrip(String tripId, String canceledByRole) async {
     bool confirm = await showDialog(
       context: context,
@@ -791,7 +797,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     if (confirm) {
       await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
         'status': 'canceled',
-        'canceledBy': canceledByRole // 'driver' or 'passenger'
+        'canceledBy': canceledByRole 
       });
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء الرحلة بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
@@ -854,7 +860,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         bottom: TabBar(
           controller: _tabController, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: widget.isDriver ? const [Tab(text: 'الرادار'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] : const [Tab(text: 'طلب مشوار/أوردر'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة')],
+          // ✅ تعديل: تم تغيير كلمة "متابعة" إلى "متابعة طلباتي" للعميل
+          tabs: widget.isDriver ? const [Tab(text: 'الرادار'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] : const [Tab(text: 'طلب مشوار/أوردر'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
         ),
       ),
       body: Directionality(
