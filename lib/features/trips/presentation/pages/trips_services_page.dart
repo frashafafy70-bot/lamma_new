@@ -237,6 +237,56 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
   }
 
+  // 🚀 التصميم الجديد لاختيار نوع الطلب (أسرع وأكثر استجابة من الـ SegmentedButton)
+  Widget _buildTripCategorySelector() {
+    List<Map<String, dynamic>> categories = [
+      {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded},
+      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded},
+      {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: categories.map((c) {
+          bool isSelected = _tripCategory == c['id'];
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _tripCategory = c['id'];
+                  _mapSelectionMode = 'none';
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isSelected ? [const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(c['icon'], color: isSelected ? royalGreen : Colors.grey.shade600, size: 16),
+                    const SizedBox(width: 4),
+                    Text(c['name'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? royalGreen : Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildVehicleTypeSelector() {
     List<Map<String, dynamic>> vehicles = [
       {'name': 'سيارة', 'icon': Icons.directions_car_rounded, 'color': Colors.blue},
@@ -422,19 +472,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'داخلي', label: Text('توصيل', style: TextStyle(fontFamily: 'Cairo')), icon: Icon(Icons.location_city_rounded)),
-                          ButtonSegment(value: 'طلبات', label: Text('شراء طلبات', style: TextStyle(fontFamily: 'Cairo')), icon: Icon(Icons.shopping_bag_rounded)),
-                          ButtonSegment(value: 'خارجي', label: Text('سفر', style: TextStyle(fontFamily: 'Cairo')), icon: Icon(Icons.emoji_transportation_rounded)),
-                        ],
-                        selected: {_tripCategory},
-                        onSelectionChanged: (Set<String> newSelection) => setState(() { _tripCategory = newSelection.first; _mapSelectionMode = 'none'; }),
-                        style: ButtonStyle(backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? royalGreen.withValues(alpha: 0.1) : Colors.transparent)),
-                      ),
-                    ),
+                    // 🚀 استبدال الـ SegmentedButton بالزر المخصص المضمون
+                    _buildTripCategorySelector(),
                     const SizedBox(height: 16),
                     
                     if (isErrand) ...[
@@ -449,7 +488,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                       const SizedBox(height: 16),
                     ],
 
-                    // ✅ تعديل: تم إزالة أيقونة الخريطة الزرقاء الجانبية 
                     TextField(
                       controller: _pickupController, 
                       readOnly: true, 
@@ -463,7 +501,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     ),
                     const SizedBox(height: 8),
                     
-                    // ✅ تعديل: تم إزالة أيقونة الخريطة الزرقاء الجانبية
                     TextField(
                       controller: _destinationController, 
                       readOnly: true, 
@@ -860,7 +897,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         bottom: TabBar(
           controller: _tabController, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
-          // ✅ تعديل: تم تغيير كلمة "متابعة" إلى "متابعة طلباتي" للعميل
           tabs: widget.isDriver ? const [Tab(text: 'الرادار'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] : const [Tab(text: 'طلب مشوار/أوردر'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
         ),
       ),
