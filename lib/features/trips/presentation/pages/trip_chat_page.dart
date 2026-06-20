@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -76,6 +77,16 @@ class _TripChatPageState extends State<TripChatPage> {
   Future<void> _checkUserRoleAndSetupTracking() async {
     DocumentSnapshot tripDoc = await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).get();
     
+    // الاحتفاظ بالتوكن وتحديثه فوراً عند فتح صفحة الشات لضمان وصول الرسائل الفورية
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null && currentUserId.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(currentUserId).set({
+          'fcmToken': token
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
+
     if (tripDoc.exists) {
       var data = tripDoc.data() as Map<String, dynamic>;
       setState(() {

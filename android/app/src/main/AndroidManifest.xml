@@ -2,11 +2,9 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -20,7 +18,7 @@
         
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="lamma_channel_v2" />
+            android:value="lamma_final_sound" />
 
         <meta-data 
             android:name="com.google.android.geo.API_KEY"

@@ -174,28 +174,10 @@ exports.sendNewTripNotification = functions.firestore
         const timeString = getCurrentTimeFormatted();
 
         try {
-            // البحث عن الكباتن اللي دورهم driver
-            const driversSnapshot = await admin.firestore().collection('users').where('roles', 'array-contains', 'driver').get();
-            if (driversSnapshot.empty) {
-                console.log('لم يتم العثور على كباتن (driver) لإرسال الإشعار');
-                return null;
-            }
-
-            const tokens = [];
-            driversSnapshot.forEach(doc => {
-                if (doc.data().fcmToken) tokens.push(doc.data().fcmToken);
-            });
-
-            if (tokens.length === 0) {
-                console.log('تم العثور على كباتن ولكن بدون fcmToken');
-                return null;
-            }
-
-            // اقتراح السعر لو موجود، أو كلمة "غير محدد"
             const price = tripData.offeredPrice || tripData.price || tripData.fare || 'غير محدد';
 
             const message = {
-                tokens: tokens,
+                topic: 'drivers_radar',
                 notification: {
                     title: 'طلب مشوار جديد متاح! 🚖',
                     body: `السعر المقترح: ${price} ج | 🕒 ${timeString}`
@@ -214,8 +196,8 @@ exports.sendNewTripNotification = functions.firestore
                 }
             };
 
-            await admin.messaging().sendEachForMulticast(message);
-            console.log(`تم إرسال إشعار المشوار الجديد بنجاح إلى ${tokens.length} كابتن`);
+            await admin.messaging().send(message);
+            console.log('تم إرسال إشعار المشوار الجديد بنجاح');
         } catch (error) { 
             console.error('خطأ في إرسال إشعار المشوار الجديد:', error); 
         }

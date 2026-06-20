@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'trip_chat_page.dart';
@@ -38,7 +39,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   String _mapSelectionMode = 'none'; // 'none', 'pickup', 'destination'
   LatLng? _tempMapCenter; 
 
-  // 🔍 متغيرات بحث جوجل الحي (Places API)
+  // 🔍 متغيرات بحث جوجل الحي
   final TextEditingController _mapSearchController = TextEditingController();
   final String googleApiKey = 'AIzaSyBTrwg28lBwTQt8owA9Cy9DOq_LQjFWwOA'; // 🔑 مفتاح جوجل
   List<dynamic> _placePredictions = [];
@@ -65,7 +66,70 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // 🔔 طلب جميع الصلاحيات فوراً عند فتح الصفحة
+    _requestAllPermissions();
+    
     _getUserLocation();
+    _setupPushNotifications(); 
+  }
+
+  // 🔔 دالة طلب الصلاحيات الأساسية للموقع والإشعارات
+  Future<void> _requestAllPermissions() async {
+    // 1. طلب صلاحية الموقع
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      await Geolocator.requestPermission();
+    }
+    
+    // 2. طلب صلاحية الإشعارات
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    // 3. حفظ الـ Token بعد التأكد من الصلاحيات
+    await _saveDeviceToken();
+  }
+
+  // 🔔 دالة اشتراك الكباتن في الإشعارات الجماعية
+  void _setupPushNotifications() async {
+    if (widget.isDriver) {
+      await FirebaseMessaging.instance.subscribeToTopic('drivers_radar');
+    } else {
+      await FirebaseMessaging.instance.unsubscribeFromTopic('drivers_radar');
+    }
+  }
+
+  // 💾 دالة مساعدة لحفظ وتحديث الـ fcmToken الخاص بالمستخدم الحالي
+  Future<void> _saveDeviceToken() async {
+    if (currentUserId.isEmpty) return;
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('users').doc(currentUserId).set({
+          'fcmToken': token,
+        }, SetOptions(merge: true));
+        debugPrint("🔹 تم تحديث الـ FCM Token بنجاح");
+      }
+    } catch (e) {
+      debugPrint("❌ خطأ أثناء حفظ الـ Token: $e");
+    }
+  }
+
+  // ⏰ دالة لتنسيق الوقت والتاريخ
+  String _formatDateTime(Timestamp? timestamp) {
+    if (timestamp == null) return 'الآن';
+    DateTime dt = timestamp.toDate();
+    String amPm = dt.hour >= 12 ? 'م' : 'ص';
+    int hour12 = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    String minute = dt.minute.toString().padLeft(2, '0');
+    return '${dt.year}/${dt.month}/${dt.day} - $hour12:$minute $amPm';
   }
 
   @override
@@ -85,41 +149,28 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
-  // 📍 الحصول على الموقع بأعلى دقة ممكنة (مع تنبيهات وحل مشاكل الصلاحيات)
+  // 📍 الحصول على الموقع بأعلى دقة ممكنة
   Future<void> _getUserLocation() async {
     setState(() => _isLoadingMap = true);
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ الرجاء تفعيل الـ GPS (الموقع) في الموبايل', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ الرجاء تفعيل الـ GPS (الموقع)', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.orange));
         setState(() => _isLoadingMap = false);
       }
       return;
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ تم إعطاء رفض لصلاحية الموقع', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
-          setState(() => _isLoadingMap = false);
-        }
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ الصلاحية مرفوضة نهائياً. افتح الإعدادات لتفعيلها', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
-        Geolocator.openAppSettings();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ الصلاحية مرفوضة، يرجى تفعيلها من الإعدادات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
         setState(() => _isLoadingMap = false);
       }
       return;
     }
 
-    // إذا وصلنا هنا، الصلاحيات تمام والـ GPS شغال
     try {
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation);
       if (mounted) {
@@ -138,7 +189,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         if (_mapController != null) {
           _mapController!.animateCamera(CameraUpdate.newLatLngZoom(newLoc, 18.5));
         }
-        
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ تم تحديد موقعك بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -155,7 +205,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       setState(() => _placePredictions = []); 
       return; 
     }
-    
     String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$googleApiKey&language=ar&components=country:eg";
     try {
       var response = await http.get(Uri.parse(url));
@@ -175,9 +224,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       if (response.statusCode == 200) {
         var location = json.decode(response.body)['result']['geometry']['location'];
         LatLng latLng = LatLng(location['lat'], location['lng']);
-        
         _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 18.5)); 
-        
         setState(() {
           _mapSearchController.text = description;
           _placePredictions = [];
@@ -195,8 +242,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     FocusScope.of(context).unfocus(); 
     setState(() {
       _mapSelectionMode = mode;
-      LatLng fallbackLoc = const LatLng(30.0444, 31.2357); // الإحداثيات الافتراضية
-      
+      LatLng fallbackLoc = const LatLng(30.0444, 31.2357);
       if (mode == 'pickup') {
         _tempMapCenter = _pickupLocation ?? fallbackLoc;
         _mapSearchController.text = _pickupController.text.contains('📍') ? '' : _pickupController.text;
@@ -205,7 +251,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         _mapSearchController.text = _destinationController.text.contains('📍') ? '' : _destinationController.text;
       }
     });
-    
     if (_mapController != null && _tempMapCenter != null) {
       _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_tempMapCenter!, 18.5));
     }
@@ -480,7 +525,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   }
 
   // ==========================================
-  // باقي الدوال ثابتة ومقفلة 100%
+  // شاشات المتابعة (الرادار والطلبات النشطة ورحلات السفر)
   // ==========================================
 
   Widget _buildAvailableTravelsTab() {
@@ -539,6 +584,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var trips = snapshot.data!.docs.where((doc) => (doc.data() as Map)['isDriverPost'] != true).toList();
+        trips.sort((a, b) => ((b.data() as Map)['createdAt'] as Timestamp?)?.compareTo(((a.data() as Map)['createdAt'] as Timestamp?) ?? Timestamp.now()) ?? 0);        
         if (trips.isEmpty) return const Center(child: Text('لم تقم بأي طلبات بعد.', style: TextStyle(fontFamily: 'Cairo')));
 
         return ListView.builder(
@@ -557,7 +603,20 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(isErrand ? 'طلب شراء وتوصيل 🛍️' : 'مشوار توصيل 🚖', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(isErrand ? 'طلب شراء وتوصيل 🛍️' : 'مشوار توصيل 🚖', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(_formatDateTime(data['createdAt']), style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     Text(isErrand ? 'أجرة التوصيل: ${data['suggestedPrice']} ج' : '${data['vehicleType']} - السعر المقترح: ${data['suggestedPrice']} ج', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 15)),
                     if (isErrand && data['errandDetails'] != null) ...[
                       Text('المطلوب: ${data['errandDetails']}', style: const TextStyle(fontFamily: 'Cairo', color: Colors.indigo, fontWeight: FontWeight.w600)),
@@ -624,7 +683,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   Widget _buildDriverRadarTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: false).where('status', isEqualTo: 'pending').snapshots(),
+      stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: false).where('status', isEqualTo: 'pending').orderBy('createdAt', descending: true).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: royalGreen));
         var trips = snapshot.data!.docs;
@@ -645,9 +704,21 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isErrand ? Colors.indigo.shade50 : royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                      child: Text(isErrand ? '🛍️ طلب شراء أوردر' : '🚖 مشوار توصيل', style: TextStyle(color: isErrand ? Colors.indigo : royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 12)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isErrand ? Colors.indigo.shade50 : royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                          child: Text(isErrand ? '🛍️ طلب شراء أوردر' : '🚖 مشوار توصيل', style: TextStyle(color: isErrand ? Colors.indigo : royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 12)),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(_formatDateTime(data['createdAt']), style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(isErrand ? 'العميل: ${data['passengerName']}' : 'المركبة: ${data['vehicleType']} - العميل: ${data['passengerName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'Cairo', color: Colors.black87)),
