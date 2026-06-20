@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'home_page.dart'; 
+import '../../../home/home_page.dart'; 
 import 'sign_up_page.dart'; 
 import 'forgot_password_page.dart'; 
 
@@ -77,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       
       // التوجيه للصفحة الرئيسية مع تصفير مسار العودة
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) =>  HomePage()), (route) => false);
 
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -185,7 +185,7 @@ class _LoginPageState extends State<LoginPage> {
                         Text('ليس لديك حساب؟', style: TextStyle(color: Colors.grey.shade300, fontFamily: 'Cairo')),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpPage()));
+                            Navigator.push(context, MaterialPageRoute(builder: (context) =>  SignUpPage()));
                           },
                           child: Text('سجل الآن', style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Cairo')),
                         ),

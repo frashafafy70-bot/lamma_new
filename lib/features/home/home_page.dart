@@ -11,11 +11,11 @@ import 'dart:io';
 import 'package:http/http.dart' as http; 
 
 // استيراد شاشات المنصة الشاملة
-import 'legal_services_page.dart';
-import 'trips_services_page.dart';
-import 'medical_services_page.dart';
-import 'login_page.dart'; 
-import 'edit_profile_page.dart'; 
+import '../legal/presentation/pages/legal_services_page.dart';
+import '../trips/presentation/pages/trips_services_page.dart';
+import '../medical/medical_services_page.dart';
+import '../auth/presentation/pages/login_page.dart'; 
+import '../profile/edit_profile_page.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

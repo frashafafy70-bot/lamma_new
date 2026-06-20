@@ -105,14 +105,17 @@ class _TripChatPageState extends State<TripChatPage> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
     String text = _messageController.text.trim();
-    _messageController.clear();
+    _messageController.clear(); // تفريغ الحقل فوراً عشان السلاسة
 
+    // 1️⃣ إرسال الرسالة لقاعدة البيانات
+    // الإشعارات هتتبعت تلقائياً عن طريق كود index.js في السيرفر
     await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).collection('messages').add({
       'senderId': currentUserId,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
+    // 2️⃣ النزول لآخر رسالة بنعومة
     if (_scrollController.hasClients) {
       _scrollController.animateTo(0.0, curve: Curves.easeOut, duration: const Duration(milliseconds: 300));
     }
@@ -142,6 +145,8 @@ class _TripChatPageState extends State<TripChatPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return Scaffold(body: Center(child: CircularProgressIndicator(color: royalGreen)));
+    
+    // متغير للتحقق إذا كانت لوحة المفاتيح مفتوحة أم لا
     bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
@@ -159,6 +164,7 @@ class _TripChatPageState extends State<TripChatPage> {
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
+            // 🗺️ الخريطة (بتختفي بنعومة لما الكيبورد تفتح)
             if (!isKeyboardOpen)
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
@@ -169,7 +175,7 @@ class _TripChatPageState extends State<TripChatPage> {
                       var tripData = snapshot.data!.data() as Map<String, dynamic>;
                       _updateMarkers(tripData);
                       
-                      // 🌍 ضبط نقطة البداية لتجنب التحرير
+                      // 🌍 ضبط نقطة البداية
                       LatLng initialTarget = _currentLatLng ?? const LatLng(30.0444, 31.2357);
                       if (tripData['pickupLocation'] != null) {
                         initialTarget = LatLng(tripData['pickupLocation'].latitude, tripData['pickupLocation'].longitude);
@@ -185,7 +191,6 @@ class _TripChatPageState extends State<TripChatPage> {
                         zoomGesturesEnabled: true, 
                         onMapCreated: (controller) {
                            _mapController = controller;
-                           // توجيه الكاميرا للموقع بمجرد تحميل الخريطة لو متاح
                            if (_currentLatLng != null) {
                              _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
                            }
@@ -197,6 +202,7 @@ class _TripChatPageState extends State<TripChatPage> {
                 ),
               ),
 
+            // ⚠️ شريط التنبيه
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -208,6 +214,7 @@ class _TripChatPageState extends State<TripChatPage> {
               ),
             ),
 
+            // 💬 منطقة الرسائل
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).collection('messages').orderBy('timestamp', descending: true).snapshots(),
@@ -278,6 +285,7 @@ class _TripChatPageState extends State<TripChatPage> {
               ),
             ),
 
+            // ✍️ حقل إدخال الرسالة
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))]),
@@ -288,6 +296,8 @@ class _TripChatPageState extends State<TripChatPage> {
                       child: TextField(
                         controller: _messageController,
                         style: const TextStyle(fontFamily: 'Cairo'),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
                         decoration: InputDecoration(
                           hintText: 'اكتب رسالتك هنا...',
                           hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13),

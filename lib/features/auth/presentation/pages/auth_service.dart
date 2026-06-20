@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // استيراد الصفحة الرئيسية (المخ الذكي للمنصة)
-import 'home_page.dart'; 
+import '../../../home/home_page.dart'; 
 import 'login_page.dart';
 
 class AuthService {

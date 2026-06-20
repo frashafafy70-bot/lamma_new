@@ -11,7 +11,7 @@ import 'legal_calculators_page.dart';
 import 'lawsuit_generator_page.dart'; 
 import 'lawsuit_archive_page.dart'; 
 import 'legal_library_page.dart';
-import 'home_page.dart';
+import '../../../home/home_page.dart';
 
 class LegalServicesPage extends StatefulWidget {
   final bool isLawyer;

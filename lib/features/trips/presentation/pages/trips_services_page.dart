@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, deprecated_member_use
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'trip_chat_page.dart';
-import 'home_page.dart';
+import '../../../home/home_page.dart';
 
 class TripsServicesPage extends StatefulWidget {
   final bool isDriver;
@@ -38,9 +38,9 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   String _mapSelectionMode = 'none'; // 'none', 'pickup', 'destination'
   LatLng? _tempMapCenter; 
 
-  // 🔍 متغيرات بحث جوجل الحي (Places API)
+  // 🔍 متغيرات بحث جوجل الحي (Places API) - مخصصة لمصر
   final TextEditingController _mapSearchController = TextEditingController();
-  final String googleApiKey = 'AIzaSyBTrwg28lBwTQt8owA9Cy9DOq_LQjFWwOA'; // 🔑 مفتاح جوجل بتاعك
+  final String googleApiKey = 'AIzaSyBTrwg28lBwTQt8owA9Cy9DOq_LQjFWwOA'; // 🔑 مفتاح جوجل
   List<dynamic> _placePredictions = [];
 
   // 📝 متغيرات العميل
@@ -54,7 +54,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   final TextEditingController _errandDetailsController = TextEditingController();
   final TextEditingController _errandEstimatedCostController = TextEditingController(); 
   
-  // حقول الكابتن
+  // 🚖 حقول الكابتن
   final TextEditingController _postFromCtrl = TextEditingController();
   final TextEditingController _postToCtrl = TextEditingController();
   final TextEditingController _postTimeCtrl = TextEditingController();
@@ -101,7 +101,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   Future<void> _getUserLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() => _isLoadingMap = false);
+      if (mounted) setState(() => _isLoadingMap = false);
       return;
     }
 
@@ -109,7 +109,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        setState(() => _isLoadingMap = false);
+        if (mounted) setState(() => _isLoadingMap = false);
         return;
       }
     }
@@ -127,14 +127,17 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           _tempMapCenter = newLoc; 
         }
       });
-      // 🔍 زووم عالي جداً (19.5) عشان تفاصيل الشوارع تظهر بوضوح
+      // 🔍 زووم عالي جداً لتوضيح تفاصيل الشوارع
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(newLoc, 19.5));
     }
   }
 
   // 🔍 البحث عن الأماكن في جوجل
   void _searchPlaces(String input) async {
-    if (input.isEmpty) { setState(() => _placePredictions = []); return; }
+    if (input.isEmpty) { 
+      setState(() => _placePredictions = []); 
+      return; 
+    }
     
     String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$googleApiKey&language=ar&components=country:eg";
     try {
@@ -175,7 +178,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     FocusScope.of(context).unfocus(); 
     setState(() {
       _mapSelectionMode = mode;
-      LatLng fallbackLoc = const LatLng(30.0444, 31.2357); 
+      LatLng fallbackLoc = const LatLng(30.0444, 31.2357); // الإحداثيات الافتراضية
       
       if (mode == 'pickup') {
         _tempMapCenter = _pickupLocation ?? fallbackLoc;
@@ -205,8 +208,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             ? Center(child: CircularProgressIndicator(color: royalGreen))
             : GoogleMap(
                 mapType: MapType.normal, 
-                // 🌟 تم تجاهل التحذير واستخدام المتغير المضمون عشان مفيش حاجة تضرب
-                // ignore: deprecated_member_use
                 cloudMapId: '7dfd9ecde137762b8dc518b0', 
                 buildingsEnabled: true, 
                 initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 19.5),

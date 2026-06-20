@@ -11,7 +11,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_options.dart';
 
 import 'features/auth/presentation/pages/login_page.dart'; 
-import 'features/auth/presentation/pages/home_page.dart'; 
+import 'features/home/home_page.dart'; 
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -181,7 +181,7 @@ class _LammaAppState extends State<LammaApp> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return snapshot.hasData ? const HomePage() : const LoginPage(); 
+          return snapshot.hasData ?  HomePage() :  LoginPage(); 
         },
       ), 
     );
