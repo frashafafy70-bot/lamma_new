@@ -40,7 +40,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
 
   String _tripCategory = 'داخلي'; 
   String _vehicleType = 'سيارة'; 
-  final TextEditingController _pickupController = TextEditingController(text: 'موقعي الحالي 📍');
+  // ✅ تم إزالة الدبوس الأحمر
+  final TextEditingController _pickupController = TextEditingController(text: 'موقعي الحالي');
   final TextEditingController _destinationController = TextEditingController();
   final TextEditingController _priceController = TextEditingController(); 
   
@@ -226,10 +227,10 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       LatLng fallbackLoc = const LatLng(30.0444, 31.2357);
       if (mode == 'pickup') {
         _tempMapCenter = _pickupLocation ?? fallbackLoc;
-        _mapSearchController.text = _pickupController.text.contains('📍') ? '' : _pickupController.text;
+        _mapSearchController.text = _pickupController.text.isNotEmpty ? _pickupController.text : '';
       } else {
         _tempMapCenter = _destinationLocation ?? _pickupLocation ?? fallbackLoc;
-        _mapSearchController.text = _destinationController.text.contains('📍') ? '' : _destinationController.text;
+        _mapSearchController.text = _destinationController.text.isNotEmpty ? _destinationController.text : '';
       }
     });
     if (mounted && _mapController != null && _tempMapCenter != null) {
@@ -237,7 +238,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
   }
 
-  // 🚀 التصميم الجديد لاختيار نوع الطلب (أسرع وأكثر استجابة من الـ SegmentedButton)
   Widget _buildTripCategorySelector() {
     List<Map<String, dynamic>> categories = [
       {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded},
@@ -430,7 +430,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                         onPressed: () {
                           setState(() {
                             LatLng finalLoc = _tempMapCenter ?? const LatLng(30.0444, 31.2357);
-                            String locationText = _mapSearchController.text.trim().isNotEmpty ? _mapSearchController.text.trim() : "تم التحديد من الخريطة 📍";
+                            // ✅ إزالة الإيموجي من نص الخريطة
+                            String locationText = _mapSearchController.text.trim().isNotEmpty ? _mapSearchController.text.trim() : "تم التحديد من الخريطة";
 
                             if (_mapSelectionMode == 'pickup') {
                               _pickupLocation = finalLoc;
@@ -472,14 +473,33 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 🚀 استبدال الـ SegmentedButton بالزر المخصص المضمون
                     _buildTripCategorySelector(),
                     const SizedBox(height: 16),
                     
                     if (isErrand) ...[
-                      TextField(controller: _errandDetailsController, style: const TextStyle(fontFamily: 'Cairo', fontSize: 13), decoration: const InputDecoration(labelText: 'اكتب طلباتك (مثال: هاتلي أكل من مطعم...)', prefixIcon: Icon(Icons.shopping_basket, color: Colors.orange), border: UnderlineInputBorder())),
-                      const SizedBox(height: 8),
-                      TextField(controller: _errandEstimatedCostController, keyboardType: TextInputType.number, style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo), decoration: const InputDecoration(labelText: 'سعر الطلبات التقريبي (اللي الكابتن هيدفعه)', suffixText: 'جنيه', prefixIcon: Icon(Icons.account_balance_wallet, color: Colors.indigo), border: UnderlineInputBorder())),
+                      TextField(
+                        controller: _errandDetailsController, 
+                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 13), 
+                        decoration: InputDecoration(
+                          labelText: 'اكتب طلباتك (مثال: هاتلي أكل من مطعم...)', 
+                          prefixIcon: const Icon(Icons.shopping_basket, color: Colors.orange), 
+                          filled: true, fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                        )
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _errandEstimatedCostController, 
+                        keyboardType: TextInputType.number, 
+                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo), 
+                        decoration: InputDecoration(
+                          labelText: 'سعر الطلبات التقريبي', 
+                          suffixText: 'جنيه', 
+                          prefixIcon: const Icon(Icons.account_balance_wallet, color: Colors.indigo), 
+                          filled: true, fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                        )
+                      ),
                       const SizedBox(height: 16),
                     ],
 
@@ -488,6 +508,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                       const SizedBox(height: 16),
                     ],
 
+                    // ✅ التصميم الجديد الأنيق لحقل التحرك
                     TextField(
                       controller: _pickupController, 
                       readOnly: true, 
@@ -495,12 +516,14 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                       style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
                       decoration: InputDecoration(
                         labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك', 
-                        prefixIcon: IconButton(icon: Icon(isErrand ? Icons.storefront : Icons.my_location, color: Colors.green), onPressed: () => _openMapSelection('pickup')), 
-                        border: const UnderlineInputBorder()
+                        prefixIcon: const Icon(Icons.my_location, color: Colors.green), 
+                        filled: true, fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                       )
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     
+                    // ✅ التصميم الجديد الأنيق لحقل الوصول
                     TextField(
                       controller: _destinationController, 
                       readOnly: true, 
@@ -508,19 +531,33 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                       style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
                       decoration: InputDecoration(
                         labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول', 
-                        prefixIcon: IconButton(icon: const Icon(Icons.flag, color: Colors.red), onPressed: () => _openMapSelection('destination')), 
-                        border: const UnderlineInputBorder()
+                        prefixIcon: const Icon(Icons.location_on, color: Colors.red), 
+                        filled: true, fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                       )
                     ),
 
                     const SizedBox(height: 12),
-                    TextField(controller: _priceController, keyboardType: TextInputType.number, style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold), decoration: InputDecoration(labelText: isErrand ? 'أجرة التوصيل للكابتن (ج)' : 'سعرك (ج)', prefixIcon: const Icon(Icons.payments, color: Colors.green), border: const UnderlineInputBorder())),
+                    
+                    // ✅ التصميم الجديد الأنيق لحقل السعر (بدون (ج) وإضافة جنيه في النهاية)
+                    TextField(
+                      controller: _priceController, 
+                      keyboardType: TextInputType.number, 
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold), 
+                      decoration: InputDecoration(
+                        labelText: isErrand ? 'أجرة التوصيل للكابتن' : 'سعرك المقترح', 
+                        suffixText: 'جنيه',
+                        prefixIcon: const Icon(Icons.payments, color: Colors.green), 
+                        filled: true, fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                      )
+                    ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                       onPressed: _isSubmittingTrip ? null : _createNewTripRequest,
-                      child: _isSubmittingTrip ? const CircularProgressIndicator(color: Colors.white) : Text(isErrand ? 'إرسال الطلب للكباتن 🛍️' : 'طلب الكابتن وتأكيد السعر 🚀', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                      child: _isSubmittingTrip ? const CircularProgressIndicator(color: Colors.white) : Text(isErrand ? 'إرسال الطلب للكباتن 🚀' : 'طلب الكابتن وتأكيد السعر 🚀', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                     )
                   ],
                 ),
@@ -894,10 +931,33 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         title: Text(widget.isDriver ? 'لوحة الكابتن 🚖' : 'خدمات لَمَّة 📍', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: royalGreen, foregroundColor: Colors.white, centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.home_rounded), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()))),
-        bottom: TabBar(
-          controller: _tabController, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: widget.isDriver ? const [Tab(text: 'الرادار'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] : const [Tab(text: 'طلب مشوار/أوردر'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
+        
+        // ✅ التصميم الجديد "الكبسولة" للتابات العلوية 
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.15), // لون خلفية الكبسولة
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent, // شيلنا الخط اللي تحت التاب
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white, // لون الزرار المتحدد
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              labelColor: royalGreen, // لون الكلام المتحدد
+              unselectedLabelColor: Colors.white, // لون الكلام اللي مش متحدد
+              labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
+              tabs: widget.isDriver 
+                  ? const [Tab(text: 'الرادار'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] 
+                  : const [Tab(text: 'طلب مشوار'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
+            ),
+          ),
         ),
       ),
       body: Directionality(
