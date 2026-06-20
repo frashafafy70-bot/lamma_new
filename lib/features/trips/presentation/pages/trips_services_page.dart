@@ -23,6 +23,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   final Color royalGreen = const Color(0xFF1B4332);
   late TabController _tabController;
+  final Map<String, bool> _cancellationTimers = {}; 
 
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {}; 
@@ -50,7 +51,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   final TextEditingController _postFromCtrl = TextEditingController();
   final TextEditingController _postToCtrl = TextEditingController();
   final TextEditingController _postTimeCtrl = TextEditingController();
-  // ✅ المتحكم الجديد لنوع العربية في رحلات السفر
   final TextEditingController _postVehicleTypeCtrl = TextEditingController();
   final TextEditingController _postSeatsCtrl = TextEditingController();
   final TextEditingController _postPriceCtrl = TextEditingController();
@@ -119,7 +119,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     _postFromCtrl.dispose();
     _postToCtrl.dispose();
     _postTimeCtrl.dispose();
-    _postVehicleTypeCtrl.dispose(); // ✅ إغلاق المتحكم الجديد
+    _postVehicleTypeCtrl.dispose(); 
     _postSeatsCtrl.dispose();
     _postPriceCtrl.dispose();
     _mapSearchController.dispose();
@@ -334,262 +334,279 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     bool isErrand = _tripCategory == 'طلبات';
     bool isPickingMap = _mapSelectionMode != 'none'; 
 
-    return Stack(
-      children: [
-        _isLoadingMap
-            ? Center(child: CircularProgressIndicator(color: royalGreen))
-            : GoogleMap(
-                mapType: MapType.normal, 
-                buildingsEnabled: true, 
-                initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 18.5),
-                myLocationEnabled: true, 
-                myLocationButtonEnabled: false, 
-                zoomControlsEnabled: false,
-                markers: isPickingMap ? {} : _markers, 
-                onMapCreated: (controller) => _mapController = controller,
-                onCameraMove: (CameraPosition position) {
-                  if (isPickingMap) _tempMapCenter = position.target;
-                },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            _isLoadingMap
+                ? Center(child: CircularProgressIndicator(color: royalGreen))
+                : GoogleMap(
+                    mapType: MapType.normal, 
+                    buildingsEnabled: true, 
+                    initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 18.5),
+                    myLocationEnabled: true, 
+                    myLocationButtonEnabled: false, 
+                    zoomControlsEnabled: false,
+                    markers: isPickingMap ? {} : _markers, 
+                    onMapCreated: (controller) => _mapController = controller,
+                    onCameraMove: (CameraPosition position) {
+                      if (isPickingMap) _tempMapCenter = position.target;
+                    },
+                  ),
+                  
+            if (isPickingMap)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 45.0), 
+                  child: Icon(
+                    _mapSelectionMode == 'pickup' ? Icons.location_on : Icons.flag,
+                    size: 55,
+                    color: _mapSelectionMode == 'pickup' ? Colors.green : Colors.red,
+                    shadows: const [Shadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))],
+                  ),
+                ),
               ),
-              
-        if (isPickingMap)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 45.0), 
-              child: Icon(
-                _mapSelectionMode == 'pickup' ? Icons.location_on : Icons.flag,
-                size: 55,
-                color: _mapSelectionMode == 'pickup' ? Colors.green : Colors.red,
-                shadows: const [Shadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))],
-              ),
-            ),
-          ),
 
-        if (isPickingMap)
-          Positioned(
-            top: 20, left: 16, right: 16,
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Row(
+            if (isPickingMap)
+              Positioned(
+                top: 20, left: 16, right: 16,
+                child: SafeArea(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: Card(
-                          elevation: 8,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: TextField(
-                            controller: _mapSearchController,
-                            onChanged: _searchPlaces, 
-                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
-                            decoration: InputDecoration(
-                              hintText: 'ابحث عن مكان...',
-                              prefixIcon: IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 20), 
-                                onPressed: () { 
-                                  setState(() { _mapSelectionMode = 'none'; _placePredictions = []; }); 
-                                  FocusScope.of(context).unfocus(); 
-                                }
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              child: TextField(
+                                controller: _mapSearchController,
+                                onChanged: _searchPlaces, 
+                                style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
+                                decoration: InputDecoration(
+                                  hintText: 'ابحث عن مكان...',
+                                  prefixIcon: IconButton(
+                                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 20), 
+                                    onPressed: () { 
+                                      setState(() { _mapSelectionMode = 'none'; _placePredictions = []; }); 
+                                      FocusScope.of(context).unfocus(); 
+                                    }
+                                  ),
+                                  suffixIcon: IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _mapSearchController.clear(); setState(() => _placePredictions = []); }),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                ),
                               ),
-                              suffixIcon: IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _mapSearchController.clear(); setState(() => _placePredictions = []); }),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          FloatingActionButton(
+                            mini: true, 
+                            backgroundColor: Colors.white, 
+                            foregroundColor: royalGreen, 
+                            onPressed: _getUserLocation, 
+                            child: const Icon(Icons.my_location_rounded)
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      FloatingActionButton(
-                        mini: true, 
-                        backgroundColor: Colors.white, 
-                        foregroundColor: royalGreen, 
-                        onPressed: _getUserLocation, 
-                        child: const Icon(Icons.my_location_rounded)
-                      ),
+                      if (_placePredictions.isNotEmpty)
+                        Card(
+                          elevation: 4, margin: const EdgeInsets.only(top: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 250),
+                            child: ListView.builder(
+                              shrinkWrap: true, padding: EdgeInsets.zero,
+                              itemCount: _placePredictions.length,
+                              itemBuilder: (context, index) {
+                                var prediction = _placePredictions[index];
+                                return ListTile(
+                                  leading: const Icon(Icons.location_on, color: Colors.grey),
+                                  title: Text(prediction['description'], style: const TextStyle(fontFamily: 'Cairo', fontSize: 13)),
+                                  onTap: () => _getPlaceDetailsAndMove(prediction['place_id'], prediction['description']),
+                                );
+                              },
+                            ),
+                          ),
+                        )
                     ],
                   ),
-                  if (_placePredictions.isNotEmpty)
-                    Card(
-                      elevation: 4, margin: const EdgeInsets.only(top: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 250),
-                        child: ListView.builder(
-                          shrinkWrap: true, padding: EdgeInsets.zero,
-                          itemCount: _placePredictions.length,
-                          itemBuilder: (context, index) {
-                            var prediction = _placePredictions[index];
-                            return ListTile(
-                              leading: const Icon(Icons.location_on, color: Colors.grey),
-                              title: Text(prediction['description'], style: const TextStyle(fontFamily: 'Cairo', fontSize: 13)),
-                              onTap: () => _getPlaceDetailsAndMove(prediction['place_id'], prediction['description']),
-                            );
-                          },
-                        ),
-                      ),
-                    )
-                ],
+                ),
               ),
-            ),
-          ),
 
-        if (isPickingMap)
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            if (isPickingMap)
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
+                  ),
+                  child: SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.touch_app_rounded, size: 18, color: Colors.grey.shade600),
-                        const SizedBox(width: 8),
-                        Text('حرك الخريطة لتحديد الموقع بدقة', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.touch_app_rounded, size: 18, color: Colors.grey.shade600),
+                            const SizedBox(width: 8),
+                            Text('حرك الخريطة لتحديد الموقع بدقة', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: royalGreen, 
+                              padding: const EdgeInsets.symmetric(vertical: 16), 
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                LatLng finalLoc = _tempMapCenter ?? const LatLng(30.0444, 31.2357);
+                                String locationText = _mapSearchController.text.trim().isNotEmpty ? _mapSearchController.text.trim() : "تم التحديد من الخريطة";
+
+                                if (_mapSelectionMode == 'pickup') {
+                                  _pickupLocation = finalLoc;
+                                  _pickupController.text = locationText;
+                                  _markers.removeWhere((m) => m.markerId.value == 'pickup');
+                                  _markers.add(Marker(markerId: const MarkerId('pickup'), position: finalLoc, infoWindow: const InfoWindow(title: 'مكان التحرك'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)));
+                                } else if (_mapSelectionMode == 'destination') {
+                                  _destinationLocation = finalLoc;
+                                  _destinationController.text = locationText;
+                                  _markers.removeWhere((m) => m.markerId.value == 'destination');
+                                  _markers.add(Marker(markerId: const MarkerId('destination'), position: finalLoc, infoWindow: const InfoWindow(title: 'وجهة الوصول'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)));
+                                }
+                                _mapSelectionMode = 'none'; 
+                              });
+                            },
+                            child: const Text('تأكيد الموقع', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 16)),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: royalGreen, 
-                          padding: const EdgeInsets.symmetric(vertical: 16), 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+
+            if (!isPickingMap)
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight * 0.95, // إضافة الحد الأقصى للارتفاع لضمان عدم الخروج عن الشاشة
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: Colors.white, 
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)), 
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, -5))]
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildTripCategorySelector(),
+                        const SizedBox(height: 16),
+                        
+                        if (isErrand)
+                          Column(
+                            children: [
+                              TextField(
+                                controller: _errandDetailsController, 
+                                style: const TextStyle(fontFamily: 'Cairo', fontSize: 13), 
+                                decoration: InputDecoration(
+                                  labelText: 'اكتب طلباتك', 
+                                  prefixIcon: const Icon(Icons.shopping_basket, color: Colors.orange), 
+                                  filled: true, fillColor: Colors.grey.shade50,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                                )
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _errandEstimatedCostController, 
+                                keyboardType: TextInputType.number, 
+                                style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo), 
+                                decoration: InputDecoration(
+                                  labelText: 'سعر الطلبات التقريبي', 
+                                  suffixText: 'جنيه', 
+                                  prefixIcon: const Icon(Icons.account_balance_wallet, color: Colors.indigo), 
+                                  filled: true, fillColor: Colors.grey.shade50,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                                )
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+
+                        if (!isErrand)
+                          Column(
+                            children: [
+                              _buildVehicleTypeSelector(), 
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+
+                        TextField(
+                          controller: _pickupController, 
+                          readOnly: true, 
+                          onTap: () => _openMapSelection('pickup'), 
+                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
+                          decoration: InputDecoration(
+                            labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك', 
+                            prefixIcon: const Icon(Icons.my_location, color: Colors.green), 
+                            filled: true, fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                          )
                         ),
-                        onPressed: () {
-                          setState(() {
-                            LatLng finalLoc = _tempMapCenter ?? const LatLng(30.0444, 31.2357);
-                            String locationText = _mapSearchController.text.trim().isNotEmpty ? _mapSearchController.text.trim() : "تم التحديد من الخريطة";
+                        const SizedBox(height: 12),
+                        
+                        TextField(
+                          controller: _destinationController, 
+                          readOnly: true, 
+                          onTap: () => _openMapSelection('destination'), 
+                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
+                          decoration: InputDecoration(
+                            labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول', 
+                            prefixIcon: const Icon(Icons.location_on, color: Colors.red), 
+                            filled: true, fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                          )
+                        ),
 
-                            if (_mapSelectionMode == 'pickup') {
-                              _pickupLocation = finalLoc;
-                              _pickupController.text = locationText;
-                              _markers.removeWhere((m) => m.markerId.value == 'pickup');
-                              _markers.add(Marker(markerId: const MarkerId('pickup'), position: finalLoc, infoWindow: const InfoWindow(title: 'مكان التحرك/الشراء'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)));
-                            } else if (_mapSelectionMode == 'destination') {
-                              _destinationLocation = finalLoc;
-                              _destinationController.text = locationText;
-                              _markers.removeWhere((m) => m.markerId.value == 'destination');
-                              _markers.add(Marker(markerId: const MarkerId('destination'), position: finalLoc, infoWindow: const InfoWindow(title: 'وجهة الوصول/التسليم'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)));
-                            }
-                            _mapSelectionMode = 'none'; 
-                          });
-                        },
-                        child: const Text('تأكيد الموقع', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 16)),
-                      ),
+                        const SizedBox(height: 12),
+                        
+                        TextField(
+                          controller: _priceController, 
+                          keyboardType: TextInputType.number, 
+                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold), 
+                          decoration: InputDecoration(
+                            labelText: isErrand ? 'أجرة التوصيل للكابتن' : 'سعرك المقترح', 
+                            suffixText: 'جنيه',
+                            prefixIcon: const Icon(Icons.payments, color: Colors.green), 
+                            filled: true, fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                          )
+                        ),
+
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          onPressed: _isSubmittingTrip ? null : _createNewTripRequest,
+                          child: _isSubmittingTrip ? const CircularProgressIndicator(color: Colors.white) : Text(isErrand ? 'إرسال الطلب للكباتن' : 'طلب الكابتن وتأكيد السعر', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                        )
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-
-        if (!isPickingMap)
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, -5))]),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTripCategorySelector(),
-                    const SizedBox(height: 16),
-                    
-                    if (isErrand) ...[
-                      TextField(
-                        controller: _errandDetailsController, 
-                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 13), 
-                        decoration: InputDecoration(
-                          labelText: 'اكتب طلباتك (مثال: هاتلي أكل من مطعم...)', 
-                          prefixIcon: const Icon(Icons.shopping_basket, color: Colors.orange), 
-                          filled: true, fillColor: Colors.grey.shade50,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
-                        )
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _errandEstimatedCostController, 
-                        keyboardType: TextInputType.number, 
-                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo), 
-                        decoration: InputDecoration(
-                          labelText: 'سعر الطلبات التقريبي', 
-                          suffixText: 'جنيه', 
-                          prefixIcon: const Icon(Icons.account_balance_wallet, color: Colors.indigo), 
-                          filled: true, fillColor: Colors.grey.shade50,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
-                        )
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    if (!isErrand) ...[
-                      _buildVehicleTypeSelector(), 
-                      const SizedBox(height: 16),
-                    ],
-
-                    TextField(
-                      controller: _pickupController, 
-                      readOnly: true, 
-                      onTap: () => _openMapSelection('pickup'), 
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
-                      decoration: InputDecoration(
-                        labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك', 
-                        prefixIcon: const Icon(Icons.my_location, color: Colors.green), 
-                        filled: true, fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
-                      )
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    TextField(
-                      controller: _destinationController, 
-                      readOnly: true, 
-                      onTap: () => _openMapSelection('destination'), 
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold), 
-                      decoration: InputDecoration(
-                        labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول', 
-                        prefixIcon: const Icon(Icons.location_on, color: Colors.red), 
-                        filled: true, fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
-                      )
-                    ),
-
-                    const SizedBox(height: 12),
-                    
-                    TextField(
-                      controller: _priceController, 
-                      keyboardType: TextInputType.number, 
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold), 
-                      decoration: InputDecoration(
-                        labelText: isErrand ? 'أجرة التوصيل للكابتن' : 'سعرك المقترح', 
-                        suffixText: 'جنيه',
-                        prefixIcon: const Icon(Icons.payments, color: Colors.green), 
-                        filled: true, fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
-                      )
-                    ),
-
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: _isSubmittingTrip ? null : _createNewTripRequest,
-                      child: _isSubmittingTrip ? const CircularProgressIndicator(color: Colors.white) : Text(isErrand ? 'إرسال الطلب للكباتن' : 'طلب الكابتن وتأكيد السعر', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    )
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
+          ],
+        );
+      }
     );
   }
 
@@ -599,7 +616,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var trips = snapshot.data!.docs;
-        if (trips.isEmpty) return const Center(child: Text('لا توجد رحلات سفر مطروحة حالياً 🛣️', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold)));
+        if (trips.isEmpty) return const Center(child: Text('لا توجد رحلات سفر مطروحة حاليا', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold)));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -621,9 +638,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                       ],
                     ),
                     const Divider(),
-                    Text('من: ${data['fromCity']} ➡️ إلى: ${data['toCity']}', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                    Text('من: ${data['fromCity']} الى: ${data['toCity']}', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    // ✅ عرض نوع العربية للعميل في تفاصيل الرحلة المتاحة
                     Text('المركبة: ${data['vehicleType'] ?? 'سيارة'} | المقاعد المتاحة: ${data['availableSeats']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo')),
                     const SizedBox(height: 4),
                     Text('الموعد: ${data['time']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo')),
@@ -640,101 +656,179 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   }
 
   Widget _buildPassengerMyRequestsTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
-        var trips = snapshot.data!.docs.where((doc) {
-          var data = doc.data() as Map<String, dynamic>;
-          bool isNotDriverPost = data['isDriverPost'] != true;
-          bool isNotDeleted = data['isDeletedForPassenger'] != true;
-          return isNotDriverPost && isNotDeleted;
-        }).toList();
-
-        trips.sort((a, b) => ((b.data() as Map)['createdAt'] as Timestamp?)?.compareTo(((a.data() as Map)['createdAt'] as Timestamp?) ?? Timestamp.now()) ?? 0);        
-        
-        if (trips.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.assignment_turned_in_outlined, size: 60, color: Colors.grey),
-                SizedBox(height: 12),
-                Text('لا توجد طلبات سابقة حالياً 📜', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 15)),
-              ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade100,
+              foregroundColor: Colors.amber.shade900,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              minimumSize: const Size(double.infinity, 50)
             ),
-          );
-        }
+            onPressed: _showFavoriteDriversBottomSheet,
+            icon: const Icon(Icons.star_rounded, color: Colors.amber),
+            label: const Text('قائمة كباتني المفضلين', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+        ),
+        
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              
+              var trips = snapshot.data!.docs.where((doc) {
+                var data = doc.data() as Map<String, dynamic>;
+                bool isNotDriverPost = data['isDriverPost'] != true;
+                bool isNotDeleted = data['isDeletedForPassenger'] != true;
+                return isNotDriverPost && isNotDeleted;
+              }).toList();
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: trips.length,
-          itemBuilder: (context, index) {
-            var doc = trips[index];
-            var data = doc.data() as Map<String, dynamic>;
-            String status = data['status'];
-            bool isErrand = data['tripCategory'] == 'طلبات';
+              trips.sort((a, b) => ((b.data() as Map)['createdAt'] as Timestamp?)?.compareTo(((a.data() as Map)['createdAt'] as Timestamp?) ?? Timestamp.now()) ?? 0);        
+              
+              if (trips.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assignment_turned_in_outlined, size: 60, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('لا توجد طلبات سابقة حاليا', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ],
+                  ),
+                );
+              }
 
-            return Card(
-              elevation: 4, margin: const EdgeInsets.only(bottom: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(isErrand ? 'طلب شراء وتوصيل 🛍️' : 'مشوار توصيل 🚖', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                        Row(children: [const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey), const SizedBox(width: 4), Text(_formatDateTime(data['createdAt']), style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold))]),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(isErrand ? 'أجرة التوصيل: ${data['suggestedPrice']} جنيه' : '${data['vehicleType']} - السعر المقترح: ${data['suggestedPrice']} جنيه', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 15)),
-                    
-                    if (status == 'canceled') ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)), 
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('تم إلغاء هذه الرحلة 🚫', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () => _deleteTripForUser(doc.id, 'passenger'),
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: trips.length,
+                itemBuilder: (context, index) {
+                  var doc = trips[index];
+                  var data = doc.data() as Map<String, dynamic>;
+                  String status = data['status'];
+                  bool isErrand = data['tripCategory'] == 'طلبات';
+
+                  if (status == 'canceled' && !_cancellationTimers.containsKey(doc.id)) {
+                    _cancellationTimers[doc.id] = true;
+                    Future.delayed(const Duration(seconds: 10), () {
+                      if (mounted) _deleteTripForUser(doc.id, 'passenger');
+                    });
+                  }
+
+                  return Card(
+                    elevation: 4, margin: const EdgeInsets.only(bottom: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(isErrand ? 'طلب شراء وتوصيل' : 'مشوار توصيل', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                              Row(children: [const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey), const SizedBox(width: 4), Text(_formatDateTime(data['createdAt']), style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold))]),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(isErrand ? 'أجرة التوصيل: ${data['suggestedPrice']} جنيه' : '${data['vehicleType']} - السعر المقترح: ${data['suggestedPrice']} جنيه', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 15)),
+                          
+                          if (status == 'canceled')
+                            Column(
+                              children: [
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), 
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text('تم إلغاء هذه الرحلة', textAlign: TextAlign.center, style: TextStyle(color: royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                                      const Spacer(),
+                                      IconButton(
+                                        icon: Icon(Icons.close, color: royalGreen),
+                                        onPressed: () => _deleteTripForUser(doc.id, 'passenger'),
+                                      )
+                                    ],
+                                  )
+                                )
+                              ],
                             )
-                          ],
-                        )
-                      )
-                    ],
-
-                    if (status == 'pending') ...[
-                      const Text('جاري البحث عن كباتن... ⏳', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey)),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.cancel, color: Colors.red), label: const Text('إلغاء الطلب', style: TextStyle(color: Colors.red, fontFamily: 'Cairo')))
-                    ],
-
-                    if (status == 'accepted' || status == 'negotiating') ...[
-                       if (status == 'accepted') const Text('الكابتن استلم الطلب وجاي في الطريق 🚀', style: TextStyle(fontFamily: 'Cairo', color: Colors.green, fontWeight: FontWeight.bold)),
-                       const SizedBox(height: 8),
-                       Row(
-                         children: [
-                           if (status == 'accepted') Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: doc.id))), icon: const Icon(Icons.chat, color: Colors.white), label: const Text('المحادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')))),
-                           if (status == 'accepted') const SizedBox(width: 8),
-                           Expanded(child: OutlinedButton.icon(onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.cancel, color: Colors.red), label: const Text('إلغاء', style: TextStyle(color: Colors.red, fontFamily: 'Cairo'))))
-                         ],
-                       )
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+                          else if (status == 'pending')
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('جاري البحث عن كباتن...', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey)),
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.cancel, color: Colors.red), label: const Text('إلغاء الطلب', style: TextStyle(color: Colors.red, fontFamily: 'Cairo')))
+                              ],
+                            )
+                          else if (status == 'negotiating')
+                            Column(
+                              children: [
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
+                                  child: Column(
+                                    children: [
+                                      if (data['lastNegotiator'] == 'driver')
+                                        Column(
+                                          children: [
+                                            Text('الكابتن عرض عليك أجرة: ${data['negotiationPrice']} جنيه', style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14)),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              children: [
+                                                Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _acceptOffer(doc.id, data['negotiationPrice']), icon: const Icon(Icons.check, color: Colors.white, size: 16), label: const Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                const SizedBox(width: 4),
+                                                Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _showNegotiationDialog(doc.id, isDriver: false), icon: const Icon(Icons.edit, color: Colors.white, size: 16), label: const Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                const SizedBox(width: 4),
+                                                Expanded(child: OutlinedButton.icon(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.close, color: Colors.red, size: 16), label: const Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12))))
+                                              ],
+                                            )
+                                          ],
+                                        )
+                                      else
+                                        Column(
+                                          children: [
+                                            Text('في انتظار رد الكابتن على عرضك (${data['negotiationPrice']} ج)', style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13)),
+                                            const SizedBox(height: 8),
+                                            OutlinedButton.icon(onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.cancel, color: Colors.red, size: 18), label: const Text('إلغاء الطلب', style: TextStyle(color: Colors.red, fontFamily: 'Cairo')))
+                                          ],
+                                        )
+                                    ],
+                                  ),
+                                )
+                              ],
+                            )
+                          else if (status == 'accepted')
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('الكابتن استلم الطلب وجاي في الطريق', style: TextStyle(fontFamily: 'Cairo', color: Colors.green, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: doc.id))), icon: const Icon(Icons.chat, color: Colors.white), label: const Text('المحادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')))),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent), onPressed: () => _showRatingDialog(doc.id, isDriver: false, targetId: data['driverId'], targetName: data['driverName']), icon: const Icon(Icons.star, color: Colors.white), label: const Text('إنهاء وتقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')))),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => _cancelTrip(doc.id, 'passenger'), icon: const Icon(Icons.cancel, color: Colors.red), label: const Text('إلغاء الرحلة', style: TextStyle(color: Colors.red, fontFamily: 'Cairo'))))
+                              ],
+                            )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -742,7 +836,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return Center(child: Text('حدث خطأ في الاتصال ❌', style: TextStyle(fontFamily: 'Cairo', color: Colors.red)));
+        if (snapshot.hasError) return Center(child: Text('حدث خطأ في الاتصال', style: TextStyle(fontFamily: 'Cairo', color: Colors.red)));
         if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: royalGreen));
         
         var trips = snapshot.data!.docs.where((doc) {
@@ -757,7 +851,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           return timeB.compareTo(timeA);
         });
 
-        if (trips.isEmpty) return Center(child: Text('رادار لَمَّة شغال.. لا يوجد طلبات حالياً 📡', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo')));
+        if (trips.isEmpty) return Center(child: Text('رادار الطلبات شغال.. لا يوجد طلبات حاليا', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo')));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -777,7 +871,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isErrand ? Colors.indigo.shade50 : royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(isErrand ? '🛍️ طلب شراء أوردر' : '🚖 مشوار توصيل', style: TextStyle(color: isErrand ? Colors.indigo : royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 12))),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isErrand ? Colors.indigo.shade50 : royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(isErrand ? 'طلب شراء أوردر' : 'مشوار توصيل', style: TextStyle(color: isErrand ? Colors.indigo : royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 12))),
                         Text(_formatDateTime(data['createdAt']), style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -790,9 +884,9 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     const Divider(),
                     Row(
                       children: [
-                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _acceptTripRequest(doc.id, data['suggestedPrice'], data['passengerId']), child: const Text('قبول بالأجرة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12)))),
+                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _acceptTripRequest(doc.id, data['suggestedPrice']), child: const Text('قبول بالأجرة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12)))),
                         const SizedBox(width: 8),
-                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange), onPressed: () => _showCounterOfferDialog(doc.id, data['passengerId']), child: const Text('عرض أجرة آخرى', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 11)))),
+                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange), onPressed: () => _showNegotiationDialog(doc.id, isDriver: true), child: const Text('عرض أجرة آخرى', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 11)))),
                       ],
                     )
                   ],
@@ -815,7 +909,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('طرح رحلة سفر جديدة 🛣️', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+              const Text('طرح رحلة سفر جديدة', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
               const SizedBox(height: 20),
               TextField(controller: _postFromCtrl, decoration: InputDecoration(labelText: 'مدينة التحرك', prefixIcon: const Icon(Icons.location_on), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
@@ -823,8 +917,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               const SizedBox(height: 16),
               TextField(controller: _postTimeCtrl, decoration: InputDecoration(labelText: 'موعد وتاريخ التحرك', prefixIcon: const Icon(Icons.access_time), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
-              
-              // ✅ الحقل الجديد المضاف للكابتن عشان يكتب فيه نوع عربيته
               TextField(controller: _postVehicleTypeCtrl, decoration: InputDecoration(labelText: 'نوع العربية (مثال: ملاكي، ميكروباص 14)', prefixIcon: const Icon(Icons.directions_car_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
               const SizedBox(height: 16),
               
@@ -854,7 +946,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
            return isNotDeleted && isValidStatus;
         }).toList();
         
-        if (trips.isEmpty) return const Center(child: Text('لا توجد رحلات/طلبات نشطة حالياً.', style: TextStyle(fontFamily: 'Cairo')));
+        if (trips.isEmpty) return const Center(child: Text('لا توجد رحلات/طلبات نشطة حاليا.', style: TextStyle(fontFamily: 'Cairo')));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -865,6 +957,13 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
             bool isCanceled = data['status'] == 'canceled';
             bool isErrand = data['tripCategory'] == 'طلبات';
 
+            if (isCanceled && !_cancellationTimers.containsKey(trips[index].id)) {
+              _cancellationTimers[trips[index].id] = true;
+              Future.delayed(const Duration(seconds: 10), () {
+                if (mounted) _deleteTripForUser(trips[index].id, 'driver');
+              });
+            }
+
             return Card(
               elevation: 3, margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
@@ -874,35 +973,62 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     Text(isErrand ? 'تنفيذ طلب أوردر للعميل' : 'توصيل عميل (${data['vehicleType']})', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14)),
                     const SizedBox(height: 12),
                     
-                    if (isCanceled) ...[
-                      Container(
-                        width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)), 
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('تم إلغاء هذه الرحلة 🚫', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () => _deleteTripForUser(trips[index].id, 'driver'),
-                            )
-                          ],
-                        )
-                      )
-                    ]
-                    else if (isNegotiating)
-                      Text('في انتظار رد العميل على عرضك (${data['driverOffer']} ج) ⏳', style: const TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
-                    else ...[
-                      Row(
+                    if (isCanceled)
+                      Column(
                         children: [
-                          Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trips[index].id))), icon: const Icon(Icons.chat, color: Colors.white, size: 18), label: const Text('محادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
-                          const SizedBox(width: 4),
-                          Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _showRatingDialog(trips[index].id, isDriver: true), icon: const Icon(Icons.done_all, color: Colors.white, size: 18), label: const Text('إنهاء', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                          Container(
+                            width: double.infinity, padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), 
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('تم إلغاء هذه الرحلة', textAlign: TextAlign.center, style: TextStyle(color: royalGreen, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                                const Spacer(),
+                                IconButton(
+                                  icon: Icon(Icons.close, color: royalGreen),
+                                  onPressed: () => _deleteTripForUser(trips[index].id, 'driver'),
+                                )
+                              ],
+                            )
+                          )
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(onPressed: () => _cancelTrip(trips[index].id, 'driver'), icon: const Icon(Icons.cancel, color: Colors.red, size: 18), label: const Text('إلغاء واعتذار', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))
-                    ]
+                      )
+                    else if (isNegotiating)
+                      Column(
+                        children: [
+                          if (data['lastNegotiator'] == 'driver')
+                            Text('في انتظار رد العميل على عرضك (${data['negotiationPrice']} ج)', style: const TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
+                          else
+                            Column(
+                              children: [
+                                Text('العميل يعرض عليك أجرة: ${data['negotiationPrice']} ج', style: const TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _acceptOffer(trips[index].id, data['negotiationPrice']), child: const Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                                    const SizedBox(width: 4),
+                                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _showNegotiationDialog(trips[index].id, isDriver: true), child: const Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                                    const SizedBox(width: 4),
+                                    Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)), onPressed: () => _cancelTrip(trips[index].id, 'driver'), child: const Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))),
+                                  ],
+                                )
+                              ],
+                            )
+                        ],
+                      )
+                    else
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trips[index].id))), icon: const Icon(Icons.chat, color: Colors.white, size: 18), label: const Text('محادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                              const SizedBox(width: 4),
+                              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () => _showRatingDialog(trips[index].id, isDriver: true, targetId: data['passengerId'], targetName: data['passengerName']), icon: const Icon(Icons.done_all, color: Colors.white, size: 18), label: const Text('إنهاء وتقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 12)))),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(onPressed: () => _cancelTrip(trips[index].id, 'driver'), icon: const Icon(Icons.cancel, color: Colors.red, size: 18), label: const Text('إلغاء واعتذار', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 12)))
+                        ],
+                      )
                   ],
                 ),
               ),
@@ -930,7 +1056,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     setState(() => _isSubmittingTrip = true);
     try {
       await FirebaseFirestore.instance.collection('trips').add({
-        'isDriverPost': false, 'passengerId': currentUserId, 'passengerName': 'عميل لَمَّة', 
+        'isDriverPost': false, 'passengerId': currentUserId, 'passengerName': 'عميل', 
         'tripCategory': _tripCategory, 'vehicleType': isErrand ? 'موتوسيكل' : _vehicleType, 
         'pickup': _pickupController.text.trim(), 'destination': _destinationController.text.trim(), 'suggestedPrice': _priceController.text.trim(),
         'pickupLocation': _pickupLocation != null ? GeoPoint(_pickupLocation!.latitude, _pickupLocation!.longitude) : null,
@@ -971,14 +1097,56 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
   }
 
-  Future<void> _acceptTripRequest(String tripId, String agreedPrice, String passengerId) async {
-    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted', 'driverId': currentUserId, 'driverName': 'كابتن لَمَّة', 'finalPrice': agreedPrice});
+  Future<void> _acceptTripRequest(String tripId, String agreedPrice) async {
+    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'accepted', 'driverId': currentUserId, 'driverName': 'كابتن', 'finalPrice': agreedPrice});
     if(mounted) _tabController.animateTo(2); 
   }
 
-  void _showCounterOfferDialog(String tripId, String passengerId) {
+  Future<void> _acceptOffer(String tripId, String acceptedPrice) async {
+    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
+      'status': 'accepted',
+      'finalPrice': acceptedPrice
+    });
+  }
+
+  void _showNegotiationDialog(String tripId, {required bool isDriver}) {
     TextEditingController offerCtrl = TextEditingController();
-    showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('تقديم عرض', style: TextStyle(fontFamily: 'Cairo')), content: TextField(controller: offerCtrl, keyboardType: TextInputType.number), actions: [ElevatedButton(onPressed: () async { await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'status': 'negotiating', 'driverId': currentUserId, 'driverOffer': offerCtrl.text}); if(mounted) { Navigator.pop(ctx); _tabController.animateTo(2); } }, child: const Text('إرسال'))]));
+    showDialog(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        title: const Text('التفاوض على الأجرة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+        content: TextField(
+          controller: offerCtrl, 
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: 'اكتب سعرك المقترح',
+            suffixText: 'جنيه',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+          ),
+        ), 
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: royalGreen),
+            onPressed: () async { 
+              if (offerCtrl.text.isEmpty) return;
+              await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
+                'status': 'negotiating', 
+                if (isDriver) 'driverId': currentUserId, 
+                if (isDriver) 'driverName': 'كابتن لمة', 
+                'negotiationPrice': offerCtrl.text,
+                'lastNegotiator': isDriver ? 'driver' : 'passenger'
+              }); 
+              if(mounted) { 
+                Navigator.pop(ctx); 
+                if (isDriver) _tabController.animateTo(2); 
+              } 
+            }, 
+            child: const Text('إرسال', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold))
+          )
+        ]
+      )
+    );
   }
 
   Future<void> _postNewTrip() async {
@@ -990,7 +1158,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       'fromCity': _postFromCtrl.text.trim(), 
       'toCity': _postToCtrl.text.trim(), 
       'time': _postTimeCtrl.text.trim(), 
-      // ✅ حفظ نوع العربية في الفايربيز
       'vehicleType': _postVehicleTypeCtrl.text.trim().isNotEmpty ? _postVehicleTypeCtrl.text.trim() : 'سيارة',
       'availableSeats': _postSeatsCtrl.text.trim(), 
       'price': _postPriceCtrl.text.trim(), 
@@ -1001,7 +1168,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       _postFromCtrl.clear(); 
       _postToCtrl.clear();
       _postTimeCtrl.clear();
-      _postVehicleTypeCtrl.clear(); // تفريغ حقل نوع العربية
+      _postVehicleTypeCtrl.clear(); 
       _postSeatsCtrl.clear();
       _postPriceCtrl.clear();
       _tabController.animateTo(2); 
@@ -1013,13 +1180,16 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     if(mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)));
   }
 
-  void _showRatingDialog(String tripId, {required bool isDriver}) {
+  void _showRatingDialog(String tripId, {required bool isDriver, String? targetId, String? targetName}) {
     int stars = 5; 
+    bool saveToFavorites = false;
+
     showDialog(
       context: context, barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1028,7 +1198,43 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 const Text('تم إنهاء الرحلة!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                 const SizedBox(height: 16),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (index) => IconButton(icon: Icon(index < stars ? Icons.star_rounded : Icons.star_border_rounded, color: Colors.amber, size: 35), onPressed: () => setDialogState(() => stars = index + 1)))),
-                ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen), onPressed: () async { await FirebaseFirestore.instance.collection('trips').doc(tripId).update({isDriver ? 'driverRatingForPassenger' : 'passengerRating': stars, if (isDriver) 'status': 'completed'}); if(mounted) Navigator.pop(ctx); }, child: const Text('إرسال', style: TextStyle(color: Colors.white)))
+                
+                if (!isDriver && targetId != null)
+                  Column(
+                    children: [
+                      const Divider(),
+                      CheckboxListTile(
+                        title: const Text('حفظ الكابتن في المفضلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold)),
+                        value: saveToFavorites,
+                        activeColor: Colors.amber,
+                        onChanged: (val) => setDialogState(() => saveToFavorites = val ?? false),
+                        controlAffinity: ListTileControlAffinity.leading,
+                      )
+                    ],
+                  ),
+
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: royalGreen, minimumSize: const Size(double.infinity, 45)), 
+                  onPressed: () async { 
+                    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
+                      isDriver ? 'driverRatingForPassenger' : 'passengerRating': stars, 
+                      if (isDriver) 'status': 'completed'
+                    }); 
+                    
+                    if (!isDriver && saveToFavorites && targetId != null) {
+                      await FirebaseFirestore.instance.collection('users').doc(currentUserId).set({
+                        'favoriteDrivers': FieldValue.arrayUnion([{
+                          'id': targetId,
+                          'name': targetName ?? 'كابتن لمة'
+                        }])
+                      }, SetOptions(merge: true));
+                    }
+
+                    if(mounted) Navigator.pop(ctx); 
+                  }, 
+                  child: const Text('إرسال التقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo'))
+                )
               ],
             ),
           );
@@ -1037,11 +1243,64 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     );
   }
 
+  void _showFavoriteDriversBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+              const SizedBox(height: 16),
+              const Text('كباتني المفضلين', style: TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold)),
+              const Divider(),
+              Expanded(
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    var data = snapshot.data!.data() as Map<String, dynamic>?;
+                    List favs = data?['favoriteDrivers'] ?? [];
+
+                    if (favs.isEmpty) {
+                      return const Center(child: Text('لسه مفيش كباتن في المفضلة عندك', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey)));
+                    }
+
+                    return ListView.builder(
+                      itemCount: favs.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          leading: const CircleAvatar(backgroundColor: Colors.amber, child: Icon(Icons.star, color: Colors.white)),
+                          title: Text(favs[index]['name'], style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
+                                'favoriteDrivers': FieldValue.arrayRemove([favs[index]])
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              )
+            ],
+          ),
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isDriver ? 'لوحة الكابتن' : 'خدمات لَمَّة', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+        title: Text(widget.isDriver ? 'لوحة الكابتن' : 'خدمات', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: royalGreen, foregroundColor: Colors.white, centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.home_rounded), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()))),
         
@@ -1066,7 +1325,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               unselectedLabelColor: Colors.white, 
               labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
               tabs: widget.isDriver 
-                  ? const [Tab(text: 'رادار الطلبات 📡'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] 
+                  ? const [Tab(text: 'رادار الطلبات'), Tab(text: 'إضافة رحلة'), Tab(text: 'طلباتي النشطة')] 
                   : const [Tab(text: 'طلب مشوار'), Tab(text: 'رحلات السفر'), Tab(text: 'متابعة طلباتي')],
             ),
           ),
