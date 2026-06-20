@@ -29,12 +29,12 @@ class _TripChatPageState extends State<TripChatPage> {
   bool _isDriver = false;
   bool _isLoading = true;
   String _otherPartyName = 'جاري التحميل...';
-  LatLng? _currentLatLng; // المتغير ده عشان يحفظ مكانك الحقيقي ويبعدنا عن التحرير
+  LatLng? _currentLatLng; 
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation(); // بنجيب مكانك أول ما تفتح
+    _getCurrentLocation(); 
     _checkUserRoleAndSetupTracking();
   }
 
@@ -46,7 +46,7 @@ class _TripChatPageState extends State<TripChatPage> {
     super.dispose();
   }
 
-  // 📍 دالة تحديد مكانك الفعلي عشان الخريطة تفتح عليه
+  // 📍 جلب الموقع الفعلي لتحديد مكان الكاميرا (بالطريقة الحديثة)
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -58,14 +58,17 @@ class _TripChatPageState extends State<TripChatPage> {
     }
     if (permission == LocationPermission.deniedForever) return;
 
-    Position position = await Geolocator.getCurrentPosition();
+    Position position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
+    
     if (mounted) {
       setState(() {
         _currentLatLng = LatLng(position.latitude, position.longitude);
       });
-      // تحريك الكاميرا لمكانك لو الخريطة كانت حملت
+      // تحريك الكاميرا فوراً لمكانك
       if (_mapController != null) {
-        _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 15));
+        _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
       }
     }
   }
@@ -166,7 +169,7 @@ class _TripChatPageState extends State<TripChatPage> {
                       var tripData = snapshot.data!.data() as Map<String, dynamic>;
                       _updateMarkers(tripData);
                       
-                      // 🌍 ضبط نقطة البداية (لو العميل حدد مكان بياخده، لو لأ بياخد مكانك الفعلي اللي جبناه فوق)
+                      // 🌍 ضبط نقطة البداية لتجنب التحرير
                       LatLng initialTarget = _currentLatLng ?? const LatLng(30.0444, 31.2357);
                       if (tripData['pickupLocation'] != null) {
                         initialTarget = LatLng(tripData['pickupLocation'].latitude, tripData['pickupLocation'].longitude);
@@ -174,13 +177,19 @@ class _TripChatPageState extends State<TripChatPage> {
                       
                       return GoogleMap(
                         mapType: MapType.normal,
-                        initialCameraPosition: CameraPosition(target: initialTarget, zoom: 15),
+                        initialCameraPosition: CameraPosition(target: initialTarget, zoom: 16),
                         markers: _markers,
-                        myLocationEnabled: true, // إظهار النقطة الزرقاء بتاعتك
-                        myLocationButtonEnabled: true, // إرجاع زرار تحديد الموقع
-                        zoomControlsEnabled: true, // ✅ إرجاع زراير الزووم (+ و -)
-                        zoomGesturesEnabled: true, // ✅ تفعيل الزووم بالإيد
-                        onMapCreated: (controller) => _mapController = controller,
+                        myLocationEnabled: true, 
+                        myLocationButtonEnabled: true, 
+                        zoomControlsEnabled: true, 
+                        zoomGesturesEnabled: true, 
+                        onMapCreated: (controller) {
+                           _mapController = controller;
+                           // توجيه الكاميرا للموقع بمجرد تحميل الخريطة لو متاح
+                           if (_currentLatLng != null) {
+                             _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 16));
+                           }
+                        },
                       );
                     }
                     return Center(child: CircularProgressIndicator(color: royalGreen));
