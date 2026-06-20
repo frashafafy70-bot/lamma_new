@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "563213151513",
+    "project_id": "lamma-app-d43a7",
+    "storage_bucket": "lamma-app-d43a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563213151513:android:da079deb62f0a7a9c6e988",
+        "android_client_info": {
+          "package_name": "com.example.lamma_new"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTrwg28lBwTQt8owA9Cy9DOq_LQjFWwOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ثيم التشغيل الافتراضي لفلوتر -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    
+    <!-- الثيم العادي للتطبيق -->
+    <style name="NormalTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:windowBackground">?android:attr/windowBackground</item>
+    </style>
+
+    <!-- الثيم الخاص بمكتبة قص الصور لمنع الكراش -->
+    <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- يمكنك إضافة تعديلات الألوان هنا إذا أردت -->
+    </style>
+</resources>

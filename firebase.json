@@ -1,0 +1,36 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "lamma-app-d43a7",
+          "appId": "1:563213151513:android:da079deb62f0a7a9c6e988",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "lamma-app-d43a7",
+          "configurations": {
+            "android": "1:563213151513:android:da079deb62f0a7a9c6e988",
+            "web": "1:563213151513:web:c86b969487c66d06c6e988"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+name: lamma_new
+description: "A new Flutter project."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  google_maps_flutter: ^2.17.1
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+  url_launcher: any
+  
+  # فايربيز الأساسيات والـ Auth والداتابيز
+  firebase_core: ^4.10.0
+  firebase_auth: ^6.5.2
+  cloud_firestore: ^6.5.0
+  firebase_storage: ^13.4.2
+  
+  # 🧠 مكتبة الذكاء الاصطناعي للتعرف على النصوص وقراءة البطاقات
+  google_mlkit_text_recognition: ^0.14.0
+  
+  # الصور والملفات وقص الصور
+  image_picker: ^1.2.2
+  image_cropper: ^12.2.1
+  pdf: ^3.12.0
+  printing: ^5.14.3
+  flutter_pdfview: ^1.3.2
+  
+  # الأرشيف المحلي والشبكات واللغات
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  http: ^1.6.0
+  flutter_localizations:
+    sdk: flutter
+  firebase_messaging: ^16.4.0
+  flutter_local_notifications: ^22.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # مكتبات المساعدة لتوليد أكواد Hive
+  hive_generator: ^2.0.0
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,179 @@
+const functions = require("firebase-functions/v1");
+const admin = require("firebase-admin");
+const logger = require("firebase-functions/logger");
+
+admin.initializeApp();
+
+// ==========================================
+// 1. إشعارات الطلبات الجديدة (تعمل بكفاءة)
+// ==========================================
+exports.sendNewRequestNotification = functions.firestore
+  .document("legal_requests/{requestId}")
+  .onCreate(async (snap, context) => {
+    const requestData = snap.data();
+    let requiredRole = "lawyer";
+    const serviceType = requestData.serviceType || "";
+    
+    if (serviceType.includes("مشوار")) requiredRole = "captain";
+    else if (serviceType.includes("طبية")) requiredRole = "doctor";
+    else if (serviceType.includes("تمريض")) requiredRole = "nurse";
+
+    try {
+      const usersSnapshot = await admin.firestore()
+        .collection("users")
+        .where("roles", "array-contains", requiredRole)
+        .get();
+
+      if (usersSnapshot.empty) return null;
+
+      const tokens = [];
+      usersSnapshot.forEach((doc) => {
+        const fcmToken = doc.data().fcmToken;
+        if (fcmToken) tokens.push(fcmToken);
+      });
+
+      if (tokens.length === 0) return null;
+
+      const message = {
+        notification: { 
+          title: "طلب جديد متاح! 🚀", 
+          body: "يوجد طلب جديد متاح الآن، افتح التطبيق للمعاينة." 
+        },
+        android: { 
+          priority: "high", 
+          notification: { 
+            channelId: "lamma_final_sound", 
+            sound: "default", 
+            priority: "max", 
+            defaultSound: true, 
+            defaultVibrateTimings: true 
+          } 
+        },
+      };
+
+      await admin.messaging().sendEachForMulticast({ ...message, tokens: tokens });
+      logger.info(`تم إرسال إشعار طلب جديد لـ ${tokens.length} مستخدمين.`);
+      return null;
+    } catch (error) {
+      logger.error("خطأ في إشعار الطلبات:", error);
+      return null;
+    }
+  });
+
+
+// ==========================================
+// 2. إشعارات شات "الرحلات" (TripChatPage)
+// ==========================================
+exports.sendTripMessageNotification = functions.firestore
+  .document("trips/{tripId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const messageData = snap.data();
+    const senderId = messageData.senderId;
+    const tripId = context.params.tripId;
+    const textBody = messageData.text || "أرسل لك رسالة جديدة";
+
+    try {
+      const tripDoc = await admin.firestore().collection("trips").doc(tripId).get();
+      if (!tripDoc.exists) return null;
+
+      const tripInfo = tripDoc.data();
+      const isDriverSender = (senderId === tripInfo.driverId);
+      
+      const receiverId = isDriverSender ? tripInfo.passengerId : tripInfo.driverId;
+      const senderName = isDriverSender ? (tripInfo.driverName || "الكابتن") : (tripInfo.passengerName || "العميل");
+
+      if (!receiverId) return null;
+
+      const userDoc = await admin.firestore().collection("users").doc(receiverId).get();
+      const fcmToken = userDoc.data()?.fcmToken;
+      if (!fcmToken) return null;
+
+      await admin.messaging().send({
+        notification: { 
+          title: `💬 رسالة رحلة من ${senderName}`, 
+          body: textBody 
+        },
+        android: { 
+          priority: "high", 
+          notification: { 
+            channelId: "lamma_final_sound", 
+            priority: "max", 
+            defaultSound: true, 
+            defaultVibrateTimings: true 
+          } 
+        },
+        token: fcmToken,
+      });
+      logger.info(`تم إرسال إشعار رسالة رحلة بنجاح للمستخدم: ${receiverId}`);
+      return null;
+    } catch (error) {
+      logger.error("خطأ في إشعار شات الرحلات:", error);
+      return null;
+    }
+  });
+
+
+// ==========================================
+// 3. إشعارات شات "الاستشارات القانونية" (LegalChatPage)
+// ==========================================
+exports.sendLegalMessageNotification = functions.firestore
+  .document("legal_requests/{requestId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const messageData = snap.data();
+    const senderId = messageData.senderId;
+    const requestId = context.params.requestId;
+    
+    // التحقق الدقيق: هل الرسالة نص ولا صورة؟
+    let bodyText = "رسالة جديدة";
+    if (messageData.text && messageData.text.trim() !== "") {
+      bodyText = messageData.text;
+    } else if (messageData.imageUrl) {
+      bodyText = "📎 أرسل لك مرفقاً/صورة";
+    }
+
+    try {
+      const requestDoc = await admin.firestore().collection("legal_requests").doc(requestId).get();
+      if (!requestDoc.exists) return null;
+
+      const requestInfo = requestDoc.data();
+      const clientId = requestInfo.clientId;
+      // بنفترض إن المحامي بيتسجل في حقل lawyerId أو acceptedBy
+      const lawyerId = requestInfo.lawyerId || requestInfo.acceptedBy; 
+
+      const receiverId = (senderId === clientId) ? lawyerId : clientId;
+
+      if (!receiverId) {
+          logger.info("لم يتم تحديد مستقبل لهذه الاستشارة (قد لا يوجد محامي بعد).");
+          return null;
+      }
+
+      const userDoc = await admin.firestore().collection("users").doc(receiverId).get();
+      const fcmToken = userDoc.data()?.fcmToken;
+      if (!fcmToken) {
+        logger.info(`المستخدم ${receiverId} ليس لديه توكن نشط.`);
+        return null;
+      }
+
+      await admin.messaging().send({
+        notification: { 
+          title: `⚖️ رسالة استشارة جديدة`, 
+          body: bodyText 
+        },
+        android: { 
+          priority: "high", 
+          notification: { 
+            channelId: "lamma_final_sound", 
+            priority: "max", 
+            defaultSound: true, 
+            defaultVibrateTimings: true 
+          } 
+        },
+        token: fcmToken,
+      });
+      logger.info(`تم إرسال إشعار رسالة استشارة بنجاح للمستخدم: ${receiverId}`);
+      return null;
+    } catch (error) {
+      logger.error("خطأ في إشعار شات الاستشارات:", error);
+      return null;
+    }
+  });
