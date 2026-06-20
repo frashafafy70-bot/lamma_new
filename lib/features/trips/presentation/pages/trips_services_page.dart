@@ -67,46 +67,38 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     
-    // 🔔 طلب جميع الصلاحيات فوراً عند فتح الصفحة
+    // 🔔 طلب الصلاحيات الأساسية وحفظ التوكن لضمان تشغيل الإشعار المنبثق والخريطة فوراً
     _requestAllPermissions();
     
     _getUserLocation();
-    _setupPushNotifications(); 
+    _setupPushNotifications(); // 🔔 تفعيل اشتراك الإشعارات
   }
 
-  // 🔔 دالة طلب الصلاحيات الأساسية للموقع والإشعارات
+  // 🔔 دالة طلب الصلاحيات الشاملة للموقع والاشعارات وحفظ التوكن
   Future<void> _requestAllPermissions() async {
-    // 1. طلب صلاحية الموقع
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      await Geolocator.requestPermission();
-    }
-    
-    // 2. طلب صلاحية الإشعارات
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+      
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
 
-    // 3. حفظ الـ Token بعد التأكد من الصلاحيات
-    await _saveDeviceToken();
-  }
-
-  // 🔔 دالة اشتراك الكباتن في الإشعارات الجماعية
-  void _setupPushNotifications() async {
-    if (widget.isDriver) {
-      await FirebaseMessaging.instance.subscribeToTopic('drivers_radar');
-    } else {
-      await FirebaseMessaging.instance.unsubscribeFromTopic('drivers_radar');
+      await _saveDeviceToken();
+    } catch (e) {
+      debugPrint("Error requesting permissions: $e");
     }
   }
 
-  // 💾 دالة مساعدة لحفظ وتحديث الـ fcmToken الخاص بالمستخدم الحالي
+  // 💾 دالة مساعدة لحفظ وتحديث الـ fcmToken الخاص بالمستخدم الحالي لرسائل الشات الفردية
   Future<void> _saveDeviceToken() async {
     if (currentUserId.isEmpty) return;
     try {
@@ -115,10 +107,19 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         await FirebaseFirestore.instance.collection('users').doc(currentUserId).set({
           'fcmToken': token,
         }, SetOptions(merge: true));
-        debugPrint("🔹 تم تحديث الـ FCM Token بنجاح");
+        debugPrint("🔹 تم تحديث وحفظ الـ FCM Token بنجاح في المستند");
       }
     } catch (e) {
       debugPrint("❌ خطأ أثناء حفظ الـ Token: $e");
+    }
+  }
+
+  // 🔔 دالة اشتراك الكباتن في الإشعارات الجماعية
+  void _setupPushNotifications() async {
+    if (widget.isDriver) {
+      await FirebaseMessaging.instance.subscribeToTopic('drivers_radar');
+    } else {
+      await FirebaseMessaging.instance.unsubscribeFromTopic('drivers_radar');
     }
   }
 
@@ -163,9 +164,21 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ تم إعطاء رفض لصلاحية الموقع', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+          setState(() => _isLoadingMap = false);
+        }
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ الصلاحية مرفوضة، يرجى تفعيلها من الإعدادات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ الصلاحية مرفوضة نهائياً. افتح الإعدادات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        Geolocator.openAppSettings();
         setState(() => _isLoadingMap = false);
       }
       return;
@@ -681,12 +694,32 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     );
   }
 
+  // 📡 الرادار المحدث لحل مشكلة التعليق والـ Loading النهائي
   Widget _buildDriverRadarTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: false).where('status', isEqualTo: 'pending').orderBy('createdAt', descending: true).snapshots(),
+      // التعديل الذكي: نطلب فقط الحالات الـ pending لتخفيف وضمان تشغيل الكود وتجنب أخطاء الفهرسة المركبة
+      stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('حدث خطأ في الاتصال بالسيرفر ❌', style: TextStyle(fontFamily: 'Cairo', color: Colors.red)));
+        }
         if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: royalGreen));
-        var trips = snapshot.data!.docs;
+        
+        // نقوم بعملية التصفية (Filter) والترتيب (Sort) داخل الذاكرة (Memory) بدلاً من السيرفر مباشرة منعا لمشكلة تعليق الفهرس المركب (Composite Index)
+        var trips = snapshot.data!.docs.where((doc) {
+          var data = doc.data() as Map<String, dynamic>;
+          return data['isDriverPost'] != true;
+        }).toList();
+
+        // ترتيب الطلبات من الأحدث للأقدم يدوياً
+        trips.sort((a, b) {
+          var timeA = (a.data() as Map)['createdAt'] as Timestamp?;
+          var timeB = (b.data() as Map)['createdAt'] as Timestamp?;
+          if (timeA == null) return 1;
+          if (timeB == null) return -1;
+          return timeB.compareTo(timeA);
+        });
+
         if (trips.isEmpty) return Center(child: Text('رادار لَمَّة شغال.. لا يوجد طلبات حالياً 📡', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo')));
 
         return ListView.builder(
