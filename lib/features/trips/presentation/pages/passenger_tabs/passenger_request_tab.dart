@@ -214,7 +214,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   Widget _buildTripCategorySelector() {
     List<Map<String, dynamic>> categories = [
       {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded}, 
-      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded}, 
+      {'id': 'طلبات', 'name': 'شراء طلبات', 'iconIcons': Icons.shopping_bag_rounded}, 
       {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
     ];
     return Container(
@@ -294,17 +294,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   Widget build(BuildContext context) {
     bool isErrand = _tripCategory == 'طلبات';
     bool isPickingMap = _mapSelectionMode != 'none'; 
-    
-    // 💡 المعادلة السحرية: الشاشة الحقيقية = الشاشة المتاحة + مساحة الكيبورد 
-    // دي اللي هتمنع الفورمة إنها تتضغط وتصغر لما الكيبورد يفتح!
-    double screenHeight = MediaQuery.of(context).size.height;
-    double bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    double actualScreenHeight = screenHeight + bottomInset;
-    double formMaxHeight = actualScreenHeight * 0.65;
+    double availableHeight = MediaQuery.of(context).size.height;
 
     return Stack(
       children: [
-        // --- الخريطة ---
         _isLoadingMap
             ? Center(child: CircularProgressIndicator(color: royalGreen))
             : GoogleMap(
@@ -312,15 +305,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                 buildingsEnabled: true, 
                 initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 15.0),
                 
-                // 💡 الحل الجذري الأول: رفع زراير جوجل عشان الفورمة متغطيهاش
-                padding: EdgeInsets.only(
-                  top: isPickingMap ? 90.0 : 0.0, 
-                  bottom: isPickingMap ? 140.0 : formMaxHeight, 
-                ),
-                
+                // زراير الخريطة شغالة عشان تقدر تعمل زووم وتجيب موقعك بسهولة
                 myLocationEnabled: true, 
-                myLocationButtonEnabled: true, // زرار التحديد الخاص بجوجل شغال
-                zoomControlsEnabled: true, // زراير التكبير والتصغير شغالة
+                myLocationButtonEnabled: true, 
+                zoomControlsEnabled: true, 
+
+                // دي بتعمل هامش للخريطة من تحت عشان الفورمة متغطيهاش
+                padding: EdgeInsets.only(bottom: isPickingMap ? 120.0 : availableHeight * 0.65),
 
                 markers: isPickingMap ? {} : _markers, 
                 onMapCreated: (controller) => _mapController = controller, 
@@ -430,14 +421,12 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             ),
           ),
 
-        // 💡 الحل الجذري الثاني: الفورمة ثابتة الارتفاع حتى لو الكيبورد فتح
         if (!isPickingMap)
-          Positioned(
-            bottom: 0, 
-            left: 0, 
-            right: 0,
+          Align(
+            alignment: Alignment.bottomCenter,
             child: Container(
-              constraints: BoxConstraints(maxHeight: formMaxHeight), // عمرها ما هتصغر أبدأ
+              // الفورمة ثابتة دايما على 65% من الشاشة وعمرها ما هتصغر وتتدك في بعضها
+              constraints: BoxConstraints(maxHeight: availableHeight * 0.65), 
               decoration: const BoxDecoration(
                 color: Colors.white, 
                 borderRadius: BorderRadius.vertical(top: Radius.circular(30)), 
@@ -445,7 +434,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
               ),
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min, 
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -555,6 +544,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                               style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
                             )
                     ),
+
+                    // 💡 السحر هنا: مساحة فاضية تحت الزرار بتكبر بحجم الكيبورد عشان ترفعلك اللي بتكتبه قدام عينك
+                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
                   ],
                 ),
               ),

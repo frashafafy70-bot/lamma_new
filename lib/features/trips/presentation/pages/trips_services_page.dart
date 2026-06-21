@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../home/home_page.dart';
-import 'trip_chat_page.dart'; // تأكد من مسار صفحة الشات
 
 // استدعاءات ملفات الكابتن 
 import 'driver_tabs/driver_radar_tab.dart';
@@ -43,18 +42,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     
     if (widget.isDriver) {
       await FirebaseMessaging.instance.subscribeToTopic('drivers_radar');
-    } else {
-      await FirebaseMessaging.instance.unsubscribeFromTopic('drivers_radar');
     }
-
-    // التوجيه الذكي عند الضغط على الإشعار والتطبيق مفتوح في الخلفية
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      if (message.data['type'] == 'chat' && message.data['tripId'] != null) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: message.data['tripId'])));
-      } else if (message.data['type'] == 'new_request' && widget.isDriver) {
-        _tabController.animateTo(0); // يروح للرادار
-      }
-    });
   }
 
   Future<void> _saveDeviceToken() async {
@@ -62,9 +50,10 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     try {
       String? token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        await FirebaseFirestore.instance.collection('users').doc(currentUserId).set({
-          'fcmToken': token,
-        }, SetOptions(merge: true));
+        await FirebaseFirestore.instance.collection('users').doc(currentUserId).set(
+          {'fcmToken': token}, 
+          SetOptions(merge: true)
+        );
       }
     } catch (e) {
       debugPrint("Error saving token: $e");
@@ -77,7 +66,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
-  // دالة لرسم التاب مع نقطة حمراء (Badge) لو فيه داتا
   Widget _buildBadgeTab(String text, Stream<QuerySnapshot> stream) {
     return Tab(
       child: StreamBuilder<QuerySnapshot>(
@@ -91,7 +79,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               if (hasItems) ...[
                 const SizedBox(width: 4),
                 Container(
-                  width: 10, height: 10,
+                  width: 8, height: 8,
                   decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
                 )
               ]
@@ -106,7 +94,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isDriver ? 'لوحة الكابتن' : 'خدمات', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+        title: Text(widget.isDriver ? 'لوحة الكابتن' : 'خدمات التوصيل', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: royalGreen,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -118,20 +106,12 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           preferredSize: const Size.fromHeight(60),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
             child: TabBar(
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-              ),
+              indicator: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white),
               labelColor: royalGreen,
               unselectedLabelColor: Colors.white,
               labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
@@ -139,7 +119,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                   ? [
                       _buildBadgeTab('رادار الطلبات', FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').where('isDriverPost', isEqualTo: false).snapshots()),
                       const Tab(text: 'إضافة رحلة'),
-                      _buildBadgeTab('طلباتي النشطة', FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
+                      _buildBadgeTab('طلباتي', FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
                     ]
                   : [
                       const Tab(text: 'طلب مشوار'),
@@ -164,7 +144,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               : [
                   PassengerRequestTab(tabController: _tabController),
                   AvailableTravelsTab(),
-                  const PassengerMyRequestsTab(),
+                  PassengerMyRequestsTab(), // تم إزالة الـ const عشان ميعملش مشاكل
                 ],
         ),
       ),

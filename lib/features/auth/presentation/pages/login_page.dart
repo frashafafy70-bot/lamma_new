@@ -44,6 +44,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    // إخفاء الكيبورد عند الضغط على دخول
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() { _isLoading = true; });
@@ -90,6 +93,15 @@ class _LoginPageState extends State<LoginPage> {
          errorMessage = 'محاولات دخول كثيرة خاطئة، برجاء المحاولة لاحقاً.';
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), backgroundColor: Colors.red.shade800));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4), 
+        )
+      );
     } finally {
       if (mounted) setState(() { _isLoading = false; });
     }
@@ -138,6 +150,8 @@ class _LoginPageState extends State<LoginPage> {
                               TextFormField(
                                 controller: _identifierController,
                                 textDirection: TextDirection.ltr,
+                                // زرار الكيبورد يروح للحقل اللي بعده (التالي)
+                                textInputAction: TextInputAction.next,
                                 decoration: InputDecoration(labelText: 'البريد أو الهاتف أو اسم المستخدم', prefixIcon: Icon(Icons.how_to_reg_rounded, color: primaryNavy), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: goldAccent, width: 2))),
                                 validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال البيانات' : null,
                               ),
@@ -146,6 +160,9 @@ class _LoginPageState extends State<LoginPage> {
                                 controller: _passwordController,
                                 obscureText: _isPasswordObscured,
                                 textDirection: TextDirection.ltr,
+                                // زرار الكيبورد يكون "تم" ولما تدوس عليه ينفذ دالة الدخول
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _login(),
                                 decoration: InputDecoration(
                                   labelText: 'كلمة المرور',
                                   prefixIcon: Icon(Icons.lock_outline_rounded, color: primaryNavy),
