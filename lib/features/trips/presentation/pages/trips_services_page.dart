@@ -163,7 +163,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 ]
               : [
                   PassengerRequestTab(tabController: _tabController),
-                  const AvailableTravelsTab(),
+                  AvailableTravelsTab(),
                   const PassengerMyRequestsTab(),
                 ],
         ),
