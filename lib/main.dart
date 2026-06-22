@@ -44,8 +44,9 @@ void main() async {
   const InitializationSettings initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
   
+  // ✅ تم التعديل هنا: إضافة settings: قبل المتغير
   await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings, 
+    settings: initializationSettings, 
     onDidReceiveNotificationResponse: (NotificationResponse response) {
       debugPrint("✅ تم الضغط على الإشعار من Local Notifications: ${response.payload}");
     },
@@ -78,11 +79,12 @@ class _LammaAppState extends State<LammaApp> {
       AndroidNotification? android = message.notification?.android;
 
       if (notification != null && android != null) {
+        // ✅ تم التعديل هنا: استخدام Named Arguments (id, title, body, notificationDetails)
         flutterLocalNotificationsPlugin.show(
-          notification.hashCode, 
-          notification.title,
-          notification.body,
-          const NotificationDetails(
+          id: notification.hashCode, 
+          title: notification.title,
+          body: notification.body,
+          notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(
               'lamma_final_sound', 
               'تنبيهات لمة الفورية', 
@@ -166,7 +168,7 @@ class _LammaAppState extends State<LammaApp> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return snapshot.hasData ? HomePage() : LoginPage(); 
+          return snapshot.hasData ? const HomePage() : const LoginPage(); 
         },
       ), 
     );

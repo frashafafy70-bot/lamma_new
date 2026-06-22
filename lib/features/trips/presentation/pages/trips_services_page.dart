@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../home/home_page.dart';
 
 // استدعاءات ملفات الكابتن 
@@ -117,14 +117,14 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
               labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
               tabs: widget.isDriver
                   ? [
-                      _buildBadgeTab('رادار الطلبات', FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').where('isDriverPost', isEqualTo: false).snapshots()),
+                      _buildBadgeTab('رادار الطلبات', FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').where('isDriverPost', isEqualTo: false).limit(1).snapshots()),
                       const Tab(text: 'إضافة رحلة'),
-                      _buildBadgeTab('طلباتي', FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
+                      _buildBadgeTab('طلباتي', FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).limit(1).snapshots()),
                     ]
                   : [
                       const Tab(text: 'طلب مشوار'),
                       const Tab(text: 'رحلات السفر'),
-                      _buildBadgeTab('متابعة طلباتي', FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).snapshots()),
+                      _buildBadgeTab('متابعة طلباتي', FirebaseFirestore.instance.collection('trips').where('passengerId', isEqualTo: currentUserId).where('status', whereIn: ['negotiating', 'accepted']).limit(1).snapshots()),
                     ],
             ),
           ),
@@ -143,8 +143,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 ]
               : [
                   PassengerRequestTab(tabController: _tabController),
-                  AvailableTravelsTab(),
-                  PassengerMyRequestsTab(), // تم إزالة الـ const عشان ميعملش مشاكل
+                  const AvailableTravelsTab(),
+                  const PassengerMyRequestsTab(), 
                 ],
         ),
       ),

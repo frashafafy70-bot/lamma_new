@@ -214,7 +214,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   Widget _buildTripCategorySelector() {
     List<Map<String, dynamic>> categories = [
       {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded}, 
-      {'id': 'طلبات', 'name': 'شراء طلبات', 'iconIcons': Icons.shopping_bag_rounded}, 
+      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded}, 
       {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
     ];
     return Container(
@@ -296,6 +296,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     bool isPickingMap = _mapSelectionMode != 'none'; 
     double availableHeight = MediaQuery.of(context).size.height;
 
+    // 🟢 السحر بتاع رفع الزراير عن الفورمة:
+    // إحنا بنحسب ارتفاع الفورمة (65% من الشاشة) وبنزود عليه شوية مساحة صغيرة
+    double bottomPaddingForControls = isPickingMap ? 140 : (availableHeight * 0.65) + 20;
+
     return Stack(
       children: [
         _isLoadingMap
@@ -305,13 +309,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                 buildingsEnabled: true, 
                 initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 15.0),
                 
-                // زراير الخريطة شغالة عشان تقدر تعمل زووم وتجيب موقعك بسهولة
                 myLocationEnabled: true, 
-                myLocationButtonEnabled: true, 
-                zoomControlsEnabled: true, 
+                myLocationButtonEnabled: false, 
+                zoomControlsEnabled: false, 
+                mapToolbarEnabled: false,
 
-                // دي بتعمل هامش للخريطة من تحت عشان الفورمة متغطيهاش
-                padding: EdgeInsets.only(bottom: isPickingMap ? 120.0 : availableHeight * 0.65),
+                // 🟢 تظبيط مساحة الخريطة عشان الخريطة نفسها متركبش تحت الفورمة
+                padding: EdgeInsets.only(top: 100, bottom: isPickingMap ? 120.0 : availableHeight * 0.65),
 
                 markers: isPickingMap ? {} : _markers, 
                 onMapCreated: (controller) => _mapController = controller, 
@@ -328,6 +332,47 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                 },
               ),
               
+        // 🎛️ أزرار التحكم المخصصة (مرفوعة ديناميكياً عن الفورمة)
+        if (!_isLoadingMap)
+          Positioned(
+            bottom: bottomPaddingForControls, // 🟢 هنا المتغير اللي بيرفعهم دايماً
+            right: 16,
+            child: Column(
+              children: [
+                // أزرار التقريب
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+                  ),
+                  child: Column(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.add, color: Colors.black87), 
+                        onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomIn())
+                      ),
+                      Container(height: 1, width: 30, color: Colors.grey.shade300),
+                      IconButton(
+                        icon: const Icon(Icons.remove, color: Colors.black87), 
+                        onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomOut())
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // زر الموقع الحالي
+                FloatingActionButton(
+                  heroTag: 'custom_location_fab', 
+                  mini: true,
+                  backgroundColor: Colors.white,
+                  onPressed: _getUserLocation,
+                  child: Icon(Icons.my_location, color: royalGreen),
+                ),
+              ],
+            ),
+          ),
+
         if (isPickingMap)
           Center(
             child: Padding(
@@ -425,7 +470,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              // الفورمة ثابتة دايما على 65% من الشاشة وعمرها ما هتصغر وتتدك في بعضها
               constraints: BoxConstraints(maxHeight: availableHeight * 0.65), 
               decoration: const BoxDecoration(
                 color: Colors.white, 
@@ -544,8 +588,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                               style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
                             )
                     ),
-
-                    // 💡 السحر هنا: مساحة فاضية تحت الزرار بتكبر بحجم الكيبورد عشان ترفعلك اللي بتكتبه قدام عينك
                     SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
                   ],
                 ),
