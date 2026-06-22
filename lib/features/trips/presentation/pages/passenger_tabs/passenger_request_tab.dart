@@ -1,5 +1,6 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -28,6 +29,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   bool _isLoadingMap = true;
   String _mapSelectionMode = 'none'; 
   LatLng? _tempMapCenter; 
+  Timer? _debounce; 
 
   final TextEditingController _mapSearchController = TextEditingController();
   final String googleApiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? ''; 
@@ -59,6 +61,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     _errandDetailsController.dispose();
     _errandEstimatedCostController.dispose();
     _mapSearchController.dispose();
+    _debounce?.cancel();
     if (_mapController != null) {
       _mapController!.dispose();
     }
@@ -172,9 +175,28 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   Future<void> _createNewTripRequest() async {
     bool isErrand = _tripCategory == 'طلبات';
+    
     if (_destinationController.text.trim().isEmpty || _priceController.text.trim().isEmpty || _pickupController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إكمال جميع الحقول!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
       return;
+    }
+
+    double? suggestedPrice = double.tryParse(_priceController.text.trim());
+    if (suggestedPrice == null || suggestedPrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال سعر صحيح (أرقام فقط)!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+      return;
+    }
+
+    if (isErrand) {
+      if (_errandDetailsController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال تفاصيل الطلبات!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        return;
+      }
+      double? errandCost = double.tryParse(_errandEstimatedCostController.text.trim());
+      if (errandCost == null || errandCost <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال تكلفة تقريبية صحيحة (أرقام فقط)!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        return;
+      }
     }
     
     setState(() => _isSubmittingTrip = true);
@@ -296,9 +318,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     bool isPickingMap = _mapSelectionMode != 'none'; 
     double availableHeight = MediaQuery.of(context).size.height;
 
-    // 🟢 السحر بتاع رفع الزراير عن الفورمة:
-    // إحنا بنحسب ارتفاع الفورمة (65% من الشاشة) وبنزود عليه شوية مساحة صغيرة
-    double bottomPaddingForControls = isPickingMap ? 140 : (availableHeight * 0.65) + 20;
+    // 🟢 الارتفاع الثابت اللي هيمنع الكارت يغطي الزراير المرفوعة
+    double formHeightEstimate = 450.0;
+    double bottomPaddingForControls = isPickingMap ? 140 : formHeightEstimate + 20;
 
     return Stack(
       children: [
@@ -314,8 +336,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                 zoomControlsEnabled: false, 
                 mapToolbarEnabled: false,
 
-                // 🟢 تظبيط مساحة الخريطة عشان الخريطة نفسها متركبش تحت الفورمة
-                padding: EdgeInsets.only(top: 100, bottom: isPickingMap ? 120.0 : availableHeight * 0.65),
+                padding: EdgeInsets.only(top: 100, bottom: isPickingMap ? 120.0 : formHeightEstimate),
 
                 markers: isPickingMap ? {} : _markers, 
                 onMapCreated: (controller) => _mapController = controller, 
@@ -326,20 +347,21 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   }
                 },
                 onCameraIdle: () {
-                  if (isPickingMap && _shouldReverseGeocode && _tempMapCenter != null) {
-                    _performReverseGeocoding(_tempMapCenter!);
-                  }
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+                  _debounce = Timer(const Duration(seconds: 1), () {
+                    if (isPickingMap && _shouldReverseGeocode && _tempMapCenter != null) {
+                      _performReverseGeocoding(_tempMapCenter!);
+                    }
+                  });
                 },
               ),
               
-        // 🎛️ أزرار التحكم المخصصة (مرفوعة ديناميكياً عن الفورمة)
         if (!_isLoadingMap)
           Positioned(
-            bottom: bottomPaddingForControls, // 🟢 هنا المتغير اللي بيرفعهم دايماً
+            bottom: bottomPaddingForControls, 
             right: 16,
             child: Column(
               children: [
-                // أزرار التقريب
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -361,7 +383,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // زر الموقع الحالي
                 FloatingActionButton(
                   heroTag: 'custom_location_fab', 
                   mini: true,

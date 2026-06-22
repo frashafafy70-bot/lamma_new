@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🟢 تم إضافة المكتبة هنا
 
 import '../../../home/home_page.dart'; 
 import 'sign_up_page.dart'; 
@@ -24,9 +25,31 @@ class _LoginPageState extends State<LoginPage> {
   
   bool _isPasswordObscured = true;
   bool _isLoading = false; 
+  bool _rememberMe = false; // 🟢 متغير لحالة زر حفظ الدخول
 
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials(); // 🟢 استدعاء البيانات المحفوظة عند فتح الصفحة
+  }
+
+  // 🟢 دالة لجلب بيانات الدخول المحفوظة مسبقاً
+  Future<void> _loadSavedCredentials() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedIdentifier = prefs.getString('saved_identifier');
+    String? savedPassword = prefs.getString('saved_password');
+
+    if (savedIdentifier != null && savedPassword != null) {
+      setState(() {
+        _identifierController.text = savedIdentifier;
+        _passwordController.text = savedPassword;
+        _rememberMe = true;
+      });
+    }
+  }
 
   // 🔍 دالة للبحث عن الإيميل لو المستخدم دخل رقم فون أو يوزرنيم
   Future<String?> _resolveEmail(String input) async {
@@ -74,13 +97,23 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
 
+      // 🟢 منطق حفظ أو مسح بيانات الدخول بناءً على اختيار المستخدم
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('saved_identifier', _identifierController.text.trim());
+        await prefs.setString('saved_password', _passwordController.text.trim());
+      } else {
+        await prefs.remove('saved_identifier');
+        await prefs.remove('saved_password');
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تسجيل الدخول بنجاح! ✅', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), backgroundColor: Colors.green),
       );
       
       // التوجيه للصفحة الرئيسية مع تصفير مسار العودة
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) =>  HomePage()), (route) => false);
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
 
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -173,16 +206,33 @@ class _LoginPageState extends State<LoginPage> {
                                 validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال كلمة المرور' : null,
                               ),
                               
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage()));
-                                  },
-                                  child: Text('هل نسيت كلمة المرور؟', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                                ),
+                              // 🟢 صف يحتوي على زر حفظ الدخول وزر نسيان كلمة المرور
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _rememberMe,
+                                    activeColor: primaryNavy,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _rememberMe = value ?? false;
+                                      });
+                                    },
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                    child: const Text('تذكرني', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage()));
+                                    },
+                                    child: Text('نسيت كلمة المرور؟', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13)),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 8),
 
                               ElevatedButton(
                                 onPressed: _isLoading ? null : _login,

@@ -51,7 +51,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _setupNotificationsWithSound() async {
-    // 1. طلب صلاحيات الإشعارات والصوت للـ iOS والـ Android
     await FirebaseMessaging.instance.requestPermission(
       alert: true, 
       badge: true, 
@@ -59,7 +58,6 @@ class _HomePageState extends State<HomePage> {
       provisional: false,
     );
     
-    // 2. تعريف قنوات الإشعارات للأندرويد
     const AndroidNotificationChannel highImportanceChannel = AndroidNotificationChannel(
       'lamma_high_importance_channel', 
       'إشعارات لَمَّة الهامة', 
@@ -76,21 +74,18 @@ class _HomePageState extends State<HomePage> {
       playSound: true,
     );
 
-    // تسجيل القنوات داخل النظام
     final androidPlugin = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(highImportanceChannel);
       await androidPlugin.createNotificationChannel(finalSoundChannel);
     }
 
-    // تعيين خيارات العرض الأمامي للإشعارات
     await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
       alert: true, 
       badge: true, 
       sound: true,
     );
 
-    // 3. تهيئة المكون الإضافي للإشعارات المحلية
     const InitializationSettings initializationSettings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'), 
       iOS: DarwinInitializationSettings(
@@ -100,7 +95,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     
-    // تم التصحيح النهائي: استخدام المعامل 'settings' كما يطلبه إصدار الحزمة لديك
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
@@ -108,7 +102,6 @@ class _HomePageState extends State<HomePage> {
       },
     );
 
-    // 4. الاستماع للإشعارات القادمة أثناء فتح التطبيق (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -442,10 +435,22 @@ class _HomePageState extends State<HomePage> {
     ); 
   }
 
+  // 🟢 دالة التحويل بعد إصلاح التهنيج والإغلاق الآمن للنوافذ
   Future<void> _switchUserRole(String newRole) async {
+    if (_activeRole == newRole) {
+      Navigator.pop(context); 
+      return; 
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    showDialog(context: context, barrierDismissible: false, builder: (_) => Center(child: CircularProgressIndicator(color: goldAccent)));
+
+    showDialog(
+      context: context, 
+      barrierDismissible: false, 
+      builder: (_) => Center(child: CircularProgressIndicator(color: goldAccent))
+    );
+
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       var userData = userDoc.data() as Map<String, dynamic>? ?? {};
@@ -454,8 +459,10 @@ class _HomePageState extends State<HomePage> {
 
       if (!hasProfile && newRole != 'customer') {
         if (mounted) { 
+          // الإغلاق الآمن هنا
+          Navigator.of(context, rootNavigator: true).pop(); 
           Navigator.pop(context); 
-          Navigator.pop(context); 
+          
           if (newRole == 'captain') {
             _showCaptainRegistration(user.uid, fullName);
           } else if (newRole == 'lawyer') {
@@ -469,16 +476,35 @@ class _HomePageState extends State<HomePage> {
         return; 
       }
       
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'activeRole': newRole}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        {'activeRole': newRole}, 
+        SetOptions(merge: true)
+      );
+
       if (!mounted) return; 
+
+      // الإغلاق الآمن للتحميل الجاهز
+      Navigator.of(context, rootNavigator: true).pop(); 
       Navigator.pop(context); 
-      Navigator.pop(context); 
-      setState(() { _activeRole = newRole; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم التحويل لوضع: $newRole بنجاح ✅', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
+
+      setState(() { 
+        _activeRole = newRole; 
+      });
+
+      String roleNameAr = newRole == 'customer' ? 'العميل' : newRole;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم التحويل لوضع: $roleNameAr بنجاح ✅', style: const TextStyle(fontFamily: 'Cairo')), 
+          backgroundColor: Colors.green
+        )
+      );
     } catch (e) { 
       if (mounted) { 
-        Navigator.pop(context); 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')))); 
+        Navigator.of(context, rootNavigator: true).pop(); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء التحويل: $e', style: const TextStyle(fontFamily: 'Cairo')))
+        ); 
       } 
     }
   }
