@@ -239,32 +239,38 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded}, 
       {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
     ];
-    return Container(
-      padding: const EdgeInsets.all(4), 
-      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade300)),
-      child: Row(
-        children: categories.map((c) {
-          bool isSelected = _tripCategory == c['id'];
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() { _tripCategory = c['id']; _mapSelectionMode = 'none'; FocusScope.of(context).unfocus(); }),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250), 
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(12), boxShadow: isSelected ? [const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : []),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center, 
-                  children: [
-                    Icon(c['icon'], color: isSelected ? royalGreen : Colors.grey.shade600, size: 16), 
-                    const SizedBox(width: 4), 
-                    Text(c['name'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? royalGreen : Colors.grey.shade600))
-                  ]
-                ),
-              ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: categories.map((c) {
+        bool isSelected = _tripCategory == c['id'];
+        return GestureDetector(
+          onTap: () => setState(() { _tripCategory = c['id']; _mapSelectionMode = 'none'; FocusScope.of(context).unfocus(); }),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? royalGreen.withValues(alpha: 0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
             ),
-          );
-        }).toList(),
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(c['icon'], color: isSelected ? royalGreen : Colors.grey.shade500, size: 22), 
+                const SizedBox(width: 6), 
+                Text(
+                  c['name'], 
+                  style: TextStyle(
+                    fontFamily: 'Cairo', 
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600, 
+                    fontSize: 14, 
+                    color: isSelected ? royalGreen : Colors.grey.shade600
+                  )
+                )
+              ]
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -318,7 +324,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     bool isPickingMap = _mapSelectionMode != 'none'; 
     double availableHeight = MediaQuery.of(context).size.height;
 
-    // 🟢 الارتفاع الثابت اللي هيمنع الكارت يغطي الزراير المرفوعة
     double formHeightEstimate = 450.0;
     double bottomPaddingForControls = isPickingMap ? 140 : formHeightEstimate + 20;
 
@@ -330,15 +335,12 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                 mapType: MapType.normal, 
                 buildingsEnabled: true, 
                 initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(30.0444, 31.2357), zoom: 15.0),
-                
                 myLocationEnabled: true, 
                 myLocationButtonEnabled: false, 
                 zoomControlsEnabled: false, 
                 mapToolbarEnabled: false,
-
                 padding: EdgeInsets.only(top: 100, bottom: isPickingMap ? 120.0 : formHeightEstimate),
-
-                markers: isPickingMap ? {} : _markers, 
+                markers: _markers, // 👈 استعادة الماركرز بالكامل لمنع بكسلة أو عمى الخريطة
                 onMapCreated: (controller) => _mapController = controller, 
                 onCameraMove: (CameraPosition position) { 
                   if (isPickingMap) {
@@ -398,7 +400,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 45.0), 
-              child: Icon(_mapSelectionMode == 'pickup' ? Icons.location_on : Icons.flag, size: 55, color: _mapSelectionMode == 'pickup' ? Colors.green : Colors.red, shadows: const [Shadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))])
+              child: Icon(Icons.gps_fixed, size: 55, color: royalGreen, shadows: const [Shadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))])
             )
           ),
 

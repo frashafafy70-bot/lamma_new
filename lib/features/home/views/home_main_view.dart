@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 // استدعاء المكون المشترك
 import '../widgets/service_square_card.dart';
 
-// ⚠️ تنبيه: تأكد من صحة مسارات الصفحات التالية بناءً على هيكل مجلداتك
+// مسارات الصفحات
 import '../../legal/presentation/pages/legal_services_page.dart';
 import '../../medical/medical_services_page.dart';
 import '../../trips/presentation/pages/trips_services_page.dart';
@@ -29,6 +29,8 @@ class HomeMainView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
     return Column(
       children: [
         Container(
@@ -43,7 +45,7 @@ class HomeMainView extends StatelessWidget {
             children: [
               Positioned(right: -30, top: -20, child: Icon(Icons.mosque_rounded, size: 180, color: Colors.white.withValues(alpha: 0.03))),
               Positioned(left: -40, bottom: -30, child: Icon(Icons.brightness_high_rounded, size: 150, color: Colors.white.withValues(alpha: 0.03))),
-              Positioned(right: 100, bottom: -10, child: Icon(Icons.star_outline_rounded, size: 80, color: Colors.white.withValues(alpha: 0.03))),
+              
               Padding(
                 padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 35, left: 20, right: 20),
                 child: Column(
@@ -62,30 +64,41 @@ class HomeMainView extends StatelessWidget {
                             Icon(Icons.grid_view_rounded, color: goldAccent, size: 24),
                           ],
                         ),
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).collection('notifications').where('isRead', isEqualTo: false).snapshots(),
-                          builder: (context, snapshot) {
-                            int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                            return Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 26),
-                                  onPressed: onOpenNotifications, 
+                        
+                        // 🔔 نظام الإشعارات (الجرس)
+                        userId == null 
+                        ? IconButton(icon: const Icon(Icons.notifications_active_rounded, color: Colors.white), onPressed: onOpenNotifications)
+                        : StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(userId)
+                                .collection('notifications')
+                                .where('isRead', isEqualTo: false)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              // لو مفيش بيانات أو فيه خطأ، يفضل الجرس عادي بدون بادج
+                              int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                              
+                              return IconButton(
+                                icon: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 26),
+                                    if (unreadCount > 0)
+                                      Positioned(
+                                        right: -2, top: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          child: Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                                        ),
+                                      )
+                                  ],
                                 ),
-                                if (unreadCount > 0)
-                                  Positioned(
-                                    right: 8, top: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                      child: Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ),
-                                  )
-                              ],
-                            );
-                          },
-                        ),
+                                onPressed: onOpenNotifications, 
+                              );
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 25),
@@ -104,25 +117,13 @@ class HomeMainView extends StatelessWidget {
         ),
         Expanded(
           child: GridView.count(
-            padding: const EdgeInsets.only(top: 24, left: 20, right: 20, bottom: 20),
-            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.9, 
+            padding: const EdgeInsets.all(20),
+            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85, 
             children: [
-              ServiceSquareCard(
-                title: 'الاستشارات القانونية', subtitle: 'محامون معتمدون، حاسبات', icon: Icons.gavel_rounded, iconColor: goldAccent, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalServicesPage(isLawyer: activeRole == 'lawyer')))
-              ),
-              ServiceSquareCard(
-                title: 'الخدمات الطبية', subtitle: 'استشارات طبية، ورعاية صحية', icon: Icons.medical_services_rounded, iconColor: Colors.green.shade600, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MedicalServicesPage(medicalRole: (activeRole == 'doctor' || activeRole == 'nurse') ? 'provider' : 'patient')))
-              ),
-              ServiceSquareCard(
-                title: 'التوصيل الذكي (لَمَّة)', subtitle: 'رحلات، وتوصيل طلبات', icon: Icons.local_taxi_rounded, iconColor: Colors.blue.shade600, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripsServicesPage(isDriver: activeRole == 'captain')))
-              ),
-              ServiceSquareCard(
-                title: 'الخدمات العامة', subtitle: 'خدمات منوعة تناسبك', icon: Icons.dashboard_customize_rounded, iconColor: Colors.purple.shade500, 
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً 🛠️', style: TextStyle(fontFamily: 'Cairo'))))
-              ),
+              ServiceSquareCard(title: 'الاستشارات القانونية', subtitle: 'محامون معتمدون', icon: Icons.gavel_rounded, iconColor: goldAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalServicesPage(isLawyer: activeRole == 'lawyer')))),
+              ServiceSquareCard(title: 'الخدمات الطبية', subtitle: 'رعاية صحية', icon: Icons.medical_services_rounded, iconColor: Colors.green.shade600, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MedicalServicesPage(medicalRole: (activeRole == 'doctor' || activeRole == 'nurse') ? 'provider' : 'patient')))),
+              ServiceSquareCard(title: 'التوصيل الذكي', subtitle: 'رحلات وطلبات', icon: Icons.local_taxi_rounded, iconColor: Colors.blue.shade600, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripsServicesPage(isDriver: activeRole == 'captain')))),
+              ServiceSquareCard(title: 'الخدمات العامة', subtitle: 'خدمات منوعة', icon: Icons.dashboard_customize_rounded, iconColor: Colors.purple.shade500, onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً 🛠️', style: TextStyle(fontFamily: 'Cairo')))))
             ],
           ),
         ),

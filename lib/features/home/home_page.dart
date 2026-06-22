@@ -1,25 +1,21 @@
-// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
+// ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'package:image_picker/image_picker.dart'; 
-import 'package:image_cropper/image_cropper.dart'; 
-import 'package:firebase_storage/firebase_storage.dart'; 
-import 'dart:convert'; 
-import 'dart:io'; 
-import 'package:http/http.dart' as http; 
-
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../auth/presentation/pages/login_page.dart'; 
 import '../profile/edit_profile_page.dart'; 
 
-import 'views/home_main_view.dart';
-import 'views/search_view.dart';
-import 'views/orders_view.dart';
-import 'views/profile_view.dart';
+// 💡 استخدام الـ prefixes لحل مشكلة الـ Ambiguous Import وتداخل الأسماء نهائياً
+import 'views/home_main_view.dart' as home_v;
+import 'views/search_view.dart' as search_v;
+import 'views/orders_view.dart' as orders_v;
+import 'views/profile_view.dart' as profile_v;
+
+// 🟢 استدعاء الملفات الجيران في نفس المجلد
+import 'notification_service.dart'; 
+import 'role_registration_sheets.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,13 +25,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // المفتاح العام للتحكم في الـ Scaffold وفتح الـ Drawer بأمان من أي مكان
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   final Color primaryNavy = const Color(0xFF0F172A); 
   final Color goldAccent = const Color(0xFFD4AF37); 
 
   int _bottomNavIndex = 0;
-  final ImagePicker picker = ImagePicker();
-  final String cloudVisionApiKey = 'AIzaSyC7LVnuJ5QfXCAKjse-EbDxvKZITRa75AM';
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   String _userName = 'جاري التحميل...';
   String _userEmail = '';
@@ -47,91 +43,8 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadUserProfile();
-    _setupNotificationsWithSound();
-  }
-
-  Future<void> _setupNotificationsWithSound() async {
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true, 
-      badge: true, 
-      sound: true, 
-      provisional: false,
-    );
-    
-    const AndroidNotificationChannel highImportanceChannel = AndroidNotificationChannel(
-      'lamma_high_importance_channel', 
-      'إشعارات لَمَّة الهامة', 
-      description: 'هذه القناة مخصصة للإشعارات التي تتطلب تنبيهاً صوتياً.', 
-      importance: Importance.max, 
-      playSound: true,
-    );
-
-    const AndroidNotificationChannel finalSoundChannel = AndroidNotificationChannel(
-      'lamma_final_sound',
-      'تنبيهات لمة الفورية',
-      description: 'قناة الرحلات العاجلة',
-      importance: Importance.max,
-      playSound: true,
-    );
-
-    final androidPlugin = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(highImportanceChannel);
-      await androidPlugin.createNotificationChannel(finalSoundChannel);
-    }
-
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true, 
-      badge: true, 
-      sound: true,
-    );
-
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'), 
-      iOS: DarwinInitializationSettings(
-        requestSoundPermission: true, 
-        requestBadgePermission: true, 
-        requestAlertPermission: true,
-      ),
-    );
-    
-    await flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint("✅ تم الضغط على الإشعار: ${response.payload}");
-      },
-    );
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-      
-      if (notification != null && android != null) {
-        String targetChannelId = message.data['channel_id'] ?? 'lamma_final_sound';
-        String targetChannelName = targetChannelId == 'lamma_high_importance_channel' 
-            ? 'إشعارات لَمَّة الهامة' 
-            : 'تنبيهات لمة الفورية';
-
-        flutterLocalNotificationsPlugin.show(
-          id: notification.hashCode, 
-          title: notification.title, 
-          body: notification.body,
-          notificationDetails: NotificationDetails(
-            android: AndroidNotificationDetails(
-              targetChannelId, 
-              targetChannelName, 
-              channelDescription: 'قناة التنبيهات الفورية والرحلات العاجلة', 
-              icon: '@mipmap/ic_launcher', 
-              importance: Importance.max, 
-              priority: Priority.high,
-              playSound: true,
-            ),
-            iOS: const DarwinNotificationDetails(presentSound: true),
-          ),
-          payload: jsonEncode(message.data),
-        );
-      }
-    });
+    // تشغيل الإشعارات الصوتية
+    NotificationService.setupNotificationsWithSound();
   }
 
   Future<void> _loadUserProfile() async {
@@ -151,14 +64,10 @@ class _HomePageState extends State<HomePage> {
             });
           }
         } else { 
-          if (mounted) {
-            setState(() => _isLoadingProfile = false);
-          }
+          if (mounted) setState(() => _isLoadingProfile = false);
         }
       } catch (e) { 
-        if (mounted) {
-          setState(() => _isLoadingProfile = false);
-        }
+        if (mounted) setState(() => _isLoadingProfile = false);
       }
     }
   }
@@ -188,6 +97,9 @@ class _HomePageState extends State<HomePage> {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(userId).collection('notifications').orderBy('timestamp', descending: true).snapshots(),
                   builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator(color: goldAccent));
+                    }
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(child: Text('لا توجد إشعارات حالياً 🔕', style: TextStyle(fontFamily: 'Cairo')));
                     }
@@ -195,16 +107,49 @@ class _HomePageState extends State<HomePage> {
                       itemCount: snapshot.data!.docs.length,
                       itemBuilder: (context, index) {
                         var notif = snapshot.data!.docs[index];
-                        if (notif['isRead'] == false) {
-                          notif.reference.update({'isRead': true});
+                        var data = notif.data() as Map<String, dynamic>;
+                        bool isRead = data.containsKey('isRead') ? data['isRead'] : false;
+
+                        if (!isRead) {
+                          Future.microtask(() => notif.reference.update({'isRead': true}));
                         }
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: goldAccent.withValues(alpha: 0.2), 
-                            child: Icon(Icons.notifications_active, color: goldAccent),
-                          ), 
-                          title: Text(notif['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
-                          subtitle: Text(notif['body'] ?? '', style: const TextStyle(fontFamily: 'Cairo')),
+
+                        return Dismissible(
+                          key: Key(notif.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
+                            child: const Icon(Icons.delete_rounded, color: Colors.white),
+                          ),
+                          onDismissed: (direction) async {
+                            await notif.reference.delete();
+                          },
+                          child: Card(
+                            elevation: isRead ? 0 : 2,
+                            color: isRead ? Colors.transparent : Colors.white,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12), 
+                              side: isRead ? BorderSide.none : BorderSide(color: goldAccent.withValues(alpha: 0.3))
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isRead ? Colors.grey.shade200 : goldAccent.withValues(alpha: 0.2), 
+                                child: Icon(isRead ? Icons.notifications_rounded : Icons.notifications_active_rounded, color: isRead ? Colors.grey : goldAccent),
+                              ), 
+                              title: Text(data['title'] ?? 'إشعار', style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.bold, fontFamily: 'Cairo', fontSize: 14)), 
+                              subtitle: Text(data['body'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.grey.shade700)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                onPressed: () async {
+                                  await notif.reference.delete();
+                                },
+                              ),
+                            ),
+                          ),
                         );
                       },
                     );
@@ -317,128 +262,10 @@ class _HomePageState extends State<HomePage> {
     ));
   }
 
-  Future<bool> _analyzeImageWithCloudVision(String imagePath, List<String> requiredKeywords) async { 
-    try { 
-      List<int> imageBytes = await File(imagePath).readAsBytes(); 
-      String base64Image = base64Encode(imageBytes); 
-      var requestBody = { 
-        "requests": [{
-          "image": {"content": base64Image}, 
-          "features": [{"type": "TEXT_DETECTION"}], 
-          "imageContext": {"languageHints": ["ar"]}
-        }] 
-      }; 
-      var response = await http.post(
-        Uri.parse('https://vision.googleapis.com/v1/images:annotate?key=$cloudVisionApiKey'), 
-        headers: {"Content-Type": "application/json"}, 
-        body: jsonEncode(requestBody),
-      ); 
-      if (response.statusCode == 200) { 
-        var jsonResponse = jsonDecode(response.body); 
-        var responses = jsonResponse['requests'] ?? []; 
-        if (responses.isNotEmpty && responses[0].containsKey('fullTextAnnotation')) { 
-          String extractedText = responses[0]['fullTextAnnotation']['text'].toLowerCase(); 
-          return requiredKeywords.any((keyword) => extractedText.contains(keyword)); 
-        } 
-      } 
-      return false; 
-    } catch (e) { 
-      return false; 
-    } 
-  }
-  
-  Future<String?> _uploadDocumentToStorage({required String uid, required String role, required String docName, required File file}) async { 
-    try { 
-      Reference ref = FirebaseStorage.instance.ref().child('users').child(uid).child('documents').child(role).child('$docName.jpg'); 
-      UploadTask uploadTask = ref.putFile(file); 
-      TaskSnapshot snapshot = await uploadTask; 
-      return await snapshot.ref.getDownloadURL(); 
-    } catch (e) { 
-      return null; 
-    } 
-  }
-  
-  Future<CroppedFile?> _cropDocumentImage(String path, String title) async { 
-    return await ImageCropper().cropImage(
-      sourcePath: path, 
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: title, 
-          toolbarColor: primaryNavy, 
-          toolbarWidgetColor: Colors.white, 
-          initAspectRatio: CropAspectRatioPreset.original, 
-          lockAspectRatio: false, 
-          activeControlsWidgetColor: goldAccent,
-        ), 
-        IOSUiSettings(title: title),
-      ],
-    ); 
-  }
-  
-  Future<void> _pickValidateAndCropImage(BuildContext context, StateSetter setModalState, Function(File?) onValidImage, List<String> keywords, String cropTitle) async { 
-    try { 
-      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70); 
-      if (pickedFile != null) { 
-        if (!context.mounted) return; 
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🤖 جاري فحص المستند سحابياً...'), duration: Duration(seconds: 2))); 
-        bool isValid = await _analyzeImageWithCloudVision(pickedFile.path, keywords); 
-        if (!isValid) { 
-          if (!context.mounted) return; 
-          bool? proceedAnyway = await showDialog<bool>(
-            context: context, 
-            builder: (ctx) => AlertDialog(
-              title: const Text('تنبيه فحص المستند ⚠️', textDirection: TextDirection.rtl, style: TextStyle(fontFamily: 'Cairo')), 
-              content: const Text('الذكاء الاصطناعي لم يتعرف على الكارنيه. هل تريد إكمال الرفع للمراجعة اليدوية؟', textDirection: TextDirection.rtl, style: TextStyle(fontFamily: 'Cairo')), 
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')), 
-                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: primaryNavy), child: const Text('نعم، المتابعة', style: TextStyle(color: Colors.white))),
-              ],
-            )
-          ); 
-          if (proceedAnyway != true) return; 
-        } 
-        CroppedFile? cropped = await _cropDocumentImage(pickedFile.path, cropTitle); 
-        if (cropped != null) { 
-          setModalState(() { onValidImage(File(cropped.path)); }); 
-          if (!context.mounted) return; 
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ تم إرفاق المستند بنجاح.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green)); 
-        } 
-      } 
-    } catch (e) { 
-      if (!context.mounted) return; 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في جلب المستند'))); 
-    } 
-  }
-  
-  Widget _buildFileImageButton(String title, File? file, VoidCallback onTap) { 
-    bool isUploaded = file != null; 
-    return Expanded(
-      child: InkWell(
-        onTap: onTap, 
-        borderRadius: BorderRadius.circular(12), 
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12), 
-          decoration: BoxDecoration(
-            color: isUploaded ? Colors.green.withValues(alpha: 0.1) : Colors.grey.shade100, 
-            border: Border.all(color: isUploaded ? Colors.green : Colors.grey.shade300, width: 1.5), 
-            borderRadius: BorderRadius.circular(12),
-          ), 
-          child: Column(
-            children: [
-              Icon(isUploaded ? Icons.check_circle_rounded : Icons.add_a_photo_rounded, color: isUploaded ? Colors.green : Colors.grey.shade600, size: 24), 
-              const SizedBox(height: 4), 
-              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isUploaded ? Colors.green : Colors.black87, fontFamily: 'Cairo')),
-            ],
-          ),
-        ),
-      ),
-    ); 
-  }
-
-  // 🟢 دالة التحويل بعد إصلاح التهنيج والإغلاق الآمن للنوافذ
   Future<void> _switchUserRole(String newRole) async {
+    Navigator.pop(context); 
+
     if (_activeRole == newRole) {
-      Navigator.pop(context); 
       return; 
     }
 
@@ -459,18 +286,16 @@ class _HomePageState extends State<HomePage> {
 
       if (!hasProfile && newRole != 'customer') {
         if (mounted) { 
-          // الإغلاق الآمن هنا
-          Navigator.of(context, rootNavigator: true).pop(); 
           Navigator.pop(context); 
           
           if (newRole == 'captain') {
-            _showCaptainRegistration(user.uid, fullName);
+            RoleRegistrationSheets.showCaptainRegistration(context, user.uid, fullName, (role) => setState(() => _activeRole = role));
           } else if (newRole == 'lawyer') {
-            _showLawyerRegistration(user.uid, fullName);
+            RoleRegistrationSheets.showLawyerRegistration(context, user.uid, fullName, (role) => setState(() => _activeRole = role));
           } else if (newRole == 'doctor') {
-            _showDoctorRegistration(user.uid, fullName);
+            RoleRegistrationSheets.showDoctorRegistration(context, user.uid, fullName, (role) => setState(() => _activeRole = role));
           } else if (newRole == 'nurse') {
-            _showNurseRegistration(user.uid, fullName);
+            RoleRegistrationSheets.showNurseRegistration(context, user.uid, fullName, (role) => setState(() => _activeRole = role));
           }
         }
         return; 
@@ -482,16 +307,16 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (!mounted) return; 
-
-      // الإغلاق الآمن للتحميل الجاهز
-      Navigator.of(context, rootNavigator: true).pop(); 
       Navigator.pop(context); 
 
       setState(() { 
         _activeRole = newRole; 
       });
 
-      String roleNameAr = newRole == 'customer' ? 'العميل' : newRole;
+      String roleNameAr = newRole == 'customer' ? 'العميل' : 
+                          newRole == 'captain' ? 'الكابتن' : 
+                          newRole == 'lawyer' ? 'المحامي' : 
+                          newRole == 'doctor' ? 'الطبيب' : 'التمريض';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -501,7 +326,7 @@ class _HomePageState extends State<HomePage> {
       );
     } catch (e) { 
       if (mounted) { 
-        Navigator.of(context, rootNavigator: true).pop(); 
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ أثناء التحويل: $e', style: const TextStyle(fontFamily: 'Cairo')))
         ); 
@@ -509,335 +334,42 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _showCaptainRegistration(String uid, String fullName) {
-    final vehicleController = TextEditingController();
-    final plateController = TextEditingController();
-    File? carLicenseFront, carLicenseBack, personalIdFront, personalIdBack;
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => StatefulBuilder( 
-        builder: (context, setModalState) {
-          return Directionality(
-            textDirection: TextDirection.rtl, 
-            child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom, left: 24, right: 24, top: 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, 
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.local_taxi_rounded, size: 50, color: Colors.green),
-                    const SizedBox(height: 12),
-                    const Text('تفعيل حساب الكابتن', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    const SizedBox(height: 24),
-                    TextField(controller: vehicleController, decoration: InputDecoration(labelText: 'نوع السيارة', prefixIcon: const Icon(Icons.directions_car_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 16),
-                    TextField(controller: plateController, decoration: InputDecoration(labelText: 'رقم اللوحة', prefixIcon: const Icon(Icons.pin_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 24),
-                    const Text('رخصة المركبة (وش وضهر)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _buildFileImageButton('الوجه الأمامي', carLicenseFront, () => _pickValidateAndCropImage(context, setModalState, (f) => carLicenseFront = f, ['رخصة', 'المرور'], 'تعديل صورة رخصة السيارة')),
-                      const SizedBox(width: 12),
-                      _buildFileImageButton('الوجه الخلفي', carLicenseBack, () => _pickValidateAndCropImage(context, setModalState, (f) => carLicenseBack = f, ['وزارة', 'فحص', 'تأمين'], 'تعديل صورة رخصة السيارة')),
-                    ]),
-                    const SizedBox(height: 20),
-                    const Text('الرخصة الشخصية (وش وضهر)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _buildFileImageButton('الوجه الأمامي', personalIdFront, () => _pickValidateAndCropImage(context, setModalState, (f) => personalIdFront = f, ['بطاقة', 'رقم', 'قومي', 'قيادة'], 'تعديل صورة الرخصة الشخصية')),
-                      const SizedBox(width: 12),
-                      _buildFileImageButton('الوجه الخلفي', personalIdBack, () => _pickValidateAndCropImage(context, setModalState, (f) => personalIdBack = f, ['الرقم', 'مهنة', 'مرور'], 'تعديل صورة الرخصة الشخصية')),
-                    ]),
-                    const SizedBox(height: 30),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: () async {
-                        if (vehicleController.text.isEmpty || plateController.text.isEmpty || carLicenseFront == null || carLicenseBack == null || personalIdFront == null || personalIdBack == null) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(const SnackBar(content: Text('برجاء استكمال البيانات والمرفقات!'))); 
-                          return;
-                        }
-                        showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.green)));
-                        String? carFrontUrl = await _uploadDocumentToStorage(uid: uid, role: 'captain', docName: 'car_license_front', file: carLicenseFront!);
-                        String? carBackUrl = await _uploadDocumentToStorage(uid: uid, role: 'captain', docName: 'car_license_back', file: carLicenseBack!);
-                        String? idFrontUrl = await _uploadDocumentToStorage(uid: uid, role: 'captain', docName: 'personal_id_front', file: personalIdFront!);
-                        String? idBackUrl = await _uploadDocumentToStorage(uid: uid, role: 'captain', docName: 'personal_id_back', file: personalIdBack!);
-                        String secretName = 'كابتن ${fullName.trim().split(' ').first}';
-
-                        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-                          'activeRole': 'captain', 'roles': FieldValue.arrayUnion(['captain']),
-                          'profiles': {
-                            'captain': {
-                              'displayName': secretName, 'vehicle': vehicleController.text, 'plate': plateController.text, 'isVerified': true, 'rating': 5.0,
-                              'carLicenseFrontUrl': carFrontUrl, 'carLicenseBackUrl': carBackUrl, 'personalIdFrontUrl': idFrontUrl, 'personalIdBackUrl': idBackUrl,
-                            }
-                          }
-                        }, SetOptions(merge: true));
-
-                        if (!context.mounted) return;
-                        Navigator.pop(context); 
-                        Navigator.pop(sheetContext); 
-                        setState(() => _activeRole = 'captain'); 
-                      },
-                      child: const Text('بدء العمل', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      ),
-    );
-  }
-
-  void _showLawyerRegistration(String uid, String fullName) {
-    final degreeController = TextEditingController();
-    final registrationNumController = TextEditingController();
-    File? barIdFront;
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => StatefulBuilder( 
-        builder: (context, setModalState) {
-          return Directionality(
-            textDirection: TextDirection.rtl, 
-            child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom, left: 24, right: 24, top: 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, 
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Icon(Icons.gavel_rounded, size: 50, color: goldAccent),
-                    const SizedBox(height: 12),
-                    const Text('اعتماد حساب المحامي ⚖️', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    const SizedBox(height: 24),
-                    TextField(controller: degreeController, decoration: InputDecoration(labelText: 'درجة القيد', prefixIcon: const Icon(Icons.school_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 16),
-                    TextField(controller: registrationNumController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'رقم القيد بالنقابة', prefixIcon: const Icon(Icons.numbers_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 24),
-                    const Text('كارنيه نقابة المحامين (الوجه الأمامي)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _buildFileImageButton('إرفاق صورة الكارنيه', barIdFront, () => _pickValidateAndCropImage(context, setModalState, (f) => barIdFront = f, ['نقابة', 'المحامين', 'محام'], 'تعديل وقص صورة الكارنيه')),
-                    ]),
-                    const SizedBox(height: 30),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: () async {
-                        if (degreeController.text.isEmpty || registrationNumController.text.isEmpty || barIdFront == null) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(const SnackBar(content: Text('برجاء استكمال البيانات وكارنيه النقابة!'))); 
-                          return;
-                        }
-                        showDialog(context: context, barrierDismissible: false, builder: (_) => Center(child: CircularProgressIndicator(color: goldAccent)));
-                        String? lawyerFrontUrl = await _uploadDocumentToStorage(uid: uid, role: 'lawyer', docName: 'bar_id_front', file: barIdFront!);
-                        String formalName = 'الأستاذ / $fullName'; 
-
-                        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-                          'activeRole': 'lawyer', 'roles': FieldValue.arrayUnion(['lawyer']), 
-                          'profiles': {
-                            'lawyer': {
-                              'displayName': formalName, 'degree': degreeController.text, 'registrationNumber': registrationNumController.text, 'isVerified': true, 'barIdFrontUrl': lawyerFrontUrl,
-                            }
-                          }
-                        }, SetOptions(merge: true));
-
-                        if (!context.mounted) return;
-                        Navigator.pop(context); 
-                        Navigator.pop(sheetContext); 
-                        setState(() => _activeRole = 'lawyer'); 
-                      },
-                      child: const Text('تفعيل الحساب القانوني', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      ),
-    );
-  }
-
-  void _showDoctorRegistration(String uid, String fullName) {
-    final specialtyController = TextEditingController();
-    final licenseController = TextEditingController();
-    File? medicalIdFront;
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => StatefulBuilder( 
-        builder: (context, setModalState) {
-          return Directionality(
-            textDirection: TextDirection.rtl, 
-            child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom, left: 24, right: 24, top: 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, 
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.medical_services_rounded, size: 50, color: Colors.teal),
-                    const SizedBox(height: 12),
-                    const Text('اعتماد حساب الطبيب 👨‍⚕️', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    const SizedBox(height: 24),
-                    TextField(controller: specialtyController, decoration: InputDecoration(labelText: 'التخصص', prefixIcon: const Icon(Icons.healing_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 16),
-                    TextField(controller: licenseController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'رقم ترخيص مزاولة المهنة', prefixIcon: const Icon(Icons.assignment_ind_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 24),
-                    const Text('كارنيه نقابة الأطباء (الوجه الأمامي)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _buildFileImageButton('إرفاق صورة الكارنيه', medicalIdFront, () => _pickValidateAndCropImage(context, setModalState, (f) => medicalIdFront = f, ['نقابة', 'الأطباء', 'طبيب'], 'تعديل وقص صورة الكارنيه')),
-                    ]),
-                    const SizedBox(height: 30),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: () async {
-                        if (specialtyController.text.isEmpty || licenseController.text.isEmpty || medicalIdFront == null) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(const SnackBar(content: Text('برجاء استكمال البيانات والكارنيه!'))); 
-                          return;
-                        }
-                        showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.teal)));
-                        String? doctorFrontUrl = await _uploadDocumentToStorage(uid: uid, role: 'doctor', docName: 'medical_id_front', file: medicalIdFront!);
-                        String formalName = 'دكتور / $fullName'; 
-
-                        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-                          'activeRole': 'doctor', 'roles': FieldValue.arrayUnion(['doctor']), 
-                          'profiles': {
-                            'doctor': {
-                              'displayName': formalName, 'specialty': specialtyController.text, 'licenseNumber': licenseController.text, 'isVerified': true, 'medicalIdFrontUrl': doctorFrontUrl,
-                            }
-                          }
-                        }, SetOptions(merge: true));
-
-                        if (!context.mounted) return;
-                        Navigator.pop(context); 
-                        Navigator.pop(sheetContext); 
-                        setState(() => _activeRole = 'doctor'); 
-                      },
-                      child: const Text('تفعيل الحساب الطبي', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      ),
-    );
-  }
-
-  void _showNurseRegistration(String uid, String fullName) {
-    final qualificationController = TextEditingController(); 
-    final nurseLicenseController = TextEditingController(); 
-    File? nurseIdFront;
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => StatefulBuilder( 
-        builder: (context, setModalState) {
-          return Directionality(
-            textDirection: TextDirection.rtl, 
-            child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom, left: 24, right: 24, top: 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, 
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.health_and_safety_rounded, size: 50, color: Colors.blue),
-                    const SizedBox(height: 12),
-                    const Text('اعتماد حساب التمريض 🩺', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Text('يرجى إرفاق كارنيه نقابة التمريض لتوثيق حسابك في لَمَّة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo')),
-                    const SizedBox(height: 24),
-                    TextField(controller: qualificationController, decoration: InputDecoration(labelText: 'المؤهل (أخصائي / فني تمريض)', prefixIcon: const Icon(Icons.assignment_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 16),
-                    TextField(controller: nurseLicenseController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'رقم ترخيص / قيد النقابة', prefixIcon: const Icon(Icons.pin_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 24),
-                    const Text('كارنيه نقابة التمريض (الوجه الأمامي)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _buildFileImageButton('إرفاق صورة الكارنيه', nurseIdFront, () => _pickValidateAndCropImage(context, setModalState, (f) => nurseIdFront = f, ['نقابة', 'التمريض', 'ممرض', 'أخصائي'], 'تعديل وقص صورة الكارنيه')),
-                    ]),
-                    const SizedBox(height: 30),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: () async {
-                        if (qualificationController.text.isEmpty || nurseLicenseController.text.isEmpty || nurseIdFront == null) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(const SnackBar(content: Text('برجاء استكمال البيانات وكارنيه نقابة التمريض!'))); 
-                          return;
-                        }
-                        showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.blue)));
-                        String? nurseFrontUrl = await _uploadDocumentToStorage(uid: uid, role: 'nurse', docName: 'nurse_id_front', file: nurseIdFront!);
-                        String formalName = 'ممرض(ة) / $fullName'; 
-
-                        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-                          'activeRole': 'nurse', 'roles': FieldValue.arrayUnion(['nurse']), 
-                          'profiles': {
-                            'nurse': {
-                              'displayName': formalName, 'qualification': qualificationController.text, 'licenseNumber': nurseLicenseController.text, 'isVerified': true, 'nurseIdFrontUrl': nurseFrontUrl,
-                            }
-                          }
-                        }, SetOptions(merge: true));
-
-                        if (!context.mounted) return;
-                        Navigator.pop(context); 
-                        Navigator.pop(sheetContext); 
-                        setState(() => _activeRole = 'nurse'); 
-                      },
-                      child: const Text('تفعيل حساب التمريض', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     Widget bodyContent;
     switch (_bottomNavIndex) {
       case 0: 
-        bodyContent = HomeMainView(userName: _userName, activeRole: _activeRole, onOpenDrawer: () => Scaffold.of(context).openDrawer(), onOpenNotifications: _openNotifications); 
+        bodyContent = home_v.HomeMainView(
+          userName: _userName, 
+          activeRole: _activeRole, 
+          onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(), 
+          onOpenNotifications: _openNotifications
+        ); 
         break;
       case 1: 
-        bodyContent = SearchView(activeRole: _activeRole); 
+        bodyContent = search_v.SearchView() as Widget; 
         break;
       case 2: 
-        bodyContent = OrdersView(activeRole: _activeRole); 
+        bodyContent = orders_v.OrdersView(activeRole: _activeRole); 
         break;
       case 3: 
-        bodyContent = ProfileView(
+        bodyContent = profile_v.ProfileView(
           isLoadingProfile: _isLoadingProfile, profileImageUrl: _profileImageUrl, userName: _userName, userEmail: _userEmail,
           onEditProfile: () async { await Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfilePage())); _loadUserProfile(); },
           onPasswordReset: _confirmPasswordReset, onSupport: _showSupportDialog, onLogout: _logout,
         ); 
         break;
       default: 
-        bodyContent = HomeMainView(userName: _userName, activeRole: _activeRole, onOpenDrawer: () => Scaffold.of(context).openDrawer(), onOpenNotifications: _openNotifications);
+        bodyContent = home_v.HomeMainView(
+          userName: _userName, 
+          activeRole: _activeRole, 
+          onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(), 
+          onOpenNotifications: _openNotifications
+        );
     }
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey.shade50,
       drawer: Directionality(
         textDirection: TextDirection.rtl,
