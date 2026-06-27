@@ -1,6 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:convert';
 import 'package:flutter/material.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart'; 
@@ -8,10 +10,33 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'firebase_options.dart';
 
 import 'features/auth/presentation/pages/login_page.dart'; 
+import 'features/auth/cubit/auth_cubit.dart'; 
+import 'features/auth/data/services/auth_service.dart'; 
 import 'features/home/home_page.dart'; 
+// 🟢 تم إيقاف استدعاء صفحة الشات مؤقتاً حتى تنتهي من تحديثها مع الكيوبت
+// import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart'; 
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+void handleNotificationRouting(Map<String, dynamic> data) {
+  if (data.containsKey('tripId')) {
+    String tripId = data['tripId'];
+    debugPrint("🚀 توجيه ذكي للرحلة: $tripId");
+    
+    // 🟢 تم إيقاف التوجيه التلقائي لصفحة الشات مؤقتاً لتجنب خطأ الـ Build
+    /*
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => TripChatPage(tripId: tripId),
+      ),
+    );
+    */
+  }
+}
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -26,8 +51,7 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   playSound: true, 
 );
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,19 +60,24 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ملاحظة: لو ظهرت الأيقونة كمربع أبيض في الإشعارات، قم بتغيير '@mipmap/ic_launcher' 
-  // إلى اسم الأيقونة الشفافة التي ستصممها لاحقاً مثل 'ic_notification'
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
       
   const InitializationSettings initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
   
-  // ✅ تم التعديل هنا: إضافة settings: قبل المتغير
   await flutterLocalNotificationsPlugin.initialize(
     settings: initializationSettings, 
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      debugPrint("✅ تم الضغط على الإشعار من Local Notifications: ${response.payload}");
+      debugPrint("✅ تم الضغط على الإشعار: ${response.payload}");
+      if (response.payload != null) {
+        try {
+          final Map<String, dynamic> data = jsonDecode(response.payload!);
+          handleNotificationRouting(data);
+        } catch (e) {
+          debugPrint("❌ خطأ: $e");
+        }
+      }
     },
   );
 
@@ -73,13 +102,11 @@ class _LammaAppState extends State<LammaApp> {
     super.initState();
     _setupPushNotifications();
 
-    // 1. التعامل مع الإشعار والتطبيق مفتوح (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
 
       if (notification != null && android != null) {
-        // ✅ تم التعديل هنا: استخدام Named Arguments (id, title, body, notificationDetails)
         flutterLocalNotificationsPlugin.show(
           id: notification.hashCode, 
           title: notification.title,
@@ -92,28 +119,26 @@ class _LammaAppState extends State<LammaApp> {
               importance: Importance.max, 
               priority: Priority.high,
               playSound: true,
-              icon: '@mipmap/ic_launcher', // نفس ملاحظة الأيقونة هنا
+              icon: '@mipmap/ic_launcher', 
             ),
           ),
+          payload: jsonEncode(message.data), 
         );
       }
     });
 
-    // 2. التعامل مع الضغط على الإشعار والتطبيق في الخلفية (Background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint("✅ تم الضغط على الإشعار والتطبيق في الخلفية: ${message.data}");
-      // هنا يمكنك إضافة منطق التوجيه (Navigation) لاحقاً
+      handleNotificationRouting(message.data);
     });
 
-    // 3. التعامل مع الضغط على الإشعار والتطبيق كان مغلق تماماً (Terminated)
     FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
-        debugPrint("✅ تم فتح التطبيق من إشعار كان مغلق تماماً: ${message.data}");
-        // هنا يمكنك إضافة منطق التوجيه (Navigation) لاحقاً
+        Future.delayed(const Duration(milliseconds: 500), () {
+          handleNotificationRouting(message.data);
+        });
       }
     });
 
-    // مراقبة حالة تسجيل الدخول وحفظ التوكن
     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
       if (user != null) {
         String? token = await FirebaseMessaging.instance.getToken();
@@ -121,7 +146,6 @@ class _LammaAppState extends State<LammaApp> {
       }
     });
 
-    // تحديث التوكن في حال تغيره
     FirebaseMessaging.instance.onTokenRefresh.listen((String newToken) {
       User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) _saveTokenToFirestore(newToken, currentUser.uid);
@@ -149,28 +173,39 @@ class _LammaAppState extends State<LammaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('ar', 'EG')],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F172A)),
-        useMaterial3: true,
-        fontFamily: 'Cairo', 
-      ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          }
-          return snapshot.hasData ? const HomePage() : const LoginPage(); 
-        },
-      ), 
+    return ScreenUtilInit(
+      designSize: const Size(360, 690), 
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return BlocProvider(
+          create: (context) => AuthCubit(AuthService()),
+          child: MaterialApp(
+            navigatorKey: navigatorKey, 
+            debugShowCheckedModeBanner: false,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [Locale('ar', 'EG')],
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F172A)),
+              useMaterial3: true,
+              fontFamily: 'Cairo', 
+            ),
+            home: StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                }
+                return snapshot.hasData ? const HomePage() : const LoginPage(); 
+              },
+            ), 
+          ),
+        );
+      },
     );
   }
 }

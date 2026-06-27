@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; 
 
 class ProfileView extends StatelessWidget {
+  final String activeRole; 
   final bool isLoadingProfile;
   final String profileImageUrl;
   final String userName;
@@ -12,6 +14,7 @@ class ProfileView extends StatelessWidget {
 
   const ProfileView({
     super.key,
+    required this.activeRole, 
     required this.isLoadingProfile,
     required this.profileImageUrl,
     required this.userName,
@@ -27,12 +30,24 @@ class ProfileView extends StatelessWidget {
 
   Widget _buildListTile({required IconData icon, required Color color, required String title, required VoidCallback onTap}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade100)),
+      margin: EdgeInsets.only(bottom: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(15.r), 
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      // 🟢 تم حذف إشارة (= ListTile) الزيادة اللي كانت مسببة الأزمة
       child: ListTile(
-        leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color)),
-        title: Text(title, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+        leading: Container(
+          padding: EdgeInsets.all(8.w), 
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1), 
+            borderRadius: BorderRadius.circular(10.r),
+          ), 
+          child: Icon(icon, color: color, size: 24.sp),
+        ),
+        title: Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: Colors.grey),
         onTap: onTap,
       ),
     );
@@ -48,10 +63,10 @@ class ProfileView extends StatelessWidget {
       children: [
         Container(
           width: double.infinity, 
-          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 30, bottom: 40, left: 20, right: 20),
+          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 30.h, bottom: 35.h, left: 20.w, right: 20.w),
           decoration: BoxDecoration(
             color: primaryNavy, 
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(40.r)),
             boxShadow: [BoxShadow(color: primaryNavy.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5))]
           ),
           child: Column(
@@ -60,53 +75,76 @@ class ProfileView extends StatelessWidget {
                 alignment: Alignment.bottomRight,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(4), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: goldAccent, width: 2)), 
+                    padding: EdgeInsets.all(4.w), 
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: goldAccent, width: 2)), 
                     child: CircleAvatar(
-                      radius: 50, backgroundColor: Colors.white, 
+                      radius: 50.r, 
+                      backgroundColor: Colors.white, 
                       backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-                      child: profileImageUrl.isEmpty ? const Icon(Icons.person, size: 50, color: Colors.grey) : null,
-                    )
+                      child: profileImageUrl.isEmpty ? Icon(Icons.person, size: 50.sp, color: Colors.grey) : null,
+                    ),
                   ),
                   InkWell(
                     onTap: onEditProfile,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(color: goldAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                      child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
+                      child: Icon(Icons.edit_rounded, size: 18.sp, color: Colors.white),
                     ),
                   )
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-              const SizedBox(height: 4),
-              Text(userEmail, style: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontFamily: 'Cairo')),
+              SizedBox(height: 16.h),
+              Text(userName, style: TextStyle(color: Colors.white, fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+              SizedBox(height: 4.h),
+              Text(userEmail, style: TextStyle(color: Colors.grey.shade400, fontSize: 14.sp, fontFamily: 'Cairo')),
+              SizedBox(height: 10.h),
+              
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: goldAccent.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20.r),
+                  border: Border.all(color: goldAccent.withValues(alpha: 0.5), width: 1),
+                ),
+                child: Text(
+                  activeRole,
+                  style: TextStyle(color: goldAccent, fontSize: 12.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                ),
+              ),
             ],
           ),
         ),
         
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.w),
             children: [
-              const Text('إعدادات الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Cairo')),
-              const SizedBox(height: 16),
+              Text('إعدادات الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),
+              SizedBox(height: 16.h),
               
               _buildListTile(icon: Icons.person_outline_rounded, color: primaryNavy, title: 'تعديل البيانات الشخصية', onTap: onEditProfile),
               _buildListTile(icon: Icons.lock_outline_rounded, color: Colors.blueAccent, title: 'تغيير كلمة المرور', onTap: onPasswordReset),
               _buildListTile(icon: Icons.location_on_outlined, color: Colors.green, title: 'العناوين المحفوظة', onTap: () {}),
               
-              const SizedBox(height: 24),
-              const Text('المساعدة والدعم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Cairo')),
-              const SizedBox(height: 16),
+              SizedBox(height: 24.h),
+              Text('المساعدة والدعم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),
+              SizedBox(height: 16.h),
               
               _buildListTile(icon: Icons.support_agent_rounded, color: Colors.orange, title: 'الدعم الفني والشكاوى', onTap: onSupport),
               
-              const SizedBox(height: 30),
+              SizedBox(height: 30.h),
               ElevatedButton.icon(
                 onPressed: onLogout,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade50, foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                icon: const Icon(Icons.logout_rounded), label: const Text('تسجيل الخروج من المنصة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Cairo')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade50, 
+                  foregroundColor: Colors.red, 
+                  padding: EdgeInsets.symmetric(vertical: 14.h), 
+                  elevation: 0, 
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                ),
+                icon: Icon(Icons.logout_rounded, size: 24.sp), 
+                label: Text('تسجيل الخروج من المنصة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
               )
             ],
           ),

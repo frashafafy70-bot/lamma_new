@@ -1,113 +1,271 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+// 🟢 الإضافات الضرورية لربط الإشعارات بقاعدة البيانات
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-// استدعاء المكون المشترك
-import '../widgets/service_square_card.dart';
+import '../cubit/home_cubit.dart';
 
-// مسارات الصفحات
-import '../../legal/presentation/pages/legal_services_page.dart';
-import '../../medical/medical_services_page.dart';
+// 🟢 استدعاء الكروت وصفحة التبديل الفخمة الجديدة
+import 'widgets/service_square_card.dart';
+import 'account_switch_widget.dart'; // ✅ تم تعديل الاستدعاء لاسم الملف الصحيح
+
+// مسارات أقسام الرحلات (العميل والكابتن) متصلة وجاهزة تماماً
 import '../../trips/presentation/pages/trips_services_page.dart';
+import '../../trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
+import '../../trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
 
-class HomeMainView extends StatelessWidget {
-  final String userName;
+class HomeMainView extends StatefulWidget {
   final String activeRole;
-  final VoidCallback onOpenDrawer;
+  final String userName;
+  final String profileImageUrl;
   final VoidCallback onOpenNotifications;
 
   const HomeMainView({
     super.key,
-    required this.userName,
     required this.activeRole,
-    required this.onOpenDrawer,
+    required this.userName,
+    required this.profileImageUrl,
     required this.onOpenNotifications,
   });
 
-  final Color primaryNavy = const Color(0xFF0F172A);
-  final Color goldAccent = const Color(0xFFD4AF37);
+  @override
+  State<HomeMainView> createState() => _HomeMainViewState();
+}
+
+class _HomeMainViewState extends State<HomeMainView> {
+  String _getRoleArabicName(String role) {
+    switch (role) {
+      case 'customer': return 'عميل';
+      case 'captain': return 'كابتن';
+      case 'lawyer': return 'محامي';
+      case 'doctor': return 'طبيب';
+      case 'nurse': return 'تمريض';
+      default: return 'مقدم خدمة';
+    }
+  }
+
+  // دالة فتح صفحة تبديل الحساب (Full Page) واستلام النتيجة
+  void _openAccountSwitchPage(BuildContext mainContext) async {
+    final String? newSelectedRole = await Navigator.push<String>(
+      mainContext,
+      MaterialPageRoute(
+        builder: (context) => AccountSwitchWidget(currentRole: widget.activeRole),
+      ),
+    );
+
+    // نتأكد إن اليوزر اختار مهنة جديدة وإن الشاشة لسه موجودة
+    if (newSelectedRole != null && newSelectedRole != widget.activeRole && mainContext.mounted) {
+      mainContext.read<HomeCubit>().switchUserRole(newSelectedRole);
+    }
+  }
+
+  // دالة بناء الكروت التفاعلية بناءً على وضع الحساب الحالي
+  List<Widget> _buildServiceCards(BuildContext context, String role) {
+    if (role == 'captain') {
+      // 🚖 كروت وضع الكابتن
+      return [
+        ServiceSquareCard(
+          title: 'لوحة تحكم الكابتن',
+          subtitle: 'الرادار والرحلات النشطة لايف',
+          icon: Icons.local_shipping_rounded,
+          iconColor: const Color(0xFFF3C444), // ذهبي
+          onTap: () {
+            Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => const CaptainRadarPage()),
+            );
+          },
+        ),
+        ServiceSquareCard(
+          title: 'رحلاتي السابقة',
+          subtitle: 'سجل الرحلات والأرباح',
+          icon: Icons.history_rounded,
+          iconColor: Colors.green,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('قسم سجل الرحلات قيد الإنشاء', style: TextStyle(fontFamily: 'Cairo')),
+                backgroundColor: Colors.green,
+              ),
+            );
+          },
+        ),
+      ];
+    } else if (role == 'lawyer') {
+      // ⚖️ كروت وضع المحامي
+      return [
+        ServiceSquareCard(
+          title: 'لوحة التحكم للمحامي',
+          subtitle: 'إدارة الاستشارات والتوكيلات',
+          icon: Icons.gavel_rounded,
+          iconColor: const Color(0xFF131E31),
+          onTap: () {},
+        ),
+      ];
+    } else {
+      // 👤 كروت وضع العميل (الافتراضي)
+      return [
+        // 1. كارت خدمات التوصيل والرحلات للعميل
+        ServiceSquareCard(
+          title: 'توصيل ورحلات', 
+          subtitle: 'اطلب كابتن فوراً', 
+          icon: Icons.local_taxi_rounded, 
+          iconColor: const Color(0xFFF3C444), 
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
+          },
+        ),
+        
+        // 2. كارت الخدمات القانونية
+        ServiceSquareCard(
+          title: 'خدمات قانونية', 
+          subtitle: 'استشارات وتوكيلات', 
+          icon: Icons.gavel_rounded, 
+          iconColor: const Color(0xFF131E31), 
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')),
+                backgroundColor: Color(0xFF131E31),
+              ),
+            );
+          },
+        ),
+
+        // 3. كارت المتجر والتسوق
+        ServiceSquareCard(
+          title: 'شوب ومتاجر', 
+          subtitle: 'تسوق منتجاتك', 
+          icon: Icons.storefront_rounded, 
+          iconColor: Colors.green,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')),
+                backgroundColor: Colors.green,
+              ),
+            );
+          },
+        ),
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+    // 🟢 استخراج معرف المستخدم الحالي لاستخدامه في جلب الإشعارات
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [primaryNavy, const Color(0xFF1E293B)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
-            border: Border(bottom: BorderSide(color: goldAccent, width: 4.5)),
-            boxShadow: [BoxShadow(color: goldAccent.withValues(alpha: 0.25), blurRadius: 20, offset: const Offset(0, 5))],
-          ),
-          child: Stack(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF131E31), // كحلي غامق
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          title: Row(
             children: [
-              Positioned(right: -30, top: -20, child: Icon(Icons.mosque_rounded, size: 180, color: Colors.white.withValues(alpha: 0.03))),
-              Positioned(left: -40, bottom: -30, child: Icon(Icons.brightness_high_rounded, size: 150, color: Colors.white.withValues(alpha: 0.03))),
-              
-              Padding(
-                padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 35, left: 20, right: 20),
-                child: Column(
+              CircleAvatar(
+                radius: 18.r,
+                backgroundColor: const Color(0xFFF3C444), // ذهبي
+                backgroundImage: widget.profileImageUrl.isNotEmpty ? NetworkImage(widget.profileImageUrl) : null,
+                child: widget.profileImageUrl.isEmpty ? const Icon(Icons.person, color: Color(0xFF131E31), size: 20) : null,
+              ),
+              SizedBox(width: 10.w),
+              Text('مرحباً، ${widget.userName}', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            // 🟢 الحل النهائي لجرس الإشعارات الحي في الشاشة الرئيسية
+            if (currentUserId.isNotEmpty)
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUserId)
+                    .collection('notifications')
+                    .where('isRead', isEqualTo: false) // تتبع الإشعارات غير المقروءة فقط
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  int unreadCount = 0;
+                  if (snapshot.hasData) {
+                    unreadCount = snapshot.data!.docs.length;
+                  }
+
+                  return IconButton(
+                    icon: Badge(
+                      isLabelVisible: unreadCount > 0, // الدائرة الحمراء تظهر فقط لو العدد أكبر من 0
+                      label: Text(unreadCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.notifications_none, color: Colors.white),
+                    ),
+                    onPressed: widget.onOpenNotifications,
+                  );
+                },
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white), 
+                onPressed: widget.onOpenNotifications,
+              ),
+          ],
+        ),
+        body: Padding(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // بنر حالة الحساب والتبديل السريع
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(color: const Color(0xFF131E31), borderRadius: BorderRadius.circular(16.r)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 28),
-                          onPressed: onOpenDrawer,
-                        ),
-                        Row(
-                          children: [
-                            const Text('منصة لَمَّة الشاملة', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                            const SizedBox(width: 8),
-                            Icon(Icons.grid_view_rounded, color: goldAccent, size: 24),
-                          ],
-                        ),
-                        
-                        // 🔔 نظام الإشعارات (الجرس)
-                        userId == null 
-                        ? IconButton(icon: const Icon(Icons.notifications_active_rounded, color: Colors.white), onPressed: onOpenNotifications)
-                        : StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(userId)
-                                .collection('notifications')
-                                .where('isRead', isEqualTo: false)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              // لو مفيش بيانات أو فيه خطأ، يفضل الجرس عادي بدون بادج
-                              int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                              
-                              return IconButton(
-                                icon: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 26),
-                                    if (unreadCount > 0)
-                                      Positioned(
-                                        right: -2, top: -2,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                          child: Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                                        ),
-                                      )
-                                  ],
-                                ),
-                                onPressed: onOpenNotifications, 
-                              );
-                            },
-                          ),
+                        Text('وضع الحساب الحالي', style: TextStyle(color: Colors.grey.shade400, fontSize: 12.sp, fontFamily: 'Cairo')),
+                        Text(_getRoleArabicName(widget.activeRole), style: TextStyle(color: const Color(0xFFF3C444), fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                       ],
                     ),
-                    const SizedBox(height: 25),
-                    Text('مرحباً بك يا $userName،', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 16, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Text(
-                      activeRole == 'customer' ? 'كل خدماتك في مكان واحد 🚀' : 'لوحة تحكم المحترفين جاهزة 💼', 
-                      textAlign: TextAlign.center, 
-                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF3C444), foregroundColor: const Color(0xFF131E31)),
+                      onPressed: () => _openAccountSwitchPage(context),
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: Text('تبديل الوضع', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(height: 24.h),
+              Text('الخدمات المتاحة:', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: const Color(0xFF0F172A))),
+              SizedBox(height: 16.h),
+              
+              // شبكة الكروت
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 2, 
+                  crossAxisSpacing: 14.w, 
+                  mainAxisSpacing: 14.h, 
+                  childAspectRatio: 1.0,
+                  children: [
+                    ..._buildServiceCards(context, widget.activeRole),
+                    
+                    // كارت إدارة الحساب (متاح لجميع الأوضاع دائماً)
+                    ServiceSquareCard(
+                      title: 'إدارة الحساب', 
+                      subtitle: 'تعديل البيانات والمهن', 
+                      icon: Icons.manage_accounts_rounded, 
+                      iconColor: Colors.blueAccent,
+                      onTap: () => _openAccountSwitchPage(context),
                     ),
                   ],
                 ),
@@ -115,19 +273,64 @@ class HomeMainView extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(
-          child: GridView.count(
-            padding: const EdgeInsets.all(20),
-            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85, 
-            children: [
-              ServiceSquareCard(title: 'الاستشارات القانونية', subtitle: 'محامون معتمدون', icon: Icons.gavel_rounded, iconColor: goldAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalServicesPage(isLawyer: activeRole == 'lawyer')))),
-              ServiceSquareCard(title: 'الخدمات الطبية', subtitle: 'رعاية صحية', icon: Icons.medical_services_rounded, iconColor: Colors.green.shade600, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MedicalServicesPage(medicalRole: (activeRole == 'doctor' || activeRole == 'nurse') ? 'provider' : 'patient')))),
-              ServiceSquareCard(title: 'التوصيل الذكي', subtitle: 'رحلات وطلبات', icon: Icons.local_taxi_rounded, iconColor: Colors.blue.shade600, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripsServicesPage(isDriver: activeRole == 'captain')))),
-              ServiceSquareCard(title: 'الخدمات العامة', subtitle: 'خدمات منوعة', icon: Icons.dashboard_customize_rounded, iconColor: Colors.purple.shade500, onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً 🛠️', style: TextStyle(fontFamily: 'Cairo')))))
+      ),
+    );
+  }
+}
+
+// الصفحة الحاضنة الكاملة لتشغيل التبويبين (الرادار والرحلات النشطة)
+class CaptainRadarPage extends StatefulWidget {
+  const CaptainRadarPage({super.key});
+
+  @override
+  State<CaptainRadarPage> createState() => _CaptainRadarPageState();
+}
+
+class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerProviderStateMixin {
+  late TabController _captainTabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _captainTabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _captainTabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('لوحة تحكم الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
+          backgroundColor: const Color(0xFF131E31),
+          iconTheme: const IconThemeData(color: Colors.white),
+          elevation: 0,
+          bottom: TabBar(
+            controller: _captainTabController,
+            indicatorColor: const Color(0xFFF3C444),
+            labelColor: const Color(0xFFF3C444),
+            unselectedLabelColor: Colors.white70,
+            labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14),
+            tabs: const [
+              Tab(text: 'رادار الرحلات', icon: Icon(Icons.radar_rounded)),
+              Tab(text: 'الرحلات النشطة', icon: Icon(Icons.play_circle_fill_rounded)),
             ],
           ),
         ),
-      ],
+        body: TabBarView(
+          controller: _captainTabController,
+          children: [
+            DriverRadarTab(tabController: _captainTabController),
+            DriverActiveTripsTab(tabController: _captainTabController),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,151 +1,308 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; 
 
-// استدعاء المكون المشترك
-import '../widgets/service_square_card.dart';
+class SearchView extends StatefulWidget {
+  final String activeRole; 
 
-// ⚠️ تنبيه: تأكد من صحة مسارات الصفحات التالية بناءً على هيكل مجلداتك
-import '../../legal/presentation/pages/legal_services_page.dart';
-import '../../medical/medical_services_page.dart';
-import '../../trips/presentation/pages/trips_services_page.dart';
+  const SearchView({super.key, required this.activeRole});
 
-class HomeMainView extends StatelessWidget {
-  final String userName;
-  final String activeRole;
-  final VoidCallback onOpenDrawer;
-  final VoidCallback onOpenNotifications;
+  @override
+  State<SearchView> createState() => _SearchViewState();
+}
 
-  const HomeMainView({
-    super.key,
-    required this.userName,
-    required this.activeRole,
-    required this.onOpenDrawer,
-    required this.onOpenNotifications,
-  });
-
+class _SearchViewState extends State<SearchView> {
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
+  
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  final List<String> _categories = ['الكل', 'رحلات وتوصيل', 'استشارات قانونية', 'خدمات طبية'];
+  int _selectedCategoryIndex = 0;
+
+  Timer? _debounce;
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _searchResults = [];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel(); 
+    super.dispose();
+  }
+
+  Future<void> _performSearch() async {
+    if (_searchQuery.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    List<Map<String, dynamic>> tempResults = [];
+    String query = _searchQuery.trim().toLowerCase();
+
+    try {
+      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 1) {
+        var tripsSnap = await FirebaseFirestore.instance
+            .collection('trips')
+            .where('status', isEqualTo: 'available')
+            .get();
+
+        for (var doc in tripsSnap.docs) {
+          var data = doc.data();
+          String fromCity = (data['fromCity'] ?? '').toString().toLowerCase();
+          String toCity = (data['toCity'] ?? '').toString().toLowerCase();
+
+          if (fromCity.contains(query) || toCity.contains(query)) {
+            tempResults.add({
+              'id': doc.id,
+              'type': 'trip',
+              'title': 'رحلة: ${data['fromCity']} ⬅️ ${data['toCity']}',
+              'subtitle': 'الكابتن: ${data['driverName']} | السعر: ${data['price']} ج',
+              'icon': Icons.local_taxi_rounded,
+              'color': Colors.blue,
+              'data': data
+            });
+          }
+        }
+      }
+
+      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 2) {
+        var lawyersSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('activeRole', isEqualTo: 'lawyer')
+            .get();
+
+        for (var doc in lawyersSnap.docs) {
+          var data = doc.data();
+          String name = (data['name'] ?? '').toString().toLowerCase();
+          
+          if (name.contains(query)) {
+            tempResults.add({
+              'id': doc.id,
+              'type': 'lawyer',
+              'title': data['name'] ?? 'محامي',
+              'subtitle': 'استشارات قانونية محترفة',
+              'icon': Icons.gavel_rounded,
+              'color': goldAccent,
+              'data': data
+            });
+          }
+        }
+      }
+
+      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 3) {
+        var medicalSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('activeRole', whereIn: ['doctor', 'nurse'])
+            .get();
+
+        for (var doc in medicalSnap.docs) {
+          var data = doc.data();
+          String name = (data['name'] ?? '').toString().toLowerCase();
+          String role = data['activeRole'] == 'doctor' ? 'طبيب' : 'تمريض';
+          
+          if (name.contains(query)) {
+            tempResults.add({
+              'id': doc.id,
+              'type': 'medical',
+              'title': data['name'] ?? role,
+              'subtitle': 'رعاية صحية ($role)',
+              'icon': Icons.medical_services_rounded,
+              'color': Colors.teal,
+              'data': data
+            });
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _searchResults = tempResults;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("خطأ في البحث: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء البحث', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)))
+        );
+      }
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [primaryNavy, const Color(0xFF1E293B)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
-            border: Border(bottom: BorderSide(color: goldAccent, width: 4.5)),
-            boxShadow: [BoxShadow(color: goldAccent.withValues(alpha: 0.25), blurRadius: 20, offset: const Offset(0, 5))],
-          ),
-          child: Stack(
-            children: [
-              Positioned(right: -30, top: -20, child: Icon(Icons.mosque_rounded, size: 180, color: Colors.white.withValues(alpha: 0.03))),
-              Positioned(left: -40, bottom: -30, child: Icon(Icons.brightness_high_rounded, size: 150, color: Colors.white.withValues(alpha: 0.03))),
-              Positioned(right: 100, bottom: -10, child: Icon(Icons.star_outline_rounded, size: 80, color: Colors.white.withValues(alpha: 0.03))),
-              Padding(
-                padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 35, left: 20, right: 20),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 28),
-                          onPressed: onOpenDrawer,
-                        ),
-                        Row(
-                          children: [
-                            const Text('منصة لَمَّة الشاملة', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
-                            const SizedBox(width: 8),
-                            Icon(Icons.grid_view_rounded, color: goldAccent, size: 24),
-                          ],
-                        ),
-                        if (userId != null)
-                          StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(userId)
-                                .collection('notifications')
-                                .where('isRead', isEqualTo: false)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              int unreadCount = 0;
-                              if (snapshot.hasData && !snapshot.hasError) {
-                                unreadCount = snapshot.data!.docs.length;
-                              }
-                              return Stack(
-                                alignment: Alignment.center,
-                                clipBehavior: Clip.none,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 26),
-                                    onPressed: onOpenNotifications, 
-                                  ),
-                                  if (unreadCount > 0)
-                                    Positioned(
-                                      right: 8, top: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                        child: Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                      ),
-                                    )
-                                ],
-                              );
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 20.h,
+              bottom: 20.h,
+              left: 20.w,
+              right: 20.w,
+            ),
+            decoration: BoxDecoration(
+              color: primaryNavy,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+              boxShadow: [
+                BoxShadow(color: primaryNavy.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5))
+              ]
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'البحث الشامل',
+                  style: TextStyle(color: Colors.white, fontSize: 24.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
+                  decoration: InputDecoration(
+                    hintText: 'عن ماذا تبحث؟ (كابتن، محامي، طبيب...)',
+                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13.sp),
+                    prefixIcon: Icon(Icons.search_rounded, color: goldAccent, size: 24.sp),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear_rounded, color: Colors.grey, size: 20.sp),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onSearchChanged('');
+                              FocusScope.of(context).unfocus();
                             },
                           )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 26),
-                            onPressed: onOpenNotifications, 
-                          ),
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 16.w),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15.r),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          SizedBox(
+            height: 60.h,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                bool isSelected = _selectedCategoryIndex == index;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedCategoryIndex = index);
+                    _performSearch(); 
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(left: 8.w),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: isSelected ? goldAccent : Colors.white,
+                      borderRadius: BorderRadius.circular(20.r),
+                      border: Border.all(color: isSelected ? goldAccent : Colors.grey.shade300),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _categories[index],
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : primaryNavy,
+                        fontFamily: 'Cairo',
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+  
+          Expanded(
+            child: _searchQuery.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_rounded, size: 80.sp, color: Colors.grey.shade300),
+                        SizedBox(height: 16.h),
+                        Text('اكتب ما تبحث عنه للبدء', style: TextStyle(color: Colors.grey.shade500, fontSize: 16.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    const SizedBox(height: 25),
-                    Text('مرحباً بك يا $userName،', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 16, fontFamily: 'Cairo')),
-                    const SizedBox(height: 8),
-                    Text(
-                      activeRole == 'customer' ? 'كل خدماتك في مكان واحد 🚀' : 'لوحة تحكم المحترفين جاهزة 💼', 
-                      textAlign: TextAlign.center, 
-                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  )
+                : _isLoading
+                    ? Center(child: CircularProgressIndicator(color: goldAccent))
+                    : _searchResults.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.sentiment_dissatisfied_rounded, size: 80.sp, color: Colors.grey.shade400),
+                                SizedBox(height: 16.h),
+                                Text('لا توجد نتائج مطابقة لـ "$_searchQuery"', style: TextStyle(color: Colors.grey.shade600, fontSize: 16.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.only(top: 8.h, left: 16.w, right: 16.w, bottom: 20.h),
+                            itemCount: _searchResults.length,
+                            itemBuilder: (context, index) {
+                              var item = _searchResults[index];
+                              return Card(
+                                elevation: 2,
+                                margin: EdgeInsets.only(bottom: 12.h),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                                  leading: Container(
+                                    padding: EdgeInsets.all(10.w),
+                                    decoration: BoxDecoration(
+                                      color: (item['color'] as Color).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12.r)
+                                    ),
+                                    child: Icon(item['icon'], color: item['color'], size: 24.sp),
+                                  ),
+                                  title: Text(item['title'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp)),
+                                  subtitle: Text(item['subtitle'], style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade600, fontSize: 13.sp)),
+                                  trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: Colors.grey.shade400),
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('الانتقال إلى التفاصيل...', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)))
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
           ),
-        ),
-        Expanded(
-          child: GridView.count(
-            padding: const EdgeInsets.only(top: 24, left: 20, right: 20, bottom: 20),
-            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.9, 
-            children: [
-              ServiceSquareCard(
-                title: 'الاستشارات القانونية', subtitle: 'محامون معتمدون، حاسبات', icon: Icons.gavel_rounded, iconColor: goldAccent, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalServicesPage(isLawyer: activeRole == 'lawyer')))
-              ),
-              ServiceSquareCard(
-                title: 'الخدمات الطبية', subtitle: 'استشارات طبية، ورعاية صحية', icon: Icons.medical_services_rounded, iconColor: Colors.green.shade600, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MedicalServicesPage(medicalRole: (activeRole == 'doctor' || activeRole == 'nurse') ? 'provider' : 'patient')))
-              ),
-              ServiceSquareCard(
-                title: 'التوصيل الذكي (لَمَّة)', subtitle: 'رحلات، وتوصيل طلبات', icon: Icons.local_taxi_rounded, iconColor: Colors.blue.shade600, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripsServicesPage(isDriver: activeRole == 'captain')))
-              ),
-              ServiceSquareCard(
-                title: 'الخدمات العامة', subtitle: 'خدمات منوعة تناسبك', icon: Icons.dashboard_customize_rounded, iconColor: Colors.purple.shade500, 
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً 🛠️', style: TextStyle(fontFamily: 'Cairo'))))
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
-class SearchView {
 }
