@@ -1,5 +1,9 @@
+import 'dart:io'; // 🟢 ضروري للتعامل مع ملفات الصوت
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+// 🟢 استدعاء الـ Widget الجديد للريكورد (تأكد من المسار لو مختلف عندك)
+import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart'; 
 
 class TripForm extends StatelessWidget {
   final String tripCategory;
@@ -17,6 +21,7 @@ class TripForm extends StatelessWidget {
   final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
+  final Function(File?) onAudioRecorded; // 🟢 تمرير ملف الصوت للشاشة الرئيسية
 
   const TripForm({
     super.key,
@@ -35,6 +40,7 @@ class TripForm extends StatelessWidget {
     required this.onVehicleChanged,
     required this.onOpenMapSelection,
     required this.onSubmit,
+    required this.onAudioRecorded, // 🟢 إضافته هنا
   });
 
   Widget _buildTripCategorySelector() {
@@ -141,21 +147,10 @@ class TripForm extends StatelessWidget {
           if (isErrand)
             Column(
               children: [
-                TextField(
+                // 🟢 هنا تم استبدال الـ TextField بالـ Widget الذكي بتاعنا
+                OrderInputWidget(
                   controller: errandDetailsController,
-                  minLines: 1,
-                  maxLines: 4,
-                  keyboardType: TextInputType.multiline,
-                  // إجبار الحقل على الارتفاع فوق الكيبورد عند التركيز
-                  scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 120.h),
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp),
-                  decoration: InputDecoration(
-                    labelText: 'اكتب طلباتك بالتفصيل',
-                    prefixIcon: Icon(Icons.shopping_basket, color: accentGold),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide.none)
-                  )
+                  onAudioRecorded: onAudioRecorded,
                 ),
                 SizedBox(height: 12.h),
                 TextField(

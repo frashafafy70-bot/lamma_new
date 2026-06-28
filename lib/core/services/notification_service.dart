@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart' hide TextDirection; // 🟢 تم إضافتها عشان نظبط الوقت والتاريخ
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -70,6 +71,7 @@ class NotificationService {
       },
     );
 
+    // 🟢 استقبال الإشعار وهو في التطبيق وتنسيقه بالشكل الشيك
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -80,10 +82,33 @@ class NotificationService {
             ? 'إشعارات لَمَّة الهامة' 
             : 'تنبيهات لمة الفورية';
 
+        // 1. تظبيط الوقت والتاريخ بشكل شيك
+        final String formattedDate = DateFormat('dd MMM yyyy، hh:mm a', 'ar').format(DateTime.now());
+
+        // 2. بناء الجسم الشيك للإشعار
+        String chicBody = '📅 $formattedDate\n\n${notification.body ?? ""}';
+        
+        // لو بعتنا داتا إضافية في الـ Payload نعرضها
+        if (message.data['pickup'] != null) {
+          chicBody += '\n📍 من: ${message.data['pickup']}';
+        }
+        if (message.data['price'] != null) {
+          chicBody += '\n💰 السعر المطروح: ${message.data['price']} ج.م';
+        }
+
+        // 3. استخدام BigTextStyle عشان الكلام الطويل ميتقصش
+        BigTextStyleInformation bigTextStyle = BigTextStyleInformation(
+          chicBody,
+          htmlFormatBigText: true,
+          contentTitle: '<b>${notification.title}</b>', // نخلي العنوان بولد
+          htmlFormatContentTitle: true,
+          summaryText: 'تطبيق لمة', 
+        );
+
         flutterLocalNotificationsPlugin.show(
           id: notification.hashCode, 
           title: notification.title, 
-          body: notification.body,
+          body: notification.body, // ده النص العادي للموبايلات القديمة
           notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               targetChannelId, 
@@ -93,6 +118,8 @@ class NotificationService {
               importance: Importance.max, 
               priority: Priority.high,
               playSound: true,
+              styleInformation: bigTextStyle, // 🟢 تركيب الاستايل الشيك هنا
+              color: const Color(0xFF1A3B2A), // 🟢 اللون الكحلي/الأخضر بتاعك للأيقونة
             ),
             iOS: const DarwinNotificationDetails(presentSound: true),
           ),
@@ -108,6 +135,8 @@ class NotificationService {
     required String body,
     required String tripId,
     required String serverKey,
+    String? pickup, // 🟢 اختياري لو حابب تبعت المكان
+    String? price,  // 🟢 اختياري لو حابب تبعت السعر
   }) async {
     try {
       await http.post(
@@ -126,6 +155,8 @@ class NotificationService {
             'tripId': tripId,
             'channel_id': 'lamma_final_sound',
             'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+            if (pickup != null) 'pickup': pickup, // بنبعته في الداتا عشان الـ Listener يقراه
+            if (price != null) 'price': price,
           }
         }),
       );

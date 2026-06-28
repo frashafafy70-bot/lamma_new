@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
+import 'dart:ui'; 
 import 'package:flutter/material.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,36 +12,33 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'; 
 import 'firebase_options.dart';
+
+// 🟢 استدعاء الثوابت والخدمات (المايسترو)
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/services/navigation_service.dart';
 
 import 'features/auth/presentation/pages/login_page.dart'; 
 import 'features/auth/cubit/auth_cubit.dart'; 
 import 'features/auth/data/services/auth_service.dart'; 
 import 'features/home/home_page.dart'; 
-// 🟢 تم إيقاف استدعاء صفحة الشات مؤقتاً حتى تنتهي من تحديثها مع الكيوبت
-// import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart'; 
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
+// 🟢 اللوجيك الذكي للتوجيه باستخدام NavigationService
 void handleNotificationRouting(Map<String, dynamic> data) {
   if (data.containsKey('tripId')) {
     String tripId = data['tripId'];
     debugPrint("🚀 توجيه ذكي للرحلة: $tripId");
     
-    // 🟢 تم إيقاف التوجيه التلقائي لصفحة الشات مؤقتاً لتجنب خطأ الـ Build
-    /*
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (_) => TripChatPage(tripId: tripId),
-      ),
-    );
-    */
+    // استخدام المايسترو الجديد للتوجه لصفحة الشات
+    NavigationService.navigateToTripChat(tripId);
   }
 }
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // يمكننا هنا لاحقاً إضافة لوجيك لتحديث أي بيانات في الخلفية إن لزم الأمر
 }
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -58,6 +56,18 @@ void main() async {
   
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // تفعيل Crashlytics لاصطياد أخطاء الـ UI (Flutter)
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+
+  // تفعيل Crashlytics لاصطياد أخطاء الخلفية والأساسيات (Async)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   const AndroidInitializationSettings initializationSettingsAndroid =
@@ -181,7 +191,8 @@ class _LammaAppState extends State<LammaApp> {
         return BlocProvider(
           create: (context) => AuthCubit(AuthService()),
           child: MaterialApp(
-            navigatorKey: navigatorKey, 
+            // 🟢 ربط المايسترو هنا!
+            navigatorKey: NavigationService.navigatorKey, 
             debugShowCheckedModeBanner: false,
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
@@ -190,7 +201,8 @@ class _LammaAppState extends State<LammaApp> {
             ],
             supportedLocales: const [Locale('ar', 'EG')],
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F172A)),
+              // 🟢 استخدام ألوان التطبيق الرسمية كقاعدة للثيم
+              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryDark),
               useMaterial3: true,
               fontFamily: 'Cairo', 
             ),

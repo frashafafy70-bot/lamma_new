@@ -103,6 +103,7 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     }
   }
 
+  // 🟢 اللوجيك الأصلي بتاعك لزرار المسح
   Future<void> deleteTripFromList(TripModel trip, bool isDriver) async {
     emit(TripActionsLoading());
     try {

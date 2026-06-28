@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io'; 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,13 +11,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 
-// 🟢 تم التعديل إلى المسار المطلق الصحيح لإنهاء الإيرورات تماماً
 import 'package:lamma_new/features/trips/data/services/map_service.dart';
 import 'package:lamma_new/features/trips/data/services/trip_service.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
 
 import '../../widgets/map_selection_overlay.dart';
 import '../../widgets/trip_form.dart'; 
+
+// 🟢 استدعاء ملف الثوابت
+import 'package:lamma_new/core/constants/app_constants.dart'; 
 
 class PassengerRequestTab extends StatefulWidget {
   final TabController tabController;
@@ -58,19 +61,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   final TextEditingController _errandEstimatedCostController = TextEditingController(); 
 
   final FocusNode _priceFocusNode = FocusNode();
-
-  final String _premiumMapStyle = '''[
-    {
-      "featureType": "poi",
-      "elementType": "labels",
-      "stylers": [{"visibility": "off"}]
-    },
-    {
-      "featureType": "transit",
-      "elementType": "labels.icon",
-      "stylers": [{"visibility": "off"}]
-    }
-  ]''';
+  File? _orderAudioFile;
 
   @override
   void initState() {
@@ -101,15 +92,29 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   Future<void> _getUserLocation() async {
     setState(() => _isLoadingMap = true);
+    
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) { if (mounted) setState(() => _isLoadingMap = false); return; }
+    if (!serviceEnabled) { 
+      if (mounted) setState(() => _isLoadingMap = false); 
+      _showLocationError('خدمة الموقع مقفولة، يرجى تفعيلها من إعدادات الهاتف.');
+      return; 
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) { if (mounted) setState(() => _isLoadingMap = false); return; }
+      if (permission == LocationPermission.denied) { 
+        if (mounted) setState(() => _isLoadingMap = false); 
+        _showLocationError('تم رفض صلاحية الموقع.');
+        return; 
+      }
     }
-    if (permission == LocationPermission.deniedForever) { if (mounted) setState(() => _isLoadingMap = false); return; }
+    
+    if (permission == LocationPermission.deniedForever) { 
+      if (mounted) setState(() => _isLoadingMap = false); 
+      _showLocationPermissionDialog(); 
+      return; 
+    }
 
     try {
       Position initialPosition = await Geolocator.getCurrentPosition(
@@ -128,7 +133,40 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
     } catch (e) { 
       if (mounted) setState(() => _isLoadingMap = false); 
+      _showLocationError('حدث خطأ أثناء جلب الموقع.');
     }
+  }
+
+  void _showLocationError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showLocationPermissionDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('صلاحية الموقع مطلوبة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        content: const Text('لقد قمت برفض صلاحية الموقع بشكل دائم. لكي تتمكن من استخدام التطبيق بشكل صحيح، يرجى تفعيل الصلاحية من إعدادات الهاتف.', style: TextStyle(fontFamily: 'Cairo')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            onPressed: () {
+              Geolocator.openAppSettings();
+              Navigator.pop(context);
+            },
+            child: const Text('فتح الإعدادات', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
+    );
   }
 
   void _updateLocationOnMap(Position position, {required bool isFirstLoad}) {
@@ -155,7 +193,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
         if (_mapController != null && (_mapSelectionMode == 'none' || isFirstLoad)) {
           try { 
             _mapController!.animateCamera(CameraUpdate.newCameraPosition(
-              CameraPosition(target: newLoc, zoom: 16.5, tilt: 45.0) 
+              CameraPosition(target: newLoc, zoom: AppConstants.defaultMapZoom, tilt: AppConstants.mapTilt) 
             )); 
           } catch (e) { 
             debugPrint("$e"); 
@@ -170,12 +208,11 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     setState(() {
       _mapSelectionMode = mode;
       _isMapFullscreen = true; 
-      LatLng fallbackLoc = const LatLng(30.0444, 31.2357);
       
       if (mode == 'pickup') {
-        _tempMapCenter = _pickupLocation ?? fallbackLoc;
+        _tempMapCenter = _pickupLocation ?? AppConstants.fallbackLocation;
       } else {
-        _tempMapCenter = _destinationLocation ?? _pickupLocation ?? fallbackLoc;
+        _tempMapCenter = _destinationLocation ?? _pickupLocation ?? AppConstants.fallbackLocation;
       }
       
       _markers.removeWhere((m) => m.markerId.value == 'temp_selection');
@@ -183,7 +220,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
     if (mounted && _mapController != null && _tempMapCenter != null) {
       _mapController!.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(target: _tempMapCenter!, zoom: 17.2, tilt: 45.0) 
+        CameraPosition(target: _tempMapCenter!, zoom: AppConstants.selectionMapZoom, tilt: AppConstants.mapTilt) 
       ));
       _requestCubit.getAddressFromLatLng(_tempMapCenter!);
     }
@@ -214,7 +251,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     }
 
     _mapController?.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(target: position, zoom: 17.2, tilt: 45.0)
+      CameraPosition(target: position, zoom: AppConstants.selectionMapZoom, tilt: AppConstants.mapTilt)
     ));
     
     setState(() => _tempMapCenter = position);
@@ -223,7 +260,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   void _confirmMapSelection() {
     setState(() { 
-      LatLng finalLoc = _tempMapCenter ?? const LatLng(30.0444, 31.2357); 
+      LatLng finalLoc = _tempMapCenter ?? AppConstants.fallbackLocation; 
       String fallbackCoordinatesText = "إحداثيات: ${finalLoc.latitude.toStringAsFixed(4)}, ${finalLoc.longitude.toStringAsFixed(4)}";
       String locationText = (_mapSearchController.text.trim().isNotEmpty && _mapSearchController.text != 'جاري تحديد الموقع...' && _mapSearchController.text != 'جاري جلب العنوان...') 
           ? _mapSearchController.text.trim() 
@@ -254,24 +291,24 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     bool isErrand = _tripCategory == 'طلبات';
     
     if (_destinationController.text.trim().isEmpty || _priceController.text.trim().isEmpty || _pickupController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('الرجاء إكمال جميع الحقول!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryGreen));
+      _showLocationError('الرجاء إكمال جميع الحقول!');
       return;
     }
 
     double? suggestedPrice = double.tryParse(_priceController.text.trim());
     if (suggestedPrice == null || suggestedPrice <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('الرجاء إدخال سعر صحيح (أرقام فقط)!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryGreen));
+      _showLocationError('الرجاء إدخال سعر صحيح (أرقام فقط)!');
       return;
     }
 
     if (isErrand) {
-      if (_errandDetailsController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('الرجاء إدخل تفاصيل الطلبات!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryGreen));
+      if (_errandDetailsController.text.trim().isEmpty && _orderAudioFile == null) {
+        _showLocationError('الرجاء كتابة تفاصيل الطلبات أو تسجيلها صوتياً!');
         return;
       }
       double? errandCost = double.tryParse(_errandEstimatedCostController.text.trim());
       if (errandCost == null || errandCost <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('الرجاء إدخال تكلفة تقريبية صحيحة (أرقام فقط)!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryGreen));
+        _showLocationError('الرجاء إدخال تكلفة تقريبية صحيحة (أرقام فقط)!');
         return;
       }
     }
@@ -286,6 +323,125 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       errandCost: _errandEstimatedCostController.text.trim(),
       pickupLocation: _pickupLocation,
       destinationLocation: _destinationLocation,
+      orderAudioFile: _orderAudioFile, 
+    );
+  }
+
+  Widget _buildGoogleMap(bool showMapControls, double formHeight) {
+    if (_isLoadingMap) {
+      return Center(child: CircularProgressIndicator(color: accentGold));
+    }
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(
+        target: _pickupLocation ?? AppConstants.fallbackLocation,
+        zoom: AppConstants.defaultMapZoom,
+        tilt: AppConstants.mapTilt, 
+      ),
+      myLocationEnabled: true,
+      myLocationButtonEnabled: showMapControls,
+      zoomControlsEnabled: false, 
+      mapToolbarEnabled: false, 
+      zoomGesturesEnabled: true,
+      scrollGesturesEnabled: true,
+      rotateGesturesEnabled: true,
+      tiltGesturesEnabled: true,
+      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+        Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+      },
+      padding: EdgeInsets.only(
+        top: showMapControls ? 95.h : 20.h, 
+        bottom: showMapControls ? 160.h : formHeight + 15.h
+      ),
+      markers: _mapSelectionMode != 'none' ? {} : _markers, 
+      style: AppConstants.premiumMapStyle, 
+      onMapCreated: (controller) => _mapController = controller,
+      onTap: _onMapTap,
+      onCameraMove: (position) {
+        if (_mapSelectionMode != 'none') {
+          _tempMapCenter = position.target;
+          if (!_isReverseGeocoding) {
+            setState(() {
+              _isReverseGeocoding = true;
+              _mapSearchController.text = 'جاري تحديد الموقع...';
+            });
+          }
+        }
+      },
+      onCameraIdle: () {
+        if (_mapSelectionMode != 'none' && _tempMapCenter != null) {
+          _requestCubit.getAddressFromLatLng(_tempMapCenter!);
+        }
+      },
+    );
+  }
+
+  Widget _buildContinueButton() {
+    return Positioned(
+      bottom: 30.h, left: 30.w, right: 30.w,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryGreen, 
+          foregroundColor: accentGold,
+          shadowColor: Colors.black45,
+          elevation: 12,
+          padding: EdgeInsets.symmetric(vertical: 16.h),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r))
+        ),
+        onPressed: () { 
+          setState(() => _isMapFullscreen = false);
+          _fitMapToMarkers(); 
+        },
+        icon: Icon(Icons.arrow_drop_up_rounded, size: 28.sp),
+        label: Text('تكملة الحجز 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+      ),
+    );
+  }
+
+  Widget _buildBottomForm(double currentContainerHeight, double keyboardHeight) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      bottom: _isMapFullscreen ? -currentContainerHeight : 0, 
+      left: 0, 
+      right: 0,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: currentContainerHeight, 
+        padding: EdgeInsets.only(bottom: keyboardHeight), 
+        decoration: BoxDecoration(
+          color: Colors.white, 
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, -5))]
+        ),
+        child: TripForm(
+          tripCategory: _tripCategory,
+          vehicleType: _vehicleType,
+          isSubmittingTrip: _isSubmittingTrip,
+          errandDetailsController: _errandDetailsController,
+          errandEstimatedCostController: _errandEstimatedCostController,
+          pickupController: _pickupController,
+          destinationController: _destinationController,
+          priceController: _priceController,
+          priceFocusNode: _priceFocusNode,
+          primaryGreen: primaryGreen,
+          accentGold: accentGold,
+          onCategoryChanged: (category) {
+            setState(() { 
+              _tripCategory = category; 
+              _mapSelectionMode = 'none'; 
+            });
+            FocusScope.of(context).unfocus();
+          },
+          onVehicleChanged: (vehicle) => setState(() => _vehicleType = vehicle),
+          onOpenMapSelection: _openMapSelection,
+          onSubmit: _validateAndSubmitTrip, 
+          onAudioRecorded: (File? audio) {
+            setState(() {
+              _orderAudioFile = audio;
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -328,17 +484,20 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
         else if (state is TripSubmitting) {
           setState(() => _isSubmittingTrip = true);
         } else if (state is TripSubmitSuccess) {
-          setState(() => _isSubmittingTrip = false);
+          setState(() {
+            _isSubmittingTrip = false;
+            _orderAudioFile = null; 
+          });
           _destinationController.clear(); 
           _priceController.clear(); 
           _errandDetailsController.clear();
           _errandEstimatedCostController.clear();
           
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم إرسال طلبك بنجاح!', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)), backgroundColor: primaryGreen));
-          widget.tabController.animateTo(2); 
+          widget.tabController.animateTo(0); 
         } else if (state is TripSubmitError) {
           setState(() => _isSubmittingTrip = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+          _showLocationError(state.message);
         }
       },
       builder: (context, state) {
@@ -358,50 +517,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             return Stack(
               children: [
                 Positioned.fill(
-                  child: _isLoadingMap
-                      ? Center(child: CircularProgressIndicator(color: accentGold))
-                      : GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: _pickupLocation ?? const LatLng(30.0444, 31.2357),
-                            zoom: 16.5,
-                            tilt: 45.0, 
-                          ),
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: showMapControls,
-                          zoomControlsEnabled: false, 
-                          mapToolbarEnabled: false, 
-                          zoomGesturesEnabled: true,
-                          scrollGesturesEnabled: true,
-                          rotateGesturesEnabled: true,
-                          tiltGesturesEnabled: true,
-                          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                            Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
-                          },
-                          padding: EdgeInsets.only(
-                            top: showMapControls ? 95.h : 20.h, 
-                            bottom: showMapControls ? 160.h : formHeight + 15.h
-                          ),
-                          markers: isPickingMap ? {} : _markers, 
-                          style: _premiumMapStyle, 
-                          onMapCreated: (controller) => _mapController = controller,
-                          onTap: _onMapTap,
-                          onCameraMove: (position) {
-                            if (_mapSelectionMode != 'none') {
-                              _tempMapCenter = position.target;
-                              if (!_isReverseGeocoding) {
-                                setState(() {
-                                  _isReverseGeocoding = true;
-                                  _mapSearchController.text = 'جاري تحديد الموقع...';
-                                });
-                              }
-                            }
-                          },
-                          onCameraIdle: () {
-                            if (_mapSelectionMode != 'none' && _tempMapCenter != null) {
-                              _requestCubit.getAddressFromLatLng(_tempMapCenter!);
-                            }
-                          },
-                        ),
+                  child: _buildGoogleMap(showMapControls, formHeight),
                 ),
 
                 if (isPickingMap)
@@ -426,66 +542,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   ),
 
                 if (_isMapFullscreen && !isPickingMap)
-                  Positioned(
-                    bottom: 30.h, left: 30.w, right: 30.w,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryGreen, 
-                        foregroundColor: accentGold,
-                        shadowColor: Colors.black45,
-                        elevation: 12,
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r))
-                      ),
-                      onPressed: () { 
-                        setState(() => _isMapFullscreen = false);
-                        _fitMapToMarkers(); 
-                      },
-                      icon: Icon(Icons.arrow_drop_up_rounded, size: 28.sp),
-                      label: Text('تكملة الحجز 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
-                    ),
-                  ),
+                  _buildContinueButton(),
 
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                  bottom: _isMapFullscreen ? -currentContainerHeight : 0, 
-                  left: 0, 
-                  right: 0,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: currentContainerHeight, 
-                    padding: EdgeInsets.only(bottom: keyboardHeight), 
-                    decoration: BoxDecoration(
-                      color: Colors.white, 
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
-                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, -5))]
-                    ),
-                    child: TripForm(
-                      tripCategory: _tripCategory,
-                      vehicleType: _vehicleType,
-                      isSubmittingTrip: _isSubmittingTrip,
-                      errandDetailsController: _errandDetailsController,
-                      errandEstimatedCostController: _errandEstimatedCostController,
-                      pickupController: _pickupController,
-                      destinationController: _destinationController,
-                      priceController: _priceController,
-                      priceFocusNode: _priceFocusNode,
-                      primaryGreen: primaryGreen,
-                      accentGold: accentGold,
-                      onCategoryChanged: (category) {
-                        setState(() { 
-                          _tripCategory = category; 
-                          _mapSelectionMode = 'none'; 
-                        });
-                        FocusScope.of(context).unfocus();
-                      },
-                      onVehicleChanged: (vehicle) => setState(() => _vehicleType = vehicle),
-                      onOpenMapSelection: _openMapSelection,
-                      onSubmit: _validateAndSubmitTrip, 
-                    ),
-                  ),
-                ),
+                _buildBottomForm(currentContainerHeight, keyboardHeight),
               ],
             );
           },

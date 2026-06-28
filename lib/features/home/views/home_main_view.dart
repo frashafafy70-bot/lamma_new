@@ -12,12 +12,15 @@ import '../cubit/home_cubit.dart';
 
 // 🟢 استدعاء الكروت وصفحة التبديل الفخمة الجديدة
 import 'widgets/service_square_card.dart';
-import 'account_switch_widget.dart'; // ✅ تم تعديل الاستدعاء لاسم الملف الصحيح
+import 'account_switch_widget.dart'; 
 
-// مسارات أقسام الرحلات (العميل والكابتن) متصلة وجاهزة تماماً
-import '../../trips/presentation/pages/trips_services_page.dart';
-import '../../trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
-import '../../trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
+// 🟢 تم تحويل الاستدعاءات لمسارات مطلقة (Absolute Paths) لحل خطأ الـ Unused import نهائياً
+import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
+
+// 🟢 استدعاء كيوبت الرحلات النشطة للكابتن عشان نغلف بيه التاب تحت
+import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
 class HomeMainView extends StatefulWidget {
   final String activeRole;
@@ -327,7 +330,11 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
           controller: _captainTabController,
           children: [
             DriverRadarTab(tabController: _captainTabController),
-            DriverActiveTripsTab(tabController: _captainTabController),
+            // 🟢 التعديل الأهم: تغليف التاب بـ BlocProvider عشان الكيوبت يتقري صح وميضربش شاشة حمراء
+            BlocProvider(
+              create: (context) => DriverActiveTripsCubit(),
+              child: DriverActiveTripsTab(tabController: _captainTabController),
+            ),
           ],
         ),
       ),

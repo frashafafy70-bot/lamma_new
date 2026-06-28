@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection; 
-import 'package:cloud_firestore/cloud_firestore.dart'; // 🟢 الاستدعاء اللي كان ناقص عشان الـ Timestamp
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:audioplayers/audioplayers.dart'; // 🟢 استدعاء مشغل الصوت
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 
-// استدعاء الكيوبت الجديد
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
@@ -32,9 +32,29 @@ class _SmartTripCardState extends State<SmartTripCard> {
   final Color accentGold = const Color(0xFFD4AF37);
   final TextEditingController _counterOfferController = TextEditingController();
 
+  // 🟢 متغيرات مشغل الصوت
+  late AudioPlayer _audioPlayer;
+  bool _isPlaying = false;
+  bool _isLoadingAudio = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+    // لما الريكورد يخلص، نرجع الزرار لشكله الطبيعي
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _counterOfferController.dispose();
+    _audioPlayer.dispose(); // 🟢 إغلاق المشغل لتوفير الذاكرة
     super.dispose();
   }
 
@@ -73,6 +93,30 @@ class _SmartTripCardState extends State<SmartTripCard> {
     );
   }
 
+  // 🟢 لوجيك تشغيل وإيقاف الصوت
+  Future<void> _toggleAudio(String url) async {
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      setState(() => _isLoadingAudio = true);
+      try {
+        await _audioPlayer.play(UrlSource(url));
+        setState(() {
+          _isPlaying = true;
+          _isLoadingAudio = false;
+        });
+      } catch (e) {
+        setState(() => _isLoadingAudio = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('حدث خطأ في تشغيل الصوت', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isMyTurnToNegotiate = widget.trip.status == 'negotiating' && 
@@ -81,6 +125,7 @@ class _SmartTripCardState extends State<SmartTripCard> {
 
     bool isWaitingForOther = widget.trip.status == 'negotiating' && !isMyTurnToNegotiate;
     String displayPrice = widget.trip.finalPrice ?? widget.trip.negotiationPrice ?? widget.trip.price ?? widget.trip.suggestedPrice ?? 'غير محدد';
+    String? audioUrl = widget.trip.audioUrl;
 
     return BlocProvider(
       create: (context) => TripActionsCubit(),
@@ -91,6 +136,8 @@ class _SmartTripCardState extends State<SmartTripCard> {
           } else if (state is TripActionsSuccess) {
             if (state.action == 'accept') {
               widget.onChatPressed(); 
+            } else if (state.action == 'delete') {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح الطلب', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
             }
           }
         },
@@ -160,7 +207,8 @@ class _SmartTripCardState extends State<SmartTripCard> {
                         ],
                       ),
                       SizedBox(height: 12.h),
-                      _buildLocationRow(Icons.my_location, Colors.green, widget.trip.pickup ?? 'غير محدد'),
+                      // 🟢 تم إضافة من : 
+                      _buildLocationRow(Icons.my_location, Colors.green, 'من : ', widget.trip.pickup ?? 'غير محدد'),
                       Padding(
                         padding: EdgeInsets.only(right: 10.w),
                         child: Align(
@@ -168,7 +216,39 @@ class _SmartTripCardState extends State<SmartTripCard> {
                           child: Container(height: 20.h, width: 2.w, color: Colors.grey.shade300),
                         ),
                       ),
-                      _buildLocationRow(Icons.location_on, Colors.red, widget.trip.destination ?? 'غير محدد'),
+                      // 🟢 تم إضافة إلى :
+                      _buildLocationRow(Icons.location_on, Colors.red, 'إلى : ', widget.trip.destination ?? 'غير محدد'),
+
+                      if (audioUrl != null && audioUrl.isNotEmpty) ...[
+                        SizedBox(height: 16.h),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                          decoration: BoxDecoration(
+                            color: primaryGreen,
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.mic, color: accentGold, size: 20.sp),
+                              SizedBox(width: 8.w),
+                              Expanded(
+                                child: Text('رسالة صوتية من العميل', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)),
+                              ),
+                              InkWell(
+                                onTap: () => _toggleAudio(audioUrl),
+                                child: CircleAvatar(
+                                  radius: 18.r,
+                                  backgroundColor: accentGold,
+                                  // 🟢 عرض علامة التحميل أو زرار التشغيل/الإيقاف
+                                  child: _isLoadingAudio 
+                                      ? SizedBox(width: 20.sp, height: 20.sp, child: CircularProgressIndicator(color: primaryGreen, strokeWidth: 2))
+                                      : Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: primaryGreen, size: 24.sp),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -282,11 +362,13 @@ class _SmartTripCardState extends State<SmartTripCard> {
     );
   }
 
-  Widget _buildLocationRow(IconData icon, Color iconColor, String text) {
+  // 🟢 تعديل الدالة لاستقبال كلمة "من" و "إلى"
+  Widget _buildLocationRow(IconData icon, Color iconColor, String prefix, String text) {
     return Row(
       children: [
         Icon(icon, color: iconColor, size: 20.sp),
-        SizedBox(width: 12.w),
+        SizedBox(width: 8.w),
+        Text(prefix, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
         Expanded(child: Text(text, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.black87, fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis)),
       ],
     );

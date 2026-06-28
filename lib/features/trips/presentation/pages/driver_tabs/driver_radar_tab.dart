@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+
+// 🟢 استدعاء الألوان وخدمة التوجيه (المايسترو)
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/services/navigation_service.dart';
+
 import '../../../cubit/driver/driver_radar_cubit.dart';
 import '../../../cubit/driver/driver_radar_state.dart';
-
-// 🟢 الاستدعاءات الجديدة للكارت الذكي والموديل الخاص بالرحلة
 import '../../widgets/smart_trip_card.dart';
 import '../../../data/models/trip_model.dart';
 
@@ -15,7 +18,6 @@ class DriverRadarTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color royalGreen = const Color(0xFF1B4332);
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return BlocProvider(
@@ -23,47 +25,52 @@ class DriverRadarTab extends StatelessWidget {
       child: BlocBuilder<DriverRadarCubit, DriverRadarState>(
         builder: (context, state) {
           if (state is DriverRadarLoading || state is DriverRadarInitial) {
-            return Center(child: CircularProgressIndicator(color: royalGreen));
+            return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
           }
 
           if (state is DriverRadarError) {
             return Center(
-              child: Text(state.message, style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 16.sp)),
+              child: Text(state.message, style: TextStyle(color: AppColors.error, fontFamily: 'Cairo', fontSize: 16.sp)),
             );
           }
 
           if (state is DriverRadarLoaded) {
-            if (state.trips.isEmpty) {
+            // 🟢 الفلترة السحرية: استبعاد أي طلب تم مسحه بواسطة هذا الكابتن
+            var activeTrips = state.trips.where((doc) {
+              var data = doc.data() as Map<String, dynamic>;
+              return data['isDeletedForDriver'] != true;
+            }).toList();
+
+            // 🟢 التأكد إن القائمة الجديدة مش فاضية
+            if (activeTrips.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.radar_outlined, size: 60.sp, color: Colors.grey.shade400),
+                    Icon(Icons.radar_outlined, size: 60.sp, color: AppColors.textMuted.withValues(alpha: 0.4)),
                     SizedBox(height: 10.h),
-                    Text('لا توجد طلبات حالياً', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                    Text('لا توجد طلبات حالياً', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
                   ],
                 ),
               );
             }
 
             return ListView.builder(
-              padding: EdgeInsets.only(top: 16.h, bottom: 100.h), // مساحة عشان الاسكرول
-              itemCount: state.trips.length,
+              padding: EdgeInsets.only(top: 16.h, bottom: 100.h), 
+              itemCount: activeTrips.length, // 🟢 استخدام القائمة المفلترة
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               itemBuilder: (context, index) {
-                var doc = state.trips[index];
+                var doc = activeTrips[index]; // 🟢 استخدام القائمة المفلترة
                 var data = doc.data() as Map<String, dynamic>;
                 
-                // 🟢 تحويل البيانات لموديل الرحلة عشان الكارت الذكي يقراها
                 TripModel tripModel = TripModel.fromMap(data, doc.id);
                 
                 return SmartTripCard(
                   trip: tripModel,
-                  isDriver: true, // 🟢 هنا بنعرف الكارت إن اللي فاتح الشاشة دي هو الكابتن
+                  isDriver: true, 
                   currentUserId: currentUserId,
                   onChatPressed: () {
-                    // الانتقال لشاشة الشات (تأكد إن الراوت ده متعرف عندك)
-                    // Navigator.pushNamed(context, '/trip_chat', arguments: doc.id);
+                    NavigationService.navigateToTripChat(doc.id);
                   },
                 );
               },

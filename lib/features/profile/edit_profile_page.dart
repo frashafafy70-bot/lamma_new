@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -118,7 +119,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('تعديل البيانات الشخصية', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text('تعديل البيانات الشخصية', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)),
         backgroundColor: Colors.white,
         foregroundColor: primaryNavy,
         elevation: 0,
@@ -128,66 +129,70 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ? Center(child: CircularProgressIndicator(color: primaryNavy))
         : Directionality(
             textDirection: TextDirection.rtl,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  // 🎨 دائرة تغيير الصورة
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4), 
-                          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: goldAccent, width: 2)),
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.grey.shade100,
-                            backgroundImage: _newProfileImage != null 
-                                ? FileImage(_newProfileImage!) as ImageProvider
-                                : (_currentImageUrl.isNotEmpty ? NetworkImage(_currentImageUrl) : null),
-                            child: (_newProfileImage == null && _currentImageUrl.isEmpty) 
-                                ? Icon(Icons.person, size: 60, color: Colors.grey.shade400) : null,
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.all(24.w),
+                child: Column(
+                  children: [
+                    // 🎨 دائرة تغيير الصورة
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(4.w), 
+                            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: goldAccent, width: 2.w)),
+                            child: CircleAvatar(
+                              radius: 60.r,
+                              backgroundColor: Colors.grey.shade100,
+                              backgroundImage: _newProfileImage != null 
+                                  ? FileImage(_newProfileImage!) as ImageProvider
+                                  : (_currentImageUrl.isNotEmpty ? NetworkImage(_currentImageUrl) : null),
+                              child: (_newProfileImage == null && _currentImageUrl.isEmpty) 
+                                  ? Icon(Icons.person, size: 60.sp, color: Colors.grey.shade400) : null,
+                            ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: goldAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 22),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // 📝 الحقول (TextFields)
-                  _buildTextField('الاسم بالكامل', _nameController, Icons.person_rounded),
-                  const SizedBox(height: 20),
-                  _buildTextField('رقم الهاتف', _phoneController, Icons.phone_android_rounded, isNumber: true),
-                  const SizedBox(height: 20),
-                  _buildTextField('الرقم القومي (اختياري)', _nationalIdController, Icons.featured_play_list_rounded, isNumber: true),
-                  
-                  const SizedBox(height: 50),
-
-                  // ✅ زر الحفظ
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryNavy,
-                        elevation: 5,
-                        shadowColor: primaryNavy.withValues(alpha: 0.3),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          Container(
+                            padding: EdgeInsets.all(8.w),
+                            decoration: BoxDecoration(color: goldAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3.w)),
+                            child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 22.sp),
+                          ),
+                        ],
                       ),
-                      onPressed: _isSaving ? null : _saveProfile,
-                      child: _isSaving 
-                          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                          : const Text('حفظ التعديلات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
                     ),
-                  )
-                ],
+                    SizedBox(height: 40.h),
+
+                    // 📝 الحقول (TextFields)
+                    _buildTextField('الاسم بالكامل', _nameController, Icons.person_rounded),
+                    SizedBox(height: 20.h),
+                    _buildTextField('رقم الهاتف', _phoneController, Icons.phone_android_rounded, isNumber: true, isLtr: true),
+                    SizedBox(height: 20.h),
+                    _buildTextField('الرقم القومي (اختياري)', _nationalIdController, Icons.featured_play_list_rounded, isNumber: true, isLtr: true),
+                    
+                    SizedBox(height: 50.h),
+
+                    // ✅ زر الحفظ
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56.h,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryNavy,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                        ),
+                        onPressed: _isSaving ? null : _saveProfile,
+                        child: _isSaving 
+                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                            : Text('حفظ التعديلات', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ),
@@ -195,19 +200,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   // 🛠️ دالة مساعدة لبناء الحقول بشكل احترافي
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool isNumber = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool isNumber = false, bool isLtr = false}) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+      textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+      textAlign: isLtr ? TextAlign.left : TextAlign.right,
+      style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontFamily: 'Cairo'),
+        labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14.sp, fontFamily: 'Cairo'),
         prefixIcon: Icon(icon, color: primaryNavy),
         filled: true,
         fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: goldAccent, width: 1.5)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: goldAccent, width: 1.5.w)),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       ),
     );
   }

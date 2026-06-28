@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'package:lamma_new/core/constants/firebase_constants.dart';
+
 part 'trip_chat_state.dart';
 
 class TripChatCubit extends Cubit<TripChatState> {
@@ -19,8 +21,11 @@ class TripChatCubit extends Cubit<TripChatState> {
   StreamSubscription? _chatSubscription;
   bool isRecording = false;
   
-  // 🟢 تخزين الرسائل في الكيوبت عشان الشات مايختفيش وقت الأنيميشن بتاع المايك
   List<Map<String, dynamic>> _messages = [];
+  
+  // 🟢 متغيرات الـ Pagination (التحميل التدريجي)
+  int _messageLimit = 20;
+  bool isLoadingMore = false;
 
   @override
   Future<void> close() {
@@ -30,14 +35,16 @@ class TripChatCubit extends Cubit<TripChatState> {
   }
 
   void loadChat(String tripId) {
-    emit(TripChatLoading());
+    // إظهار التحميل فقط في أول مرة الشات يفتح فيها
+    if (_messages.isEmpty) emit(TripChatLoading());
     
     _chatSubscription?.cancel();
     _chatSubscription = FirebaseFirestore.instance
-        .collection('trips')
+        .collection(FirebaseConstants.tripsCollection)
         .doc(tripId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
+        .limit(_messageLimit) // 🟢 تحديد العدد عشان ميسحبش نت كتير
         .snapshots()
         .listen((snapshot) {
           
@@ -48,19 +55,30 @@ class TripChatCubit extends Cubit<TripChatState> {
       }).toList();
 
       markMessagesAsRead(tripId, snapshot.docs);
-
-      // 🟢 هنا دايماً بنبعت الـ State محملة بالرسايل
-      emit(TripChatLoaded(_messages));
+      
+      isLoadingMore = false; // تم التحميل بنجاح
+      emit(TripChatLoaded(List.from(_messages)));
     }, onError: (error) {
       emit(TripChatError("خطأ في جلب الرسائل: $error"));
     });
   }
 
-  // الدالة التي تستخدمها الشاشة الحالية لإرسال نص
+  // 🟢 دالة التحميل التدريجي عند عمل Scroll
+  void loadMoreMessages(String tripId) {
+    if (isLoadingMore) return; // منع التكرار
+    isLoadingMore = true;
+    _messageLimit += 20; // زيادة الحد بـ 20 رسالة إضافية
+    loadChat(tripId); // إعادة الاشتراك بالحد الجديد (بدون إظهار شاشة تحميل كاملة)
+  }
+
   Future<void> sendMessage(String tripId, String senderId, String text) async {
     if (text.trim().isEmpty) return;
     try {
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).collection('messages').add({
+      await FirebaseFirestore.instance
+          .collection(FirebaseConstants.tripsCollection)
+          .doc(tripId)
+          .collection('messages')
+          .add({
         'text': text.trim(), 
         'imageUrl': '',
         'audioUrl': '',
@@ -74,27 +92,8 @@ class TripChatCubit extends Cubit<TripChatState> {
     }
   }
 
-  // الدالة القديمة لضمان عدم توقف أي Widget آخر يعتمد عليها
-  Future<void> sendTextMessage(String tripId, String text) async {
-    if (text.trim().isEmpty) return;
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).collection('messages').add({
-        'text': text.trim(), 
-        'imageUrl': '',
-        'audioUrl': '',
-        'type': 'text',
-        'senderId': currentUserId,
-        'isRead': false, 
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      emit(TripChatError("خطأ في إرسال الرسالة: $e"));
-    }
-  }
-
   Future<void> sendImageMessage(String tripId, File imageFile) async {
-    // استخدمنا _messages عشان الشات يفضل ظاهر اثناء الرفع
-    emit(TripChatLoaded(_messages)); 
+    emit(TripChatLoaded(List.from(_messages))); 
     try {
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       Reference ref = FirebaseStorage.instance.ref().child('trip_chats/$tripId/$fileName.jpg');
@@ -102,7 +101,11 @@ class TripChatCubit extends Cubit<TripChatState> {
       TaskSnapshot snapshot = await uploadTask;
       String imageUrl = await snapshot.ref.getDownloadURL();
 
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).collection('messages').add({
+      await FirebaseFirestore.instance
+          .collection(FirebaseConstants.tripsCollection)
+          .doc(tripId)
+          .collection('messages')
+          .add({
         'text': '', 
         'imageUrl': imageUrl,
         'audioUrl': '',
@@ -123,8 +126,7 @@ class TripChatCubit extends Cubit<TripChatState> {
         String filePath = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         
         isRecording = true;
-        // 🟢 تحديث الـ State عشان المايك ينور، مع الاحتفاظ بالرسايل
-        emit(TripChatLoaded(_messages));
+        emit(TripChatLoaded(List.from(_messages)));
         
         await _audioRecorder.start(
           const RecordConfig(encoder: AudioEncoder.aacLc), 
@@ -135,7 +137,7 @@ class TripChatCubit extends Cubit<TripChatState> {
       }
     } catch (e) {
       isRecording = false;
-      emit(TripChatLoaded(_messages));
+      emit(TripChatLoaded(List.from(_messages)));
       emit(TripChatError("خطأ أثناء بدء التسجيل: $e"));
     }
   }
@@ -144,8 +146,7 @@ class TripChatCubit extends Cubit<TripChatState> {
     try {
       final path = await _audioRecorder.stop();
       isRecording = false;
-      // 🟢 تحديث الـ State عشان المايك يرجع لزرار الإرسال
-      emit(TripChatLoaded(_messages));
+      emit(TripChatLoaded(List.from(_messages)));
       
       if (path != null) {
         File audioFile = File(path);
@@ -162,8 +163,7 @@ class TripChatCubit extends Cubit<TripChatState> {
     try {
       await _audioRecorder.stop(); 
       isRecording = false;
-      // 🟢 تحديث الـ State لإلغاء المايك
-      emit(TripChatLoaded(_messages));
+      emit(TripChatLoaded(List.from(_messages)));
     } catch (e) {
       emit(TripChatError("خطأ أثناء الإلغاء: $e"));
     }
@@ -178,7 +178,11 @@ class TripChatCubit extends Cubit<TripChatState> {
       TaskSnapshot snapshot = await uploadTask;
       String audioUrl = await snapshot.ref.getDownloadURL();
 
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).collection('messages').add({
+      await FirebaseFirestore.instance
+          .collection(FirebaseConstants.tripsCollection)
+          .doc(tripId)
+          .collection('messages')
+          .add({
         'text': '', 
         'imageUrl': '',
         'audioUrl': audioUrl,
@@ -189,24 +193,6 @@ class TripChatCubit extends Cubit<TripChatState> {
       });
     } catch (e) {
       emit(TripChatError("خطأ في رفع ملف الصوت: $e"));
-    }
-  }
-
-  Future<void> sendContactMessage(String tripId, String name, String phone) async {
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).collection('messages').add({
-        'text': '', 
-        'imageUrl': '',
-        'audioUrl': '',
-        'type': 'contact',
-        'contactName': name,
-        'contactPhone': phone,
-        'senderId': currentUserId,
-        'isRead': false, 
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      emit(TripChatError("خطأ في إرسال جهة الاتصال: $e"));
     }
   }
 

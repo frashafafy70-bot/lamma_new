@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'dart:io';
 
 import '../../cubit/shared/trips_services_cubit.dart';
 import '../../cubit/shared/trips_services_state.dart';
@@ -29,6 +30,8 @@ class _TripsServicesBodyState extends State<TripsServicesBody> {
   
   GeoPoint? _pickupGeoPoint;
   GeoPoint? _destinationGeoPoint;
+  
+  File? _orderAudioFile;
 
   @override
   void initState() {
@@ -104,6 +107,11 @@ class _TripsServicesBodyState extends State<TripsServicesBody> {
                   });
                 }
               },
+              onAudioRecorded: (File? audio) {
+                setSheetState(() {
+                  _orderAudioFile = audio;
+                });
+              },
               onSubmit: () {
                 if (_pickupController.text.isEmpty || _destinationController.text.isEmpty || _priceController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -123,6 +131,7 @@ class _TripsServicesBodyState extends State<TripsServicesBody> {
                     vehicleType: _currentVehicleType,
                     pickupLocation: _pickupGeoPoint, 
                     destinationLocation: _destinationGeoPoint, 
+                    orderAudioFile: _orderAudioFile, // 🟢 تم إرسال ملف الصوت هنا للـ Cubit
                   );
 
                   _pickupController.clear();
@@ -130,6 +139,7 @@ class _TripsServicesBodyState extends State<TripsServicesBody> {
                   _priceController.clear();
                   _pickupGeoPoint = null;
                   _destinationGeoPoint = null;
+                  _orderAudioFile = null; 
                   
                   Navigator.pop(sheetContext);
                 }
@@ -193,7 +203,6 @@ class _TripsServicesBodyState extends State<TripsServicesBody> {
               itemBuilder: (context, index) {
                 final trip = state.trips[index];
                 
-                // 🟢 هنا الحل السحري: تم الاكتفاء بإرسال serviceData فقط ليتطابق مع الكارد
                 return ServiceCardWidget(
                   serviceData: trip,
                 );

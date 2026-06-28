@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_sign_in/google_sign_in.dart'; 
+
 import '../data/services/auth_service.dart';
 import 'auth_state.dart';
 
@@ -12,7 +14,7 @@ class AuthCubit extends Cubit<AuthState> {
 
   AuthCubit(this._authService) : super(AuthInitial());
 
-  // ================= الدوال الأساسية الخاصة بك =================
+  // ================= الدوال الأساسية =================
 
   Future<void> signUp({
     required String email,
@@ -62,15 +64,60 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  // ================= دالة التسجيل باستخدام جوجل =================
+  Future<void> loginWithGoogle() async {
+    emit(AuthLoading());
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        emit(AuthError('تم إلغاء تسجيل الدخول'));
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+          String? fcmToken = await FirebaseMessaging.instance.getToken();
+          
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'uid': user.uid,
+            'email': user.email ?? '',
+            'name': user.displayName ?? 'مستخدم جوجل',
+            'phone': user.phoneNumber ?? '', 
+            'role': 'عميل', 
+            'status': 'approved',
+            'fcmToken': fcmToken ?? '',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        emit(AuthSuccess('تم تسجيل الدخول بجوجل بنجاح! 🎉', uid: user.uid));
+      }
+    } catch (e) {
+      emit(AuthError('فشل تسجيل الدخول بجوجل ❌: $e'));
+    }
+  }
+
   // ================= دوال التسجيل المتقدمة (OTP + رفع المستندات) =================
 
-  // 1. إرسال كود الـ OTP
   Future<void> sendSignUpOtp({required String phone}) async {
     emit(AuthLoading());
     String formattedPhone = phone.startsWith('+') ? phone : '+2$phone';
 
     try {
-      // التأكد من أن الرقم غير مسجل
       var phoneCheck = await FirebaseFirestore.instance
           .collection('users')
           .where('phone', isEqualTo: phone)
@@ -99,7 +146,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  // 2. تفعيل الحساب برقم الهاتف واستكمال التسجيل عبر AuthService
   Future<void> verifyOtpAndCompleteSignUp({
     required String verificationId,
     required String smsCode,
@@ -118,7 +164,6 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
 
     try {
-      // 1. التحقق من كود الـ OTP
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: verificationId,
         smsCode: smsCode,
@@ -128,7 +173,6 @@ class AuthCubit extends Cubit<AuthState> {
 
       if (phoneUserAuth.user != null) {
         
-        // 2. إنشاء الحساب الأساسي باستخدام AuthService الخاصة بك للحفاظ على نظافة المعمارية
         var userCredential = await _authService.signUpUser(
           email: email,
           password: password,
@@ -139,7 +183,6 @@ class AuthCubit extends Cubit<AuthState> {
         String uid = userCredential.user!.uid;
         Map<String, String> uploadedUrls = {};
 
-        // 3. رفع المستندات لـ Storage بناءً على نوع المستخدم
         if (role != 'عميل') {
           uploadedUrls['id_front'] = await _uploadFileToStorage('users/$uid/id_front.jpg', idFrontImage!);
           uploadedUrls['id_back'] = await _uploadFileToStorage('users/$uid/id_back.jpg', idBackImage!);
@@ -152,10 +195,8 @@ class AuthCubit extends Cubit<AuthState> {
           uploadedUrls['profession'] = await _uploadFileToStorage('users/$uid/profession.jpg', professionImage);
         }
 
-        // 4. الحصول على توكن الإشعارات
         String? fcmToken = await FirebaseMessaging.instance.getToken();
 
-        // 5. إضافة البيانات الإضافية في Firestore
         Map<String, dynamic> additionalData = {
           'uid': uid,
           'role': role,
@@ -169,10 +210,8 @@ class AuthCubit extends Cubit<AuthState> {
           additionalData['nationalId'] = nationalId;
         }
 
-        // استخدام merge: true لدمج البيانات الجديدة مع البيانات اللي AuthService كتبتها
         await FirebaseFirestore.instance.collection('users').doc(uid).set(additionalData, SetOptions(merge: true));
         
-        // مسح مستخدم الموبايل الوهمي (OTP)
         await phoneUserAuth.user!.delete();
 
         emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح مئة بالمئة! 🎉🚀', uid: uid));
@@ -182,7 +221,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  // دالة مساعدة لرفع الملفات
   Future<String> _uploadFileToStorage(String path, File file) async {
     Reference ref = FirebaseStorage.instance.ref().child(path);
     UploadTask uploadTask = ref.putFile(file);

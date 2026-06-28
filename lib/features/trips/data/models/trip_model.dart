@@ -26,6 +26,7 @@ class TripModel {
   final String? lastNegotiator;
   final String? errandDetails;
   final String? errandCost;
+  final String? audioUrl;
   final String status;
   final DateTime? createdAt;
 
@@ -55,6 +56,7 @@ class TripModel {
     this.lastNegotiator,
     this.errandDetails,
     this.errandCost,
+    this.audioUrl,
     required this.status,
     this.createdAt,
   });
@@ -86,6 +88,7 @@ class TripModel {
       lastNegotiator: map['lastNegotiator'],
       errandDetails: map['errandDetails'],
       errandCost: map['errandCost']?.toString(),
+      audioUrl: map['audioUrl'],
       status: map['status'] ?? 'pending',
       createdAt: map['createdAt'] != null ? (map['createdAt'] as Timestamp).toDate() : null,
     );
@@ -117,6 +120,7 @@ class TripModel {
       if (lastNegotiator != null) 'lastNegotiator': lastNegotiator,
       if (errandDetails != null) 'errandDetails': errandDetails,
       if (errandCost != null) 'errandCost': errandCost,
+      if (audioUrl != null) 'audioUrl': audioUrl,
       'status': status,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
     };

@@ -8,7 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../home/home_page.dart'; 
 import '../../cubit/auth_cubit.dart'; 
-import '../../cubit/auth_state.dart'; // تم إضافة الـ import الناقص هنا
+import '../../cubit/auth_state.dart'; 
 import 'sign_up_page.dart'; 
 import 'forgot_password_page.dart'; 
 
@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordObscured = true;
   bool _rememberMe = false; 
 
+  // المحافظة على ألوان الشاشة وتناسقها مع الثيم الخاص بك
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
 
@@ -311,8 +312,71 @@ class _LoginPageState extends State<LoginPage> {
 
                                   ElevatedButton(
                                     onPressed: isLoading ? null : _login,
-                                    style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 16.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
-                                    child: isLoading ? SizedBox(height: 24.h, width: 24.w, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3)) : Text('دخول', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryNavy, 
+                                      foregroundColor: Colors.white, 
+                                      padding: EdgeInsets.symmetric(vertical: 16.h), 
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                                      elevation: 0,
+                                    ),
+                                    child: isLoading && _passwordController.text.isNotEmpty 
+                                        ? SizedBox(height: 24.h, width: 24.w, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) 
+                                        : Text('دخول', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                                  ),
+
+                                  SizedBox(height: 16.h),
+
+                                  // الفاصل لإضافة زر الدخول بجوجل
+                                  Row(
+                                    children: [
+                                      Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                                        child: Text('أو', style: TextStyle(color: Colors.grey.shade500, fontFamily: 'Cairo', fontSize: 14.sp)),
+                                      ),
+                                      Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                                    ],
+                                  ),
+                                  
+                                  SizedBox(height: 16.h),
+
+                                  // زر تسجيل الدخول باستخدام جوجل
+                                  ElevatedButton(
+                                    onPressed: isLoading ? null : () {
+                                      context.read<AuthCubit>().loginWithGoogle();
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      surfaceTintColor: Colors.white,
+                                      padding: EdgeInsets.symmetric(vertical: 14.h),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12.r),
+                                        side: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: isLoading && _passwordController.text.isEmpty
+                                        ? SizedBox(height: 24.h, width: 24.w, child: CircularProgressIndicator(color: primaryNavy, strokeWidth: 2.5))
+                                        : Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Image.asset(
+                                                'assets/images/google.png', 
+                                                height: 24.h, 
+                                                width: 24.w,
+                                                errorBuilder: (context, error, stackTrace) => Image.network(
+                                                  'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                                                  height: 24.h,
+                                                  width: 24.w,
+                                                ),
+                                              ),
+                                              SizedBox(width: 12.w),
+                                              Text(
+                                                'الدخول باستخدام Google', 
+                                                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.black87, fontFamily: 'Cairo')
+                                              ),
+                                            ],
+                                          ),
                                   ),
                                 ],
                               ),
