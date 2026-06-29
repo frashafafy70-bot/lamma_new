@@ -42,8 +42,12 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
         var data = doc.data(); 
         bool isNotDeleted = data['isDeletedForDriver'] != true;
         
-        // فلترة السجل (مكتملة أو ملغية)
-        bool isHistoryStatus = data['status'] == 'completed' || data['status'] == 'cancelled';
+        // 🟢 حماية من الـ null لو الحقل مش موجود
+        String status = data['status'] ?? ''; 
+        
+        // 🟢 تم تصحيح الـ spelling ليشمل 'canceled' بـ L واحدة (المستخدمة في الـ Backend) 
+        // و 'cancelled' بـ 2 L عشان لو في داتا قديمة متسجلة كده
+        bool isHistoryStatus = status == 'completed' || status == 'canceled' || status == 'cancelled';
                              
         return isNotDeleted && isHistoryStatus;
       }).toList();

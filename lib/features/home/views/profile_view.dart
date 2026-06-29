@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+import '../../family/presentation/pages/family_page.dart';
 
 class ProfileView extends StatelessWidget {
   final String activeRole; 
@@ -36,7 +37,6 @@ class ProfileView extends StatelessWidget {
         borderRadius: BorderRadius.circular(15.r), 
         border: Border.all(color: Colors.grey.shade100),
       ),
-      // 🟢 تم حذف إشارة (= ListTile) الزيادة اللي كانت مسببة الأزمة
       child: ListTile(
         leading: Container(
           padding: EdgeInsets.all(8.w), 
@@ -118,7 +118,7 @@ class ProfileView extends StatelessWidget {
         
         Expanded(
           child: ListView(
-            padding: EdgeInsets.all(20.w),
+            padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 120.h),
             children: [
               Text('إعدادات الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),
               SizedBox(height: 16.h),
@@ -126,6 +126,21 @@ class ProfileView extends StatelessWidget {
               _buildListTile(icon: Icons.person_outline_rounded, color: primaryNavy, title: 'تعديل البيانات الشخصية', onTap: onEditProfile),
               _buildListTile(icon: Icons.lock_outline_rounded, color: Colors.blueAccent, title: 'تغيير كلمة المرور', onTap: onPasswordReset),
               _buildListTile(icon: Icons.location_on_outlined, color: Colors.green, title: 'العناوين المحفوظة', onTap: () {}),
+              
+              // 🟢 الإضافة الجديدة: الاشتراك العائلي
+              _buildListTile(
+                icon: Icons.family_restroom_outlined, 
+                color: Colors.purpleAccent, 
+                title: 'الاشتراك العائلي (تتبع الأبناء)', 
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FamilyPage(),
+                    ),
+                  );
+                },
+              ),
               
               SizedBox(height: 24.h),
               Text('المساعدة والدعم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),

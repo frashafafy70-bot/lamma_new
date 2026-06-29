@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../cubit/home_cubit.dart';
 import 'widgets/service_square_card.dart';
@@ -63,6 +64,172 @@ class _HomeMainViewState extends State<HomeMainView> {
     if (newSelectedRole != null && newSelectedRole != widget.activeRole && mainContext.mounted) {
       mainContext.read<HomeCubit>().switchUserRole(newSelectedRole);
     }
+  }
+
+  void _showAddTravelBottomSheet(BuildContext context) {
+    final TextEditingController fromCtrl = TextEditingController();
+    final TextEditingController toCtrl = TextEditingController();
+    final TextEditingController priceCtrl = TextEditingController();
+    DateTime? selectedDate;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.r))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext bottomSheetContext, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 20.w, right: 20.w, top: 16.h,
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 40.w, height: 5.h, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)))),
+                    SizedBox(height: 20.h),
+                    Row(
+                      children: [
+                        Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
+                        SizedBox(width: 10.w),
+                        Text('نشر رحلة سفر جديدة', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                      ],
+                    ),
+                    SizedBox(height: 24.h),
+
+                    TextField(
+                      controller: fromCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'نقطة التحرك (من)',
+                        prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    TextField(
+                      controller: toCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'وجهة السفر (إلى)',
+                        prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    InkWell(
+                      onTap: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 30)),
+                        );
+                        if (pickedDate != null) {
+                          TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (pickedTime != null) {
+                            setState(() {
+                              selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                            });
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(15.r),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_month_rounded, color: Colors.orange),
+                            SizedBox(width: 10.w),
+                            Text(
+                              selectedDate == null 
+                                  ? 'تاريخ ووقت التحرك' 
+                                  : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
+                              style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    TextField(
+                      controller: priceCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'سعر المقعد المتوقع (ج.م)',
+                        prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
+                      ),
+                    ),
+                    SizedBox(height: 24.h),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50.h,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryNavy,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                        ),
+                        onPressed: () async {
+                          if (fromCtrl.text.isEmpty || toCtrl.text.isEmpty || priceCtrl.text.isEmpty || selectedDate == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء إكمال جميع البيانات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                            return;
+                          }
+
+                          Navigator.pop(ctx); 
+                          
+                          try {
+                            final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                            await FirebaseFirestore.instance.collection('trips').add({
+                              'driverId': currentUserId,
+                              'driverName': widget.userName,
+                              'pickupLocation': fromCtrl.text.trim(),
+                              'dropoffLocation': toCtrl.text.trim(),
+                              'travelDate': Timestamp.fromDate(selectedDate!),
+                              'price': priceCtrl.text.trim(),
+                              'tripCategory': 'سفر',
+                              'isDriverPost': true, 
+                              'status': 'available', 
+                              'createdAt': FieldValue.serverTimestamp(),
+                            });
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: const Text('تم نشر رحلة السفر بنجاح! 🚌', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: royalGreen)
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('حدث خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red)
+                            );
+                          }
+                        },
+                        child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
+                      ),
+                    ),
+                    SizedBox(height: 24.h),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      }
+    );
   }
 
   @override
@@ -124,7 +291,8 @@ class _HomeMainViewState extends State<HomeMainView> {
         ),
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 100.h), 
+          // 🟢 التعديل هنا: زيادة المسافة السفلية لـ 150.h عشان الكارت يظهر بالكامل فوق الـ Bottom Nav Bar
+          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 150.h), 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -221,6 +389,13 @@ class _HomeMainViewState extends State<HomeMainView> {
                     ],
                   ),
                 ),
+                
+                SizedBox(height: 16.h), 
+
+                TravelServiceCard(
+                  onAddTravelTap: () => _showAddTravelBottomSheet(context),
+                ),
+
               ] else if (widget.activeRole == 'lawyer') ...[
                 GridView.count(
                   shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 16.w, mainAxisSpacing: 16.h, childAspectRatio: 0.95,
@@ -247,6 +422,76 @@ class _HomeMainViewState extends State<HomeMainView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class TravelServiceCard extends StatelessWidget {
+  final VoidCallback onAddTravelTap;
+
+  const TravelServiceCard({
+    super.key, 
+    required this.onAddTravelTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryNavy = const Color(0xFF0F172A);
+    final Color goldAccent = const Color(0xFFD4AF37);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(20.w),
+      decoration: BoxDecoration(
+        color: primaryNavy,
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: [
+          BoxShadow(
+            color: primaryNavy.withValues(alpha: 0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(color: goldAccent.withValues(alpha: 0.3), width: 1.w),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 12.w, height: 12.w,
+                    decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.blueAccent, blurRadius: 8)]),
+                  ),
+                  SizedBox(width: 8.w),
+                  Text('حجز مسبق', style: TextStyle(fontFamily: 'Cairo', color: Colors.blueAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
+            ],
+          ),
+          SizedBox(height: 20.h),
+          Text('مسافر لمحافظة تانية قريباً؟', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold)),
+          SizedBox(height: 6.h),
+          Text('حدد مسارك وتاريخ رحلتك، وخلي العملاء تحجز معاك مقدماً وتشاركك التكلفة.', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade400, fontSize: 13.sp)),
+          SizedBox(height: 20.h),
+          SizedBox(
+            width: double.infinity,
+            height: 50.h,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: goldAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+              ),
+              onPressed: onAddTravelTap,
+              child: Text('إضافة رحلة سفر 🗓️', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       ),
     );
   }

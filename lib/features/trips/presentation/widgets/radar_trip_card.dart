@@ -26,7 +26,8 @@ class RadarTripCard extends StatelessWidget {
   void _showNegotiationDialog(BuildContext context) {
     TextEditingController offerCtrl = TextEditingController();
     showDialog(
-      context: context, 
+      context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
         title: Text('التفاوض على الأجرة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)), 
@@ -42,14 +43,17 @@ class RadarTripCard extends StatelessWidget {
         ), 
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp))),
-          // 🟢 تم إضافة زر الموافقة المباشرة على سعر العميل من داخل التفاوض
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
             onPressed: () async { 
-              await context.read<DriverRadarCubit>().acceptTrip(docId, data['suggestedPrice'].toString());
-              if (ctx.mounted) {
-                Navigator.pop(ctx); 
-                tabController.animateTo(2); 
+              try {
+                await context.read<DriverRadarCubit>().acceptTrip(docId, data['suggestedPrice'].toString());
+                if (ctx.mounted) {
+                  Navigator.pop(ctx); 
+                  tabController.animateTo(2); 
+                }
+              } catch (e) {
+                 debugPrint('خطأ في الموافقة: $e');
               }
             }, 
             child: Text('موافق (${data['suggestedPrice']} ج)', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12.sp))
@@ -58,13 +62,14 @@ class RadarTripCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
             onPressed: () async { 
               if (offerCtrl.text.trim().isEmpty) return;
-              
-              // نكلم الكيوبت عشان يرفع التفاوض لفايربيز
-              await context.read<DriverRadarCubit>().negotiateTrip(docId, offerCtrl.text.trim());
-              
-              if (ctx.mounted) {
-                Navigator.pop(ctx); 
-                tabController.animateTo(2); 
+              try {
+                await context.read<DriverRadarCubit>().negotiateTrip(docId, offerCtrl.text.trim());
+                if (ctx.mounted) {
+                  Navigator.pop(ctx); 
+                  tabController.animateTo(2); 
+                }
+              } catch (e) {
+                 debugPrint('خطأ في إرسال العرض: $e');
               }
             }, 
             child: Text('إرسال العرض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12.sp))
@@ -138,9 +143,12 @@ class RadarTripCard extends StatelessWidget {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
                       onPressed: () async {
-                        // نكلم الكيوبت عشان يقبل الرحلة
-                        await context.read<DriverRadarCubit>().acceptTrip(docId, data['suggestedPrice'].toString());
-                        if (context.mounted) tabController.animateTo(2); 
+                        try {
+                           await context.read<DriverRadarCubit>().acceptTrip(docId, data['suggestedPrice'].toString());
+                           if (context.mounted) tabController.animateTo(2); 
+                        } catch (e) {
+                           debugPrint('خطأ: $e');
+                        }
                       }, 
                       child: Text('قبول فوراً', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
                     )

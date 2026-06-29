@@ -12,8 +12,6 @@ import 'package:lamma_new/features/trips/data/services/driver_radar_service.dart
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 import '../../../cubit/driver/driver_radar_cubit.dart';
 import '../../../cubit/driver/driver_radar_state.dart';
-// 💡 تنبيه: تأكد من إضافة ملف الـ DriverRadarService في الـ imports هنا لو مش موجود
-// import '../../../services/driver_radar_service.dart'; 
 
 class DriverRadarTab extends StatelessWidget {
   final TabController tabController;
@@ -57,8 +55,10 @@ class DriverRadarTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // جلب معرف الكابتن الحالي
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return BlocProvider(
-      // 🟢 هنا التعديل: تم تمرير DriverRadarService() للكيوبت
       create: (context) => DriverRadarCubit(DriverRadarService())..startListeningToRadar(),
       child: BlocBuilder<DriverRadarCubit, DriverRadarState>(
         builder: (context, state) {
@@ -71,10 +71,20 @@ class DriverRadarTab extends StatelessWidget {
           }
 
           if (state is DriverRadarLoaded) {
+            // 🟢 التعديل الجوهري هنا: فلترة الطلبات
             var activeTrips = state.trips.where((doc) {
               var data = doc.data() as Map<String, dynamic>;
-              return data['isDeletedForDriver'] != true && 
-                     (data['status'] == 'pending' || data['status'] == 'negotiating');
+              
+              if (data['isDeletedForDriver'] == true) return false;
+              
+              // عرض الطلبات المعلقة
+              if (data['status'] == 'pending') return true;
+              
+              // عرض طلبات التفاوض بشرط: أن لا يكون هذا الكابتن هو من قام بالتفاوض عليها
+              // لأنه إذا كان هو من تفاوض، فستكون الرحلة قد ذهبت لتبويب "النشطة" الخاص به
+              if (data['status'] == 'negotiating' && data['driverId'] != currentUserId) return true;
+
+              return false;
             }).toList();
 
             if (activeTrips.isEmpty) {
@@ -171,7 +181,7 @@ class DriverRadarTab extends StatelessWidget {
                           children: [
                             const Icon(Icons.my_location_rounded, color: AppColors.info, size: 20),
                             SizedBox(width: 8.w),
-                            Expanded(child: Text(data['pickupAddress'] ?? 'موقع الانطلاق', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                            Expanded(child: Text(data['pickupAddress'] ?? data['pickup'] ?? 'موقع الانطلاق', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                         SizedBox(height: 12.h),
@@ -179,7 +189,7 @@ class DriverRadarTab extends StatelessWidget {
                           children: [
                             const Icon(Icons.location_on_rounded, color: AppColors.error, size: 20),
                             SizedBox(width: 8.w),
-                            Expanded(child: Text(data['dropoffAddress'] ?? 'وجهة الوصول', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                            Expanded(child: Text(data['dropoffAddress'] ?? data['destination'] ?? 'وجهة الوصول', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                         SizedBox(height: 20.h),
@@ -199,7 +209,7 @@ class DriverRadarTab extends StatelessWidget {
                                 onPressed: () {
                                   TripDialogsHelper.showNegotiationDialog(
                                     context: context, 
-                                    docId: doc.id, 
+                                    docId: doc.id,
                                     royalGreen: AppColors.royalGreen,
                                     isDriver: true, 
                                   );

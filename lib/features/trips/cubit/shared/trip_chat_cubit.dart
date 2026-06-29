@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🟢 تم الإضافة
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -13,8 +14,9 @@ import 'package:lamma_new/core/constants/firebase_constants.dart';
 part 'trip_chat_state.dart';
 
 class TripChatCubit extends Cubit<TripChatState> {
-  TripChatCubit() : super(TripChatInitial());
-
+  // 🟢 اشتراك الإشعارات للشات
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
+  
   final AudioRecorder _audioRecorder = AudioRecorder();
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   
@@ -23,12 +25,30 @@ class TripChatCubit extends Cubit<TripChatState> {
   
   List<Map<String, dynamic>> _messages = [];
   
-  // 🟢 متغيرات الـ Pagination (التحميل التدريجي)
+  // متغيرات الـ Pagination (التحميل التدريجي)
   int _messageLimit = 20;
   bool isLoadingMore = false;
 
+  TripChatCubit() : super(TripChatInitial()) {
+    _listenToChatNotifications(); // 🟢 تشغيل المستمع فوراً
+  }
+
+  // =======================================================
+  // 🟢 اللوجيك الجديد: الاستماع اللحظي للرسائل أثناء فتح الشات
+  // =======================================================
+  void _listenToChatNotifications() {
+    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.data['type'] == 'chat') {
+        debugPrint("💬 [TripChatCubit] رسالة جديدة وصلت لايف: ${message.notification?.body}");
+        // هنا بيحصل الـ Magic: ممكن تشغل تأثير صوتي خفيف (in-app sound) للرسائل الجديدة
+      }
+    });
+  }
+  // =======================================================
+
   @override
   Future<void> close() {
+    _notificationSubscription?.cancel(); // 🟢 تنظيف المستمع
     _audioRecorder.dispose();
     _chatSubscription?.cancel();
     return super.close();
@@ -44,7 +64,7 @@ class TripChatCubit extends Cubit<TripChatState> {
         .doc(tripId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
-        .limit(_messageLimit) // 🟢 تحديد العدد عشان ميسحبش نت كتير
+        .limit(_messageLimit) // تحديد العدد عشان ميسحبش نت كتير
         .snapshots()
         .listen((snapshot) {
           
@@ -63,7 +83,7 @@ class TripChatCubit extends Cubit<TripChatState> {
     });
   }
 
-  // 🟢 دالة التحميل التدريجي عند عمل Scroll
+  // دالة التحميل التدريجي عند عمل Scroll
   void loadMoreMessages(String tripId) {
     if (isLoadingMore) return; // منع التكرار
     isLoadingMore = true;

@@ -6,11 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'dart:math' as math; // 🟢 تم إضافة المكتبة هنا للحماية
+import 'dart:math' as math; 
 
 import 'package:lamma_new/features/trips/data/services/map_service.dart';
 import 'package:lamma_new/features/trips/data/services/trip_service.dart';
@@ -65,7 +64,8 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   void initState() {
     super.initState();
     _requestCubit = PassengerRequestCubit(
-      mapService: MapService(googleApiKey: dotenv.env['GOOGLE_MAPS_API_KEY'] ?? ''),
+      // 👈 التعديل هنا: شلنا الـ googleApiKey لأن الـ MapService بقى متظبط في الـ main
+      mapService: MapService(), 
       tripService: TripService(),
     );
     _getUserLocation();
@@ -462,7 +462,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             double requestedHeight = _tripCategory == 'طلبات' ? screenHeight * 0.65 : screenHeight * 0.52; 
             
             double visibleSpace = availableHeight - keyboardHeight;
-            // 🟢 الحماية الهندسية هنا: مستحيل الارتفاع يقل عن الصفر ويسبب الوميض الأحمر
             double actualContainerHeight = math.max(0.0, math.min(requestedHeight, visibleSpace));
 
             return Stack(

@@ -32,10 +32,10 @@ class OrdersView extends StatelessWidget {
         // 🟢 المحتوى الحي (Live Stream) من فايربيز
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
+            // تم إزالة orderBy لتجنب خطأ الـ Composite Index في فايربيز
             stream: FirebaseFirestore.instance
                 .collection('trips')
                 .where('passengerId', isEqualTo: currentUserId)
-                .orderBy('createdAt', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -46,11 +46,27 @@ class OrdersView extends StatelessWidget {
                 return Center(child: Text('حدث خطأ في تحميل الطلبات', style: TextStyle(fontFamily: 'Cairo', color: Colors.red.shade700)));
               }
 
-              // تصفية الطلبات النشطة فقط (غير المكتملة أو الملغية) لتظهر في هذه الشاشة
-              final activeOrders = snapshot.data?.docs.where((doc) {
+              // جلب كل الطلبات
+              var allDocs = snapshot.data?.docs ?? [];
+
+              // تصفية الطلبات النشطة فقط 
+              var activeOrders = allDocs.where((doc) {
                 final status = doc['status'] ?? '';
-                return status != 'completed' && status != 'cancelled';
-              }).toList() ?? [];
+                // التأكد من الحالتين تحسباً لأي خطأ إملائي في الحفظ
+                return status != 'completed' && status != 'cancelled' && status != 'canceled';
+              }).toList();
+
+              // 🟢 الترتيب البرمجي (Sorting in memory) الأحدث أولاً
+              activeOrders.sort((a, b) {
+                var dataA = a.data() as Map<String, dynamic>;
+                var dataB = b.data() as Map<String, dynamic>;
+                Timestamp? timeA = dataA['createdAt'];
+                Timestamp? timeB = dataB['createdAt'];
+                if (timeA == null && timeB == null) return 0;
+                if (timeA == null) return 1;
+                if (timeB == null) return -1;
+                return timeB.compareTo(timeA); // تنازلي
+              });
 
               if (activeOrders.isEmpty) {
                 return _buildEmptyState();
@@ -72,7 +88,7 @@ class OrdersView extends StatelessWidget {
     );
   }
 
-  // 🟢 حالة "لا توجد طلبات" متطابقة تماماً مع الصورة التي أرسلتها
+  // 🟢 حالة "لا توجد طلبات" متطابقة تماماً مع التصميم
   Widget _buildEmptyState() {
     return Center(
       child: Column(

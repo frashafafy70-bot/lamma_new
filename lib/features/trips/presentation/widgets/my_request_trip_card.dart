@@ -5,8 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+
 import '../../cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
+// 🟢 استدعاء صفحة الخريطة الجديدة للتتبع
+import 'package:lamma_new/features/trips/presentation/widgets/trip_map.dart'; 
+
 class MyRequestTripCard extends StatelessWidget {
   final String docId;
   final Map<String, dynamic> data;
@@ -22,9 +26,10 @@ class MyRequestTripCard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending': return Colors.grey;
-      case 'available': return Colors.grey; // لضمان التوافق مع التعديل السابق
+      case 'available': return Colors.grey; 
       case 'negotiating': return Colors.orange;
       case 'accepted': return Colors.blue;
+      case 'in_progress': return Colors.indigo; // 🟢 إضافة لون مميز لحالة قيد التنفيذ
       case 'completed': return Colors.green;
       case 'canceled': return Colors.red;
       default: return Colors.grey;
@@ -37,6 +42,7 @@ class MyRequestTripCard extends StatelessWidget {
       case 'available': return 'في انتظار كابتن'; 
       case 'negotiating': return 'جاري التفاوض';
       case 'accepted': return 'تم القبول';
+      case 'in_progress': return 'الرحلة جارية'; // 🟢 تسمية واضحة للعميل
       case 'completed': return 'مكتملة';
       case 'canceled': return 'ملغية';
       default: return status;
@@ -64,9 +70,13 @@ class MyRequestTripCard extends StatelessWidget {
     if (confirm == true) {
       try {
         await context.read<PassengerMyRequestsCubit>().deleteRequest(docId);
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إخفاء الطلب بنجاح ✅', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.green));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إخفاء الطلب بنجاح ✅', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.green));
+        }
       } catch (e) {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحذف', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.red));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحذف', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.red));
+        }
       }
     }
   }
@@ -74,7 +84,8 @@ class MyRequestTripCard extends StatelessWidget {
   void _showNegotiationDialog(BuildContext context) {
     TextEditingController offerCtrl = TextEditingController();
     showDialog(
-      context: context, 
+      context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
         title: Text('التفاوض مع الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)), 
@@ -95,8 +106,12 @@ class MyRequestTripCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
             onPressed: () async { 
               if (offerCtrl.text.trim().isEmpty) return;
-              await context.read<PassengerMyRequestsCubit>().negotiateTrip(docId, offerCtrl.text.trim());
-              if (ctx.mounted) Navigator.pop(ctx); 
+              try {
+                await context.read<PassengerMyRequestsCubit>().negotiateTrip(docId, offerCtrl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx); 
+              } catch (e) {
+                 debugPrint('خطأ أثناء إرسال العرض: $e');
+              }
             }, 
             child: Text('إرسال العرض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
           )
@@ -154,7 +169,9 @@ class MyRequestTripCard extends StatelessWidget {
     String category = data['tripCategory'] ?? 'داخلي';
     bool isErrand = category == 'طلبات';
     bool isNegotiating = status == 'negotiating';
-    bool isAccepted = status == 'accepted';
+    
+    // 🟢 دمج الحالتين (مقبول أو قيد التنفيذ) لضمان ظهور معلومات الكابتن وأزرار التتبع
+    bool isAcceptedOrInProgress = status == 'accepted' || status == 'in_progress';
 
     String formattedDate = '';
     if (data.containsKey('createdAt') && data['createdAt'] != null) {
@@ -187,7 +204,7 @@ class MyRequestTripCard extends StatelessWidget {
       ));
     }
 
-    if (isAccepted && data.containsKey('driverLocation') && data['driverLocation'] is GeoPoint) {
+    if (isAcceptedOrInProgress && data.containsKey('driverLocation') && data['driverLocation'] is GeoPoint) {
       GeoPoint drLoc = data['driverLocation'];
       trackingMarkers.add(Marker(
         markerId: const MarkerId('live_driver_mini'),
@@ -296,7 +313,7 @@ class MyRequestTripCard extends StatelessWidget {
               SizedBox(height: 16.h),
             ],
 
-            if (isAccepted) _buildDriverInfoCard(),
+            if (isAcceptedOrInProgress) _buildDriverInfoCard(),
 
             if (isNegotiating)
               if (data['lastNegotiator'] == 'passenger')
@@ -325,30 +342,88 @@ class MyRequestTripCard extends StatelessWidget {
                     SizedBox(height: 12.h),
                     Row(
                       children: [
-                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () => context.read<PassengerMyRequestsCubit>().acceptOffer(docId, data['negotiationPrice'].toString()), child: Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
+                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () async => await context.read<PassengerMyRequestsCubit>().acceptOffer(docId, data['negotiationPrice'].toString()), child: Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
                         SizedBox(width: 8.w),
                         Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () => _showNegotiationDialog(context), child: Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
                         SizedBox(width: 8.w),
-                        Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () => context.read<PassengerMyRequestsCubit>().rejectTrip(docId), child: Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 13.sp)))),
+                        Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () async => await context.read<PassengerMyRequestsCubit>().rejectTrip(docId), child: Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 13.sp)))),
                       ],
                     )
                   ],
                 )
             else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    isErrand ? 'سعرك المقترح: ${data['suggestedPrice']} ج' : 'السعر المقترح: ${data['suggestedPrice']} ج',
-                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14.sp),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isErrand ? 'سعرك المقترح: ${data['suggestedPrice'] ?? data['finalPrice'] ?? '0'} ج' : 'السعر المقترح: ${data['suggestedPrice'] ?? data['finalPrice'] ?? '0'} ج',
+                        style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14.sp),
+                      ),
+                    ],
                   ),
-                  if (isAccepted)
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: docId))),
-                      icon: Icon(Icons.chat_rounded, size: 16.sp),
-                      label: Text('تتبع مباشر ومحادثة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12.sp)),
+                  
+                  // 🟢 إضافة زري المحادثة والتتبع إذا كانت الرحلة مقبولة أو قيد التنفيذ
+                  if (isAcceptedOrInProgress) ...[
+                    SizedBox(height: 12.h),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600, 
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                              elevation: 0,
+                            ), 
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => TripChatPage(tripId: docId)),
+                              );
+                            }, 
+                            icon: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 16.sp), 
+                            label: Text('المحادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
+                          )
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo.shade600, 
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                              elevation: 0,
+                            ), 
+                            onPressed: () {
+                              // جلب الإحداثيات وفتح خريطة التتبع
+                              LatLng? pickup;
+                              if (data['pickupLocation'] is GeoPoint) {
+                                pickup = LatLng((data['pickupLocation'] as GeoPoint).latitude, (data['pickupLocation'] as GeoPoint).longitude);
+                              }
+                              LatLng? dropoff;
+                              if (data['destinationLocation'] is GeoPoint) {
+                                dropoff = LatLng((data['destinationLocation'] as GeoPoint).latitude, (data['destinationLocation'] as GeoPoint).longitude);
+                              }
+                              
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TripMap(
+                                    isTrackingMode: true,
+                                    pickupPoint: pickup,
+                                    dropoffPoint: dropoff,
+                                  )
+                                ),
+                              );
+                            }, 
+                            icon: Icon(Icons.map_rounded, color: Colors.white, size: 16.sp), 
+                            label: Text('تتبع الرحلة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
+                          )
+                        ),
+                      ],
                     ),
+                  ],
                 ],
               ),
           ],

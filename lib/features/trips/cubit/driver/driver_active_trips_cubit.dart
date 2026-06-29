@@ -1,14 +1,37 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart'; // 🟢 لإضافة debugPrint
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🟢 استدعاء الإشعارات
 import 'driver_active_trips_state.dart';
 
 class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
-  DriverActiveTripsCubit() : super(DriverActiveTripsInitial());
-
+  // 🟢 اشتراك الإشعارات
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
   StreamSubscription? _tripsSubscription;
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  DriverActiveTripsCubit() : super(DriverActiveTripsInitial()) {
+    _listenToForegroundNotifications(); // 🟢 تفعيل مستمع الإشعارات فوراً
+  }
+
+  // =======================================================
+  // 🟢 اللوجيك الجديد: الاستماع للإشعارات الخاصة بالرحلات النشطة
+  // =======================================================
+  void _listenToForegroundNotifications() {
+    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint("🔔 [ActiveTripsCubit] إشعار لايف وصل: ${message.notification?.title}");
+      
+      // إذا كان الإشعار يخص رسالة جديدة أو تحديث في رحلة الكابتن الحالية
+      if (message.data['type'] == 'chat' || message.data['type'] == 'active_trip') {
+        // بما إن Firestore بيحدث نفسه، نقدر نستخدم دي لإصدار State فرعي
+        // مثلاً لو حابين نعرض SnackBar سريع للكابتن أو نشغل اهتزاز
+        // emit(DriverActiveTripsNotificationReceived(message.notification?.title));
+      }
+    });
+  }
+  // =======================================================
 
   void startListeningToActiveTrips() {
     if (currentUserId.isEmpty) {
@@ -59,8 +82,27 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     });
   }
 
+  // 🟢 الوظيفة الإضافية للكابتن: تفعيل الرحلة النشطة
+  Future<void> activateDriverTripFunction(String tripId) async {
+    try {
+      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
+        'status': 'in_progress',
+        'driverActiveTripEnabled': true, // علامة تأكيد تفعيل الوظيفة الإضافية
+        'startedAt': FieldValue.serverTimestamp(),
+      });
+      
+      // تحديث حالة الكابتن لـ "مشغول" عشان الرادار يوقف استقبال طلبات جديدة
+      await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
+        'isBusy': true,
+      });
+    } catch (e) {
+      emit(DriverActiveTripsError('حدث خطأ أثناء تفعيل وظيفة الرحلة النشطة.'));
+    }
+  }
+
   @override
   Future<void> close() {
+    _notificationSubscription?.cancel(); // 🟢 تنظيف ذاكرة مستمع الإشعارات
     _tripsSubscription?.cancel();
     return super.close();
   }

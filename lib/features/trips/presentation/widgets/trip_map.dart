@@ -1,19 +1,29 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 
-// استدعاء ملف الألوان المركزي
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/features/trips/data/services/map_service.dart';
+// استيراد الخريطة الموحدة
+import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
 
 class TripMap extends StatefulWidget {
-  const TripMap({super.key});
+  final LatLng? pickupPoint;
+  final LatLng? dropoffPoint;
+  final bool isTrackingMode; 
+
+  const TripMap({
+    super.key, 
+    this.pickupPoint, 
+    this.dropoffPoint, 
+    this.isTrackingMode = false, // 👈 تم تصحيح الخطأ هنا (بدون required وبدون تكرار)
+  });
 
   @override
   State<TripMap> createState() => _TripMapState();
@@ -27,25 +37,75 @@ class _TripMapState extends State<TripMap> {
   bool _isLoadingAddress = true;
   bool _isGettingLocation = false;
 
-  // ستايل خريطة فخم (فاتح) ليتناسب مع التطبيقات العالمية
-  final String _premiumMapStyle = '''[
-    {"elementType": "geometry", "stylers": [{"color": "#f5f5f5"}]},
-    {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
-    {"elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
-    {"elementType": "labels.text.stroke", "stylers": [{"color": "#f5f5f5"}]},
-    {"featureType": "road", "elementType": "geometry", "stylers": [{"color": "#ffffff"}]}
-  ]''';
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   @override
   void initState() {
     super.initState();
-    _getCurrentUserLocation();
+    if (widget.isTrackingMode && widget.pickupPoint != null && widget.dropoffPoint != null) {
+      _setupTrackingMode();
+    } else {
+      _getCurrentUserLocation();
+    }
   }
 
   @override
   void dispose() {
     _mapController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _setupTrackingMode() async {
+    setState(() {
+      _isLoadingAddress = false;
+      _centerPosition = widget.pickupPoint!;
+      
+      _markers.add(Marker(
+        markerId: const MarkerId('pickup'),
+        position: widget.pickupPoint!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        infoWindow: const InfoWindow(title: 'نقطة الانطلاق'),
+      ));
+      
+      _markers.add(Marker(
+        markerId: const MarkerId('dropoff'),
+        position: widget.dropoffPoint!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'وجهة الوصول'),
+      ));
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mapController != null) {
+        LatLngBounds bounds = LatLngBounds(
+          southwest: LatLng(
+            min(widget.pickupPoint!.latitude, widget.dropoffPoint!.latitude),
+            min(widget.pickupPoint!.longitude, widget.dropoffPoint!.longitude),
+          ),
+          northeast: LatLng(
+            max(widget.pickupPoint!.latitude, widget.dropoffPoint!.latitude),
+            max(widget.pickupPoint!.longitude, widget.dropoffPoint!.longitude),
+          ),
+        );
+        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+      }
+    });
+
+    final mapService = MapService(); 
+    List<LatLng> routePoints = await mapService.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
+
+    if (routePoints.isNotEmpty && mounted) {
+      setState(() {
+        _polylines.add(Polyline(
+          polylineId: const PolylineId('trip_route'),
+          points: routePoints,
+          color: AppColors.primaryDark,
+          width: 5,
+          geodesic: true,
+        ));
+      });
+    }
   }
 
   Future<void> _getCurrentUserLocation() async {
@@ -157,102 +217,91 @@ class _TripMapState extends State<TripMap> {
       ),
       body: Stack(
         children: [
-          // 🟢 1. الخريطة في الخلفية
-          GoogleMap(
+          LammaGoogleMap(
             initialCameraPosition: CameraPosition(target: _centerPosition, zoom: 16.0),
-            style: _premiumMapStyle,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false, 
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false, 
-            zoomGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
-            },
+            markers: _markers,
+            polylines: _polylines,
             onMapCreated: (controller) => _mapController = controller,
             onCameraMove: (position) {
-              _centerPosition = position.target;
-              if (!_isLoadingAddress) setState(() => _isLoadingAddress = true);
+              if (!widget.isTrackingMode) {
+                _centerPosition = position.target;
+                if (!_isLoadingAddress) setState(() => _isLoadingAddress = true);
+              }
             },
-            onCameraIdle: () => _getAddressFromLatLng(_centerPosition),
+            onCameraIdle: () {
+              if (!widget.isTrackingMode) _getAddressFromLatLng(_centerPosition);
+            },
           ),
 
-          // 🟢 2. الماركر الثابت الفخم في منتصف الشاشة
-          Center(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 60.h), 
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // كارت العنوان العائم (Where from)
-                  AnimatedOpacity(
-                    opacity: _isLoadingAddress ? 0.5 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Container(
-                      constraints: BoxConstraints(maxWidth: 250.w),
-                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+          if (!widget.isTrackingMode)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 60.h), 
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedOpacity(
+                      opacity: _isLoadingAddress ? 0.5 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Container(
+                        constraints: BoxConstraints(maxWidth: 250.w),
+                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8.r),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('نقطة الانطلاق', style: TextStyle(color: AppColors.textMuted.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                                  Text(
+                                    _currentAddress,
+                                    style: TextStyle(color: AppColors.textDark, fontSize: 13.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textDark),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryDark,
+                        borderRadius: BorderRadius.circular(12.r),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
+                      ),
+                      child: Icon(Icons.emoji_people_rounded, color: Colors.white, size: 26.sp),
+                    ),
+                    SizedBox(height: 4.h),
+                    Container(
+                      width: 14.w,
+                      height: 14.w,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8.r),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('نقطة الانطلاق', style: TextStyle(color: AppColors.textMuted.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                                Text(
-                                  _currentAddress,
-                                  style: TextStyle(color: AppColors.textDark, fontSize: 13.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 8.w),
-                          const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textDark),
-                        ],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primaryDark, width: 3.5),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 8.h),
-                  // أيقونة الشخص 
-                  Container(
-                    width: 40.w,
-                    height: 40.w,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryDark,
-                      borderRadius: BorderRadius.circular(12.r),
-                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
-                    ),
-                    child: Icon(Icons.emoji_people_rounded, color: Colors.white, size: 26.sp),
-                  ),
-                  SizedBox(height: 4.h),
-                  // نقطة المركز الحقيقية (Bullseye)
-                  Container(
-                    width: 14.w,
-                    height: 14.w,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryDark, width: 3.5),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // 🟢 3. زر الموقع الحالي 
           Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.38, 
+            bottom: widget.isTrackingMode ? 30.h : MediaQuery.of(context).size.height * 0.38, 
             right: 16.w,
             child: FloatingActionButton(
               heroTag: 'gps_btn',
@@ -265,104 +314,98 @@ class _TripMapState extends State<TripMap> {
             ),
           ),
 
-          // 🟢 4. الشيت السحابي 
-          DraggableScrollableSheet(
-            initialChildSize: 0.35, 
-            minChildSize: 0.25,     
-            maxChildSize: 0.85,     
-            builder: (context, scrollController) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
-                ),
-                child: ListView(
-                  controller: scrollController, 
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-                  children: [
-                    // Handle line
-                    Center(
-                      child: Container(
-                        width: 45.w, height: 5.h,
-                        decoration: BoxDecoration(color: AppColors.textMuted.shade300, borderRadius: BorderRadius.circular(10.r)),
+          if (!widget.isTrackingMode)
+            DraggableScrollableSheet(
+              initialChildSize: 0.35, 
+              minChildSize: 0.25,     
+              maxChildSize: 0.85,     
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
+                  ),
+                  child: ListView(
+                    controller: scrollController, 
+                    padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 45.w, height: 5.h,
+                          decoration: BoxDecoration(color: AppColors.textMuted.shade300, borderRadius: BorderRadius.circular(10.r)),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 20.h),
-                    
-                    // تصنيفات الرحلة
-                    Row(
-                      children: [
-                        _buildServiceTypeCard('رحلة عادية', Icons.directions_car_rounded, true), 
-                        SizedBox(width: 12.w),
-                        _buildServiceTypeCard('سفر للمحافظات', Icons.emoji_transportation_rounded, false),
-                      ],
-                    ),
-                    SizedBox(height: 20.h),
+                      SizedBox(height: 20.h),
+                      
+                      Row(
+                        children: [
+                          _buildServiceTypeCard('رحلة عادية', Icons.directions_car_rounded, true), 
+                          SizedBox(width: 12.w),
+                          _buildServiceTypeCard('سفر للمحافظات', Icons.emoji_transportation_rounded, false),
+                        ],
+                      ),
+                      SizedBox(height: 20.h),
 
-                    // زر تأكيد الموقع والانتقال 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52.h,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryDark, 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-                          elevation: 0,
-                        ),
-                        onPressed: _isLoadingAddress ? null : () {
-                          Navigator.pop(context, {
-                            'address': _currentAddress,
-                            'location': GeoPoint(_centerPosition.latitude, _centerPosition.longitude),
-                          });
-                        },
-                        child: Text(
-                          'تأكيد الانطلاق من هنا',
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52.h,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryDark, 
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                            elevation: 0,
+                          ),
+                          onPressed: _isLoadingAddress ? null : () {
+                            Navigator.pop(context, {
+                              'address': _currentAddress,
+                              'location': GeoPoint(_centerPosition.latitude, _centerPosition.longitude),
+                            });
+                          },
+                          child: Text(
+                            'تأكيد الانطلاق من هنا',
+                            style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
+                          ),
                         ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 24.h),
-                    
-                    // أمثلة لأماكن محفوظة 
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.home_rounded, color: AppColors.textDark)),
-                      title: const Text('المنزل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                      subtitle: const Text('إضافة عنوان المنزل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.work_rounded, color: AppColors.textDark)),
-                      title: const Text('العمل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                      subtitle: const Text('إضافة عنوان العمل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                      
+                      SizedBox(height: 24.h),
+                      
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.home_rounded, color: AppColors.textDark)),
+                        title: const Text('المنزل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                        subtitle: const Text('إضافة عنوان المنزل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
+                      ),
+                      const Divider(),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.work_rounded, color: AppColors.textDark)),
+                        title: const Text('العمل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                        subtitle: const Text('إضافة عنوان العمل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
-  // ويدجت الكروت 
   Widget _buildServiceTypeCard(String title, IconData iconData, bool isSelected) {
     return Expanded(
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 12.h),
         decoration: BoxDecoration(
-          // تم استبدال اللون الأزرق بلون الأخضر الملكي مع شفافية في حالة التحديد
-          color: isSelected ? AppColors.royalGreen.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? Colors.green.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12.r),
-          border: isSelected ? Border.all(color: AppColors.royalGreen, width: 1.5) : null,
+          border: isSelected ? Border.all(color: Colors.green, width: 1.5) : null,
         ),
         child: Column(
           children: [
-            Icon(iconData, size: 35.sp, color: isSelected ? AppColors.royalGreen : AppColors.textMuted.shade600),
+            Icon(iconData, size: 35.sp, color: isSelected ? Colors.green : AppColors.textMuted.shade600),
             SizedBox(height: 8.h),
             Text(
               title,
@@ -370,7 +413,7 @@ class _TripMapState extends State<TripMap> {
                 fontFamily: 'Cairo', 
                 fontSize: 13.sp, 
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                color: isSelected ? AppColors.royalGreen : AppColors.textMuted.shade700
+                color: isSelected ? Colors.green : AppColors.textMuted.shade700
               ),
             ),
           ],

@@ -16,6 +16,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   final MapService mapService;
   final TripService tripService;
 
+  // 👈 التعديل تم هنا: شلنا (MapService mapService) الزيادة من بداية الأقواس
   PassengerRequestCubit({required this.mapService, required this.tripService})
       : super(PassengerRequestInitial());
 

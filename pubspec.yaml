@@ -83,3 +83,4 @@ flutter:
     - .env
     - assets/icons/
     - assets/images/
+    - assets/map_styles/

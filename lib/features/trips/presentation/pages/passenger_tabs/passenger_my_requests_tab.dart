@@ -1,17 +1,18 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-// استدعاء ملف الألوان المركزي والـ Dialogs
+// استدعاء ملف الألوان المركزي
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
 
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_state.dart';
-import 'package:lamma_new/features/trips/presentation/widgets/smart_trip_card.dart';
-import 'package:lamma_new/features/trips/data/models/trip_model.dart';
+
+// 🟢 التعديل: استدعاء كارت MyRequestTripCard اللي إحنا ظبطناه ودمجنا فيه كل المميزات
+import 'package:lamma_new/features/trips/presentation/widgets/my_request_trip_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 
 class PassengerMyRequestsTab extends StatefulWidget {
@@ -49,7 +50,7 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
               final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
               final tripId = doc.id;
               
-              // 🟢 التوجيه التلقائي المباشر والمضمون أول ما الكابتن يوافق
+              // التوجيه التلقائي المباشر والمضمون أول ما الكابتن يوافق
               if (data['status'] == 'accepted' && !_navigatedTripIds.contains(tripId)) {
                 _navigatedTripIds.add(tripId); 
                 
@@ -117,100 +118,12 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                   itemBuilder: (context, index) {
                     final doc = requests[index];
                     final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
-                    TripModel tripModel = TripModel.fromMap(data, doc.id);
                     
-                    return Column(
-                      children: [
-                        SmartTripCard(
-                          trip: tripModel,
-                          isDriver: false,
-                          currentUserId: currentUserId,
-                          onChatPressed: () {
-                            // 🟢 التوجيه اليدوي الصريح عند ضغط زر المحادثة للعميل
-                            if (!_navigatedTripIds.contains(doc.id)) {
-                               _navigatedTripIds.add(doc.id);
-                            }
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => TripChatPage(tripId: doc.id)),
-                            );
-                          },
-                        ),
-                        // 🟢 ظهور كارت التفاوض تحت الطلب لو حالته التفاوض شغالة
-                        if (data['status'] == 'negotiating') 
-                          Container(
-                            margin: EdgeInsets.only(bottom: 16.h, top: 4.h),
-                            padding: EdgeInsets.all(12.w),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12.r),
-                              border: Border.all(color: AppColors.warning, width: 1),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.handshake_rounded, color: AppColors.warning, size: 20.sp),
-                                    SizedBox(width: 8.w),
-                                    Expanded(
-                                      child: Text(
-                                        data['lastNegotiator'] == 'driver' 
-                                          ? 'كابتن ${data['driverName'] ?? ''} يقترح سعر: ${data['negotiationPrice']} ج.م'
-                                          : 'في انتظار رد الكابتن على سعرك: ${data['negotiationPrice']} ج.م',
-                                        style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp, color: AppColors.textDark),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // نظهر الزراير للعميل لو الكابتن هو اللي باعت العرض الأخير
-                                if (data['lastNegotiator'] == 'driver') ...[
-                                  SizedBox(height: 12.h),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: AppColors.primaryDark,
-                                            side: const BorderSide(color: AppColors.primaryDark),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                                          ),
-                                          onPressed: () {
-                                             TripDialogsHelper.showNegotiationDialog(
-                                                context: context,
-                                                docId: doc.id,
-                                                royalGreen: AppColors.royalGreen,
-                                                isDriver: false,
-                                             );
-                                          },
-                                          child: Text('تفاوض', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
-                                        ),
-                                      ),
-                                      SizedBox(width: 8.w),
-                                      Expanded(
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primaryDark,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                                          ),
-                                          onPressed: () async {
-                                             // موافقة العميل على العرض
-                                             await FirebaseFirestore.instance.collection('trips').doc(doc.id).update({
-                                               'status': 'accepted',
-                                               'price': data['negotiationPrice'], 
-                                               'acceptedAt': FieldValue.serverTimestamp(),
-                                             });
-                                          },
-                                          child: Text('موافق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.sp)),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                ]
-                              ],
-                            ),
-                          ),
-                      ],
+                    // 🟢 التعديل هنا: نستخدم MyRequestTripCard الجديد اللي فيه الخريطة والتفاوض مدمجين
+                    return MyRequestTripCard(
+                      docId: doc.id,
+                      data: data,
+                      royalGreen: AppColors.royalGreen,
                     );
                   },
                 ),

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart'; // 🟢 لإضافة debugPrint
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🟢 استدعاء الإشعارات
 import 'package:lamma_new/core/constants/firebase_constants.dart';
 
 import '../../data/services/driver_radar_service.dart';
@@ -9,9 +11,29 @@ import 'driver_radar_state.dart';
 class DriverRadarCubit extends Cubit<DriverRadarState> {
   final DriverRadarService _radarService;
   StreamSubscription? _radarSubscription;
+  // 🟢 اشتراك الإشعارات للرادار
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
 
-  // 🟢 بنستقبل الـ Service في الـ Constructor
-  DriverRadarCubit(this._radarService) : super(DriverRadarInitial());
+  // 🟢 بنستقبل الـ Service في الـ Constructor وبنشغل مستمع الإشعارات
+  DriverRadarCubit(this._radarService) : super(DriverRadarInitial()) {
+    _listenToRadarNotifications(); 
+  }
+
+  // =======================================================
+  // 🟢 اللوجيك الجديد: الاستماع اللحظي للطلبات الجديدة في الرادار
+  // =======================================================
+  void _listenToRadarNotifications() {
+    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // نتأكد إن الإشعار هو طلب رحلة جديد
+      if (message.data['type'] == 'new_trip' || message.data['channel_id'] == 'lamma_final_sound') {
+        debugPrint("🚨 [RadarCubit] طلب جديد ضرب في الرادار: ${message.notification?.body}");
+        
+        // هنا نقدر نستخدم الـ State عشان نخلي أيقونة الرادار تنور أو ترعش (Animation)
+        // emit(DriverRadarNewTripAlert());
+      }
+    });
+  }
+  // =======================================================
 
   void startListeningToRadar() {
     emit(DriverRadarLoading());
@@ -69,6 +91,7 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
 
   @override
   Future<void> close() {
+    _notificationSubscription?.cancel(); // 🟢 تنظيف ذاكرة مستمع الإشعارات
     _radarSubscription?.cancel();
     return super.close();
   }

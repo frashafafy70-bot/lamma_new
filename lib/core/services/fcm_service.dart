@@ -2,53 +2,86 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:lamma_new/core/services/notification_service.dart';
+import 'package:lamma_new/core/services/navigation_service.dart';
 
 class FCMService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  // تهيئة الإشعارات وإرجاع الـ Token للـ Cubit
-  static Future<String?> initNotifications() async {
+  static Future<void> initFCM() async {
     try {
+      // 1. طلب الصلاحيات
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
+        provisional: false,
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // إعداد عرض الإشعارات والتطبيق مفتوح لـ iOS
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true, 
+          badge: true, 
+          sound: true,
+        );
+
+        // 2. جلب التوكن الأولي وتحديثه في الداتا بيز
         String? token = await _messaging.getToken();
+        if (token != null) {
+          _updateTokenInDatabase(token);
+        }
         
-        // مراقبة تحديث الـ Token في الخلفية
+        // 3. مراقبة تغير التوكن
         _messaging.onTokenRefresh.listen(_updateTokenInDatabase);
 
-        // الاستماع للإشعارات والتطبيق مفتوح (Foreground)
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          debugPrint('Got a message whilst in the foreground!');
-          debugPrint('Message data: ${message.data}');
-          if (message.notification != null) {
-            debugPrint('Message also contained a notification: ${message.notification?.title}');
-            // هنا ممكن تعرض SnackBar أو Dialog بالإشعار الجديد
+        // 4. (اللوجيك اللي رجعناه) مراقبة حالة تسجيل الدخول لتحديث التوكن فوراً
+        FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+          if (user != null) {
+            String? currentToken = await _messaging.getToken();
+            if (currentToken != null) {
+              _updateTokenInDatabase(currentToken);
+            }
           }
         });
-        
-        return token;
+
+        // 5. الاستماع للإشعارات في الـ Foreground (التطبيق مفتوح)
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          debugPrint('Got a foreground message: ${message.notification?.title}');
+          // تمرير الإشعار للرسام لعرضه بالشكل الشيك بتاعك
+          NotificationService.showChicNotification(message);
+        });
+
+        // 6. الاستماع للضغط على الإشعار والتطبيق في الخلفية
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          debugPrint('Notification clicked from background!');
+          NavigationService.handleNotificationRouting(message.data);
+        });
+
+        // 7. الاستماع للضغط على الإشعار والتطبيق مغلق تماماً
+        _messaging.getInitialMessage().then((RemoteMessage? message) {
+          if (message != null) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              NavigationService.handleNotificationRouting(message.data);
+            });
+          }
+        });
       }
-      return null;
     } catch (e) {
       debugPrint("FCM Init Error: $e");
-      return null;
     }
   }
 
-  // تحديث الـ Token في قاعدة البيانات
+  // تحديث التوكن في الفايرستور
   static Future<void> _updateTokenInDatabase(String token) async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (userId.isEmpty) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'fcmToken': token,
-      });
+      await FirebaseFirestore.instance.collection('users').doc(userId).set(
+        {'fcmToken': token},
+        SetOptions(merge: true), // استخدمنا merge عشان منمسحش داتا اليوزر
+      );
     } catch (e) {
       debugPrint("Update Token Error: $e");
     }

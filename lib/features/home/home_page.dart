@@ -1,13 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
@@ -31,129 +28,20 @@ class _HomePageState extends State<HomePage> {
   final Color royalGreen = const Color(0xFF1B4332); 
   final Color goldAccent = const Color(0xFFD4AF37); 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   late HomeCubit _homeCubit;
-  StreamSubscription<QuerySnapshot>? _tripsSubscription;
-  bool _isFirstTripsLoad = true;
 
   @override
   void initState() {
     super.initState();
     _homeCubit = HomeCubit()..loadUserProfile();
-    _setupNotificationsWithSound();
-    _startLiveTripsNotificationListener(); 
+    // 🟢 تم إزالة أكواد الإشعارات المكررة من هنا لأن FCMService هو المايسترو الآن
   }
 
   @override
   void dispose() {
-    _tripsSubscription?.cancel(); 
     _homeCubit.close();
     super.dispose();
-  }
-
-  Future<void> _setupNotificationsWithSound() async {
-    await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true, provisional: false);
-    
-    const AndroidNotificationChannel finalSoundChannel = AndroidNotificationChannel(
-      'lamma_final_sound', 
-      'تنبيهات لمة الفورية', 
-      description: 'قناة الرحلات العاجلة', 
-      importance: Importance.max, 
-      playSound: true,
-    );
-    
-    final androidPlugin = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(finalSoundChannel);
-    }
-    
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
-    
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'), 
-      iOS: DarwinInitializationSettings(requestSoundPermission: true, requestBadgePermission: true, requestAlertPermission: true),
-    );
-    
-    await flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint("✅ تم الضغط على الإشعار: ${response.payload}");
-      },
-    );
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-      if (notification != null && android != null) {
-        _triggerPopupWithSound(notification.title ?? '', notification.body ?? '');
-      }
-    });
-  }
-
-  void _triggerPopupWithSound(String title, String body) {
-    flutterLocalNotificationsPlugin.show(
-      id: DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF, 
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'lamma_final_sound',
-          'تنبيهات لمة الفورية',
-          channelDescription: 'قناة الرحلات العاجلة',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-    );
-  }
-
-  void _startLiveTripsNotificationListener() {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
-    _tripsSubscription = FirebaseFirestore.instance
-        .collection('trips')
-        .snapshots()
-        .listen((snapshot) {
-      
-      if (_isFirstTripsLoad) {
-        _isFirstTripsLoad = false;
-        return;
-      }
-
-      for (var change in snapshot.docChanges) {
-        var rawData = change.doc.data();
-        if (rawData is! Map<String, dynamic>) continue; 
-
-        String status = rawData['status'] ?? 'pending';
-        String category = rawData['tripCategory'] ?? 'مشوار';
-
-        if (change.type == DocumentChangeType.modified && rawData['passengerId'] == userId) {
-          if (status == 'accepted') {
-            _triggerPopupWithSound('تم قبول طلبك! 🚖', 'وافق الكابتن على طلب الـ $category وهو في طريقه إليك الآن.');
-          } else if (status == 'negotiating') {
-            _triggerPopupWithSound('عرض سعر جديد! 💰', 'قدم الكابتن عرض سعر قيمته ${rawData['driverOfferedPrice'] ?? rawData['price']} ج.م لطلبك.');
-          } else if (status == 'arrived') {
-            _triggerPopupWithSound('وصل الكابتن! 📍', 'الكابتن منتظرك الآن في نقطة الانطلاق المتفق عليها.');
-          } else if (status == 'completed') {
-            _triggerPopupWithSound('وصلت بالسلامة ✅', 'تم إنهاء رحلتك بنجاح. شكراً لاستخدامك لمة!');
-          }
-        }
-        
-        if (change.type == DocumentChangeType.added && status == 'pending' && rawData['passengerId'] != userId) {
-          if (_homeCubit.state.activeRole == 'captain') {
-            _triggerPopupWithSound('طلب مشوار جديد متاح! 🗺️', 'يوجد طلب $category جديد قيد الانتظار على الرادار الآن.');
-          }
-        }
-      }
-    });
   }
 
   void _openNotifications(BuildContext context) {
@@ -281,46 +169,67 @@ class _HomePageState extends State<HomePage> {
 
             return Stack(
               children: [
-                Scaffold(
-                  key: _scaffoldKey,
-                  backgroundColor: const Color(0xFFF8FAFC), 
-                  extendBody: true, 
-                  body: Directionality(textDirection: TextDirection.rtl, child: bodyContent),
-                  bottomNavigationBar: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: Container(
-                      margin: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 24.h), 
-                      decoration: BoxDecoration(
-                        color: primaryNavy, // 🟢 لون كحلي فخم للبار ليعمل Framing مع البار العلوي
-                        borderRadius: BorderRadius.circular(30.r), 
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryNavy.withValues(alpha: 0.3), 
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 8),
-                          )
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30.r),
-                        child: BottomNavigationBar(
-                          currentIndex: state.bottomNavIndex, 
-                          onTap: (index) => context.read<HomeCubit>().changeTab(index), 
-                          type: BottomNavigationBarType.fixed, 
-                          backgroundColor: Colors.transparent, // 🟢 شفاف ليأخذ لون الحاوية الكحلي
-                          selectedItemColor: goldAccent, // 🟢 الذهبي يبرز بشدة على الكحلي
-                          unselectedItemColor: Colors.grey.shade500, // 🟢 رمادي خافت للعناصر غير المحددة
-                          selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13), 
-                          unselectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11),
-                          showUnselectedLabels: true,
-                          elevation: 0, 
-                          items: const [
-                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home_rounded)), label: 'الرئيسية'), 
-                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.search_rounded)), label: 'البحث'), 
-                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.receipt_long_rounded)), label: 'الطلبات'), 
-                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.person_rounded)), label: 'الحساب')
+                PopScope(
+                  canPop: state.bottomNavIndex == 0,
+                  onPopInvokedWithResult: (didPop, result) {
+                    if (didPop) return;
+                    context.read<HomeCubit>().changeTab(0);
+                  },
+                  child: Scaffold(
+                    key: _scaffoldKey,
+                    backgroundColor: const Color(0xFFF8FAFC), 
+                    extendBody: true, 
+                    body: Directionality(textDirection: TextDirection.rtl, child: bodyContent),
+                    bottomNavigationBar: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Container(
+                        margin: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 24.h), 
+                        decoration: BoxDecoration(
+                          color: primaryNavy, 
+                          borderRadius: BorderRadius.circular(30.r), 
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryNavy.withValues(alpha: 0.3), 
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 8),
+                            )
                           ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(30.r),
+                          child: BottomNavigationBar(
+                            currentIndex: state.bottomNavIndex, 
+                            onTap: (index) => context.read<HomeCubit>().changeTab(index), 
+                            type: BottomNavigationBarType.fixed, 
+                            backgroundColor: Colors.transparent, 
+                            selectedItemColor: goldAccent, 
+                            unselectedItemColor: Colors.grey.shade500, 
+                            selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13), 
+                            unselectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11),
+                            showUnselectedLabels: true,
+                            elevation: 0, 
+                            items: [
+                              const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home_rounded)), label: 'الرئيسية'), 
+                              const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.search_rounded)), label: 'البحث'), 
+                              
+                              // 🟢 هنا تم إضافة النقطة الحمراء (Badge) بناءً على state.hasNewNotification
+                              BottomNavigationBarItem(
+                                icon: Padding(
+                                  padding: const EdgeInsets.only(bottom: 4), 
+                                  child: Badge(
+                                    isLabelVisible: state.hasNewNotification, // تظهر لو في إشعار
+                                    backgroundColor: Colors.red,
+                                    smallSize: 10,
+                                    child: const Icon(Icons.receipt_long_rounded),
+                                  ),
+                                ), 
+                                label: 'الطلبات'
+                              ), 
+                              
+                              const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.person_rounded)), label: 'الحساب')
+                            ],
+                          ),
                         ),
                       ),
                     ),

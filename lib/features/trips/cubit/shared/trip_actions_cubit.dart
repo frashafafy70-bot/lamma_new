@@ -41,11 +41,19 @@ class TripActionsCubit extends Cubit<TripActionsState> {
 
   Future<void> sendOffer(TripModel trip, String price, bool isDriver, String currentUserId) async {
     if (price.trim().isEmpty) return;
+    
+    // 🟢 حماية: التأكد إن معرف الرحلة موجود
+    if (trip.id == null || trip.id!.isEmpty) {
+      emit(TripActionsError("حدث خطأ: معرف الرحلة مفقود."));
+      throw Exception('Trip ID is null');
+    }
+
     emit(TripActionsLoading());
     try {
-      await FirebaseFirestore.instance.collection('trips').doc(trip.id ?? '').update({
+      await FirebaseFirestore.instance.collection('trips').doc(trip.id).update({
         'status': 'negotiating',
-        'negotiationPrice': price.trim(),
+        // 🟢 تحويل السعر لرقم عشري أو صحيح لتجنب أخطاء الفايربيز
+        'negotiationPrice': double.tryParse(price.trim()) ?? price.trim(), 
         'lastNegotiator': isDriver ? 'driver' : 'passenger',
         'updatedAt': FieldValue.serverTimestamp(), 
         if (isDriver && trip.driverId == null) 'driverId': currentUserId,
@@ -54,14 +62,16 @@ class TripActionsCubit extends Cubit<TripActionsState> {
       await _notifyOtherParty(trip, isDriver, 'عرض سعر جديد 💰', 'تم تقديم عرض سعر جديد بقيمة $price ج.م');
       emit(TripActionsSuccess(action: 'negotiate', message: 'تم إرسال العرض بنجاح'));
     } catch (e) {
+      debugPrint("Firebase Error in sendOffer: $e");
       emit(TripActionsError("حدث خطأ أثناء إرسال العرض."));
+      throw Exception(e); // رمي الخطأ للـ UI
     }
   }
 
   Future<void> acceptOffer(TripModel trip, bool isDriver, String currentUserId) async {
     emit(TripActionsLoading());
     try {
-      String safePrice = trip.negotiationPrice ?? trip.price ?? trip.suggestedPrice ?? '0';
+      String safePrice = trip.negotiationPrice?.toString() ?? trip.price?.toString() ?? trip.suggestedPrice?.toString() ?? '0';
 
       await FirebaseFirestore.instance.collection('trips').doc(trip.id ?? '').update({
         'status': 'accepted',
@@ -103,7 +113,6 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     }
   }
 
-  // 🟢 اللوجيك الأصلي بتاعك لزرار المسح
   Future<void> deleteTripFromList(TripModel trip, bool isDriver) async {
     emit(TripActionsLoading());
     try {

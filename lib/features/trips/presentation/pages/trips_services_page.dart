@@ -1,8 +1,16 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart'; 
+import 'package:intl/intl.dart' hide TextDirection; // 🟢 مهم لتنسيق التاريخ
+
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_request_tab.dart';
+import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_my_requests_tab.dart'; 
 
 class TripsServicesPage extends StatefulWidget {
   const TripsServicesPage({super.key});
@@ -13,6 +21,7 @@ class TripsServicesPage extends StatefulWidget {
 
 class _TripsServicesPageState extends State<TripsServicesPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? ''; 
 
   @override
   void initState() {
@@ -89,11 +98,10 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text('متابعة طلباتي'),
-                          // 🟢 العداد الأحمر الحي المربوط بفايربيز
                           StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('trips')
-                                // .where('userId', isEqualTo: currentUserId) // مهم تفعل دي مستقبلاً
+                                .where('userId', isEqualTo: _currentUserId) 
                                 .snapshots(),
                             builder: (context, snapshot) {
                               if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
@@ -109,7 +117,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                                   ),
                                 );
                               }
-                              return const SizedBox.shrink(); // لو مفيش طلبات يخفي العداد
+                              return const SizedBox.shrink(); 
                             },
                           ),
                         ],
@@ -126,165 +134,258 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           physics: const NeverScrollableScrollPhysics(),
           children: [
             PassengerRequestTab(tabController: _tabController),
-            const Center(child: Text('رحلات السفر - قريباً', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
-            _buildMyRequestsTab(),
+            
+            // 🟢 التابة الجديدة لرحلات السفر
+            const PassengerTravelTripsTab(),
+            
+            BlocProvider(
+              create: (context) => PassengerMyRequestsCubit(), 
+              child: const PassengerMyRequestsTab(),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  // 🟢 ويدجت متابعة طلباتي (مربوطة بـ Firebase)
-  Widget _buildMyRequestsTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('trips')
-          // .where('userId', isEqualTo: currentUserId) 
-          .orderBy('createdAt', descending: true) 
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
-        }
+// ============================================================================
+// 🟢 واجهة رحلات السفر الخاصة بالعميل (سحب الرحلات المنشورة من الكباتن)
+// ============================================================================
+class PassengerTravelTripsTab extends StatelessWidget {
+  const PassengerTravelTripsTab({super.key});
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_rounded, size: 70.sp, color: Colors.grey.shade300),
-                SizedBox(height: 16.h),
-                Text('لا توجد طلبات نشطة حالياً', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          );
-        }
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryNavy = const Color(0xFF0F172A);
 
-        final requests = snapshot.data!.docs;
+    return Container(
+      color: Colors.grey.shade50,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('trips')
+            .where('isDriverPost', isEqualTo: true) // 🔒 فلترة رحلات الكباتن فقط
+            .where('status', isEqualTo: 'available') // 🔒 المتاحة للحجز فقط
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
+          }
 
-        return ListView.builder(
-          padding: EdgeInsets.all(16.w),
-          itemCount: requests.length, 
-          itemBuilder: (context, index) {
-            var requestData = requests[index].data() as Map<String, dynamic>;
-            String docId = requests[index].id; 
-            
-            Timestamp? timestamp = requestData['createdAt'];
-            DateTime date = timestamp != null ? timestamp.toDate() : DateTime.now();
-            final dateStr = "${date.day}/${date.month}/${date.year}";
-            String hour = date.hour > 12 ? (date.hour - 12).toString().padLeft(2, '0') : date.hour.toString().padLeft(2, '0');
-            if (hour == '00') hour = '12'; 
-            String amPm = date.hour >= 12 ? "م" : "ص";
-            String minute = date.minute.toString().padLeft(2, '0');
-            final timeStr = "$hour:$minute $amPm";
-
-            String status = requestData['status'] ?? 'في انتظار قبول الكباتن...';
-            String category = requestData['tripCategory'] ?? 'توصيل';
-
-            return Container(
-              margin: EdgeInsets.only(bottom: 16.h),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20.r),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 15, offset: const Offset(0, 4))
-                ],
-                border: Border.all(color: AppColors.royalGreen.withValues(alpha: 0.08)), 
-              ),
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: EdgeInsets.all(16.w),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(12.w),
-                          decoration: BoxDecoration(color: AppColors.accentGold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16.r)),
-                          child: Icon(category == 'طلبات' ? Icons.shopping_bag_rounded : Icons.local_taxi_rounded, color: AppColors.accentGold, size: 28.sp),
-                        ),
-                        SizedBox(width: 14.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  Icon(Icons.directions_bus_filled_outlined, size: 80.sp, color: Colors.grey.shade300),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'لا توجد رحلات سفر متاحة حالياً.', 
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'الكباتن لسه منزلوش رحلات، جرب تدخل وقت تاني.', 
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade500)
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // 🟢 الترتيب برمجياً (Dart-side) عشان نتفادى مشاكل الـ Firestore Index
+          var trips = snapshot.data!.docs.toList();
+          trips.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
+            Timestamp? timeA = dataA['createdAt'];
+            Timestamp? timeB = dataB['createdAt'];
+            if (timeA == null && timeB == null) return 0;
+            if (timeA == null) return 1;
+            if (timeB == null) return -1;
+            return timeB.compareTo(timeA); 
+          });
+
+          return ListView.builder(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.all(16.w),
+            itemCount: trips.length,
+            itemBuilder: (context, index) {
+              var tripData = trips[index].data() as Map<String, dynamic>;
+              String docId = trips[index].id;
+
+              String travelTimeStr = 'غير محدد';
+              if (tripData['travelDate'] != null) {
+                DateTime dt = (tripData['travelDate'] as Timestamp).toDate();
+                travelTimeStr = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
+              }
+
+              return Card(
+                elevation: 3,
+                margin: EdgeInsets.only(bottom: 16.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.r),
+                  side: BorderSide(color: AppColors.accentGold.withValues(alpha: 0.3), width: 1),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // رأس الكارت (اسم الكابتن والسعر)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                'طلب $category',
-                                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w900, fontSize: 15.sp, color: AppColors.royalGreen),
+                              CircleAvatar(
+                                radius: 18.r,
+                                backgroundColor: primaryNavy.withValues(alpha: 0.1),
+                                child: Icon(Icons.person_pin, color: primaryNavy, size: 20.sp),
                               ),
-                              SizedBox(height: 6.h),
-                              Row(
+                              SizedBox(width: 8.w),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.calendar_month_rounded, size: 14.sp, color: Colors.grey.shade400),
-                                  SizedBox(width: 4.w),
-                                  Text(dateStr, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                                  SizedBox(width: 12.w),
-                                  Icon(Icons.access_time_rounded, size: 14.sp, color: Colors.grey.shade400),
-                                  SizedBox(width: 4.w),
-                                  Text(timeStr, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    tripData['driverName'] ?? 'كابتن لَمَّة',
+                                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: primaryNavy),
+                                  ),
+                                  Text(
+                                    'كابتن موثوق',
+                                    style: TextStyle(fontFamily: 'Cairo', fontSize: 11.sp, color: Colors.green),
+                                  ),
                                 ],
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          status,
-                          style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade500, fontSize: 12.sp, fontWeight: FontWeight.w600),
-                        ),
-                        InkWell(
-                          onTap: () async {
-                            try {
-                              await FirebaseFirestore.instance.collection('trips').doc(docId).delete();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('تم إلغاء الطلب بنجاح!', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
-                                    backgroundColor: Colors.red.shade400,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                                  )
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('حدث خطأ أثناء الإلغاء', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red)
-                                );
-                              }
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(12.r),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-                            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12.r)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                            decoration: BoxDecoration(
+                              color: AppColors.royalGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20.r),
+                            ),
+                            child: Text(
+                              '${tripData['price']} ج.م',
+                              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.royalGreen),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        child: const Divider(thickness: 1),
+                      ),
+
+                      // تفاصيل المسار
+                      Row(
+                        children: [
+                          Column(
+                            children: [
+                              Icon(Icons.my_location_rounded, color: Colors.blueAccent, size: 18.sp),
+                              Container(width: 2.w, height: 20.h, color: Colors.grey.shade300),
+                              Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 18.sp),
+                            ],
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 16.sp),
-                                SizedBox(width: 4.w),
-                                Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.red.shade400, fontWeight: FontWeight.bold, fontSize: 12.sp))
+                                Text(
+                                  tripData['pickupLocation'] ?? '',
+                                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 12.h),
+                                Text(
+                                  tripData['dropoffLocation'] ?? '',
+                                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                ),
                               ],
                             ),
                           ),
-                        )
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-      }
+                        ],
+                      ),
+                      
+                      SizedBox(height: 16.h),
+                      
+                      // وقت التحرك
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_filled_rounded, color: Colors.orange, size: 18.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'موعد التحرك: $travelTimeStr',
+                            style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade700, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 16.h),
+
+                      // زر الحجز
+                      SizedBox(
+                        width: double.infinity,
+                        height: 45.h,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryNavy,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                          ),
+                          onPressed: () {
+                            _showBookingDialog(context, docId, tripData['driverName'] ?? 'الكابتن');
+                          },
+                          child: Text(
+                            'احجز مقعدك الآن',
+                            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.accentGold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  // 🟢 نافذة تأكيد الحجز (عشان تربطها باللوجيك بتاعك بعدين)
+  void _showBookingDialog(BuildContext context, String tripId, String driverName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+        title: Text('تأكيد الحجز', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.royalGreen, fontSize: 18.sp)),
+        content: Text(
+          'هل تريد تأكيد حجز مقعد مع $driverName؟ سيتم إرسال طلب للكابتن للموافقة.',
+          style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.royalGreen,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              // 🔴 هنا اللوجيك بتاع الحجز: مثلاً تضيف الـ UID بتاع العميل في array جوا الرحلة، أو تبعت إشعار للكابتن.
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: const Text('تم إرسال طلب الحجز للكابتن بنجاح!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.royalGreen),
+              );
+            },
+            child: const Text('تأكيد وإرسال', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }

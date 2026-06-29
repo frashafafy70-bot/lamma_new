@@ -12,6 +12,7 @@ class HomeState {
   final String? pendingRegistrationRole;
   final String? errorMessage;
   final String? successMessage;
+  final bool hasNewNotification; // 🟢 تم التفعيل النهائي
 
   HomeState({
     this.bottomNavIndex = 0,
@@ -24,6 +25,7 @@ class HomeState {
     this.pendingRegistrationRole,
     this.errorMessage,
     this.successMessage,
+    this.hasNewNotification = false, // 🟢 القيمة الافتراضية
   });
 
   HomeState copyWith({
@@ -37,6 +39,7 @@ class HomeState {
     String? pendingRegistrationRole,
     String? errorMessage,
     String? successMessage,
+    bool? hasNewNotification, // 🟢 تم الإضافة
   }) {
     return HomeState(
       bottomNavIndex: bottomNavIndex ?? this.bottomNavIndex,
@@ -47,8 +50,9 @@ class HomeState {
       status: status ?? this.status,
       actionStatus: actionStatus ?? this.actionStatus,
       pendingRegistrationRole: pendingRegistrationRole ?? this.pendingRegistrationRole,
-      errorMessage: errorMessage, // يتم تمريرها مباشرة لتسهيل تصفير الخطأ عند الحاجة
-      successMessage: successMessage, // يتم تمريرها مباشرة لتسهيل تصفير رسائل النجاح
+      errorMessage: errorMessage,
+      successMessage: successMessage,
+      hasNewNotification: hasNewNotification ?? this.hasNewNotification, // 🟢 تم الإضافة
     );
   }
 }

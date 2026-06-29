@@ -2,18 +2,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
 import 'package:intl/intl.dart' hide TextDirection; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
-
-// 💡 خطوة الحل النهائي بعد نسخ هذا الكود:
-// 1. انزل في الكود للسطر رقم 106 أو أي مكان فيه كلمة `TripDialogsHelper` (هتلاقي تحتها خط أحمر).
-// 2. ضع مؤشر الماوس (الكيرسور) على الكلمة.
-// 3. اضغط من لوحة المفاتيح على: `Ctrl + .` (كنترول مع حرف الزين).
-// 4. هتظهرلك قائمة صغيرة، اختار منها أول خيار: `Import library '...'`
-// المحرر هيكتب المسار الصحيح فوق تلقائياً والـ 6 أخطاء هيختفوا فوراً!
+import 'package:lamma_new/features/trips/data/models/trip_model.dart';
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/trip_map.dart'; 
 
 class ActiveTripCard extends StatelessWidget {
   final String docId;
@@ -44,15 +43,17 @@ class ActiveTripCard extends StatelessWidget {
     return DateFormat('dd MMM yyyy, hh:mm a', 'ar').format(date);
   }
 
-  Future<void> _acceptOffer(String acceptedPrice) async {
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(docId).update({
-        'status': 'accepted', 
-        'finalPrice': acceptedPrice
-      });
-    } catch (e) {
-      debugPrint('خطأ في قبول العرض: $e');
+  // دالة مساعدة لاستخراج الإحداثيات بأمان من الفايربيز
+  LatLng? _extractLatLng(dynamic locationData) {
+    if (locationData is GeoPoint) {
+      return LatLng(locationData.latitude, locationData.longitude);
+    } else if (locationData is Map) {
+      return LatLng(
+        (locationData['latitude'] ?? 30.0444).toDouble(), 
+        (locationData['longitude'] ?? 31.2357).toDouble()
+      );
     }
+    return null; // سيتم استخدام موقع افتراضي داخل الخريطة إن لم تتوفر الإحداثيات
   }
 
   @override
@@ -62,6 +63,9 @@ class ActiveTripCard extends StatelessWidget {
     bool isErrand = data['tripCategory'] == 'طلبات';
     
     String finalPrice = data['finalPrice']?.toString() ?? data['negotiationPrice']?.toString() ?? data['price']?.toString() ?? 'غير محدد';
+    
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    TripModel tripModel = TripModel.fromMap(data, docId);
 
     return Card(
       elevation: 4, 
@@ -145,7 +149,7 @@ class ActiveTripCard extends StatelessWidget {
                 SizedBox(width: 8.w),
                 Expanded(
                   child: Text(
-                    data['pickup'] ?? 'غير محدد',
+                    data['pickup'] ?? data['pickupAddress'] ?? 'غير محدد',
                     style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.black87),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -160,7 +164,7 @@ class ActiveTripCard extends StatelessWidget {
                 SizedBox(width: 8.w),
                 Expanded(
                   child: Text(
-                    data['destination'] ?? 'غير محدد',
+                    data['destination'] ?? data['dropoffAddress'] ?? 'غير محدد',
                     style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.black87),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -223,7 +227,9 @@ class ActiveTripCard extends StatelessWidget {
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
-                                onPressed: () => _acceptOffer(data['negotiationPrice'].toString()), 
+                                onPressed: () {
+                                  context.read<TripActionsCubit>().acceptOffer(tripModel, isDriver, currentUserId);
+                                }, 
                                 child: Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp))
                               )
                             ),
@@ -231,7 +237,14 @@ class ActiveTripCard extends StatelessWidget {
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
-                                onPressed: () => TripDialogsHelper.showNegotiationDialog(context: context, docId: docId, royalGreen: royalGreen, isDriver: isDriver), 
+                                onPressed: () {
+                                  TripDialogsHelper.showNegotiationDialog(
+                                    context: context, 
+                                    docId: docId,
+                                    royalGreen: royalGreen, 
+                                    isDriver: isDriver
+                                  );
+                                }, 
                                 child: Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp))
                               )
                             ),
@@ -268,11 +281,44 @@ class ActiveTripCard extends StatelessWidget {
                               MaterialPageRoute(builder: (_) => TripChatPage(tripId: docId)),
                             );
                           }, 
-                          icon: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18.sp), 
-                          label: Text('فتح المحادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
+                          icon: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 16.sp), 
+                          label: Text('المحادثة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
                         )
                       ),
                       SizedBox(width: 8.w),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo.shade600, 
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                            elevation: 0,
+                          ), 
+                          onPressed: () {
+                            // التوجيه لصفحة التتبع مع تمرير الإحداثيات
+                            LatLng? pickup = _extractLatLng(data['pickupLocation']);
+                            LatLng? dropoff = _extractLatLng(data['dropoffLocation']);
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TripMap(
+                                  isTrackingMode: true,
+                                  pickupPoint: pickup,
+                                  dropoffPoint: dropoff,
+                                  // 👈 تم حذف googleApiKey من هنا
+                                )
+                              ),
+                            );
+                          }, 
+                          icon: Icon(Icons.map_rounded, color: Colors.white, size: 16.sp), 
+                          label: Text('تتبع الرحلة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
+                        )
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Row(
+                    children: [
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
@@ -281,22 +327,24 @@ class ActiveTripCard extends StatelessWidget {
                             elevation: 0,
                           ), 
                           onPressed: () => TripDialogsHelper.showRatingDialog(context: context, docId: docId, royalGreen: royalGreen, isDriver: isDriver), 
-                          icon: Icon(Icons.done_all, color: Colors.white, size: 18.sp), 
-                          label: Text('إنهاء الرحلة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
+                          icon: Icon(Icons.done_all, color: Colors.white, size: 16.sp), 
+                          label: Text('إنهاء', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))
                         )
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red), 
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
+                          ),
+                          onPressed: () => TripDialogsHelper.showCancelTripDialog(context: context, docId: docId, isDriver: isDriver), 
+                          icon: Icon(Icons.cancel, color: Colors.red, size: 16.sp), 
+                          label: Text('إلغاء', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 13.sp))
+                        ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 8.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
-                      onPressed: () => TripDialogsHelper.showCancelTripDialog(context: context, docId: docId, isDriver: isDriver), 
-                      icon: Icon(Icons.cancel, color: Colors.red, size: 18.sp), 
-                      label: Text('إلغاء واعتذار', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 13.sp))
-                    ),
-                  )
                 ],
               )
           ],

@@ -1,14 +1,40 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // 🟢 ضروري لـ debugPrint
+import 'package:flutter/material.dart'; 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 
 class MapService {
-  final String googleApiKey;
+  // 1. إعداد الـ Singleton عشان النسخة دي تكون الوحيدة في التطبيق كله
+  static final MapService _instance = MapService._internal();
+  factory MapService() => _instance;
+  MapService._internal();
 
-  MapService({required this.googleApiKey});
+  // 2. المتغيرات الخاصة بالـ API Key والأيقونات
+  late String googleApiKey;
+  BitmapDescriptor? carMarker;
+  BitmapDescriptor? bikeMarker;
+  BitmapDescriptor? tuktokMarker;
+
+  // 3. دالة التهيئة (بتتنادى مرة واحدة بس في بداية التطبيق في main.dart)
+  Future<void> init({required String apiKey}) async {
+    googleApiKey = apiKey;
+    
+    // تحميل أيقونات الخريطة في الذاكرة باستخدام الطريقة الجديدة (asset)
+    const ImageConfiguration config = ImageConfiguration(size: Size(48, 48));
+    try {
+      carMarker = await BitmapDescriptor.asset(config, 'assets/images/car_3d.png');
+      bikeMarker = await BitmapDescriptor.asset(config, 'assets/images/bike_3d.png');
+      tuktokMarker = await BitmapDescriptor.asset(config, 'assets/images/tuktok_3d.png');
+    } catch (e) {
+      debugPrint("Error loading custom markers: $e");
+    }
+  }
+
+  // ==========================================
+  // الدوال الأساسية للملاحة والبحث الخاصة بمشروعك
+  // ==========================================
 
   String cleanAddress(String address) {
     String cleaned = address.replaceAll(RegExp(r'\b[A-Z0-9]{2,8}\+[A-Z0-9]{2,4}\b\s*[,،]?\s*'), '');
@@ -38,7 +64,6 @@ class MapService {
           }
         }
       } catch (e) {
-        // 🟢 الحل: استخدام debugPrint بدلاً من print
         debugPrint("Google API Error: $e");
       }
     }
@@ -55,7 +80,6 @@ class MapService {
         return cleanAddress(address);
       }
     } catch (e) {
-      // 🟢 الحل: استخدام debugPrint بدلاً من print
       debugPrint("Native Geocoding Error: $e");
     }
 
@@ -71,7 +95,6 @@ class MapService {
         return json.decode(response.body)['predictions'] ?? [];
       }
     } catch (e) {
-      // 🟢 الحل: استخدام debugPrint بدلاً من print
       debugPrint("Error searching places: $e");
     }
     return [];
@@ -86,7 +109,6 @@ class MapService {
         return LatLng(location['lat'], location['lng']);
       }
     } catch (e) {
-      // 🟢 الحل: استخدام debugPrint بدلاً من print
       debugPrint("Error getting place details: $e");
     }
     return null;
@@ -107,5 +129,52 @@ class MapService {
     return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation),
     );
+  }
+
+  Future<List<LatLng>> getRouteCoordinates(LatLng origin, LatLng destination) async {
+    String url = "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$googleApiKey";
+    try {
+      var response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        var data = json.decode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
+          return _decodePolyline(encodedPolyline);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error getting directions: $e");
+    }
+    return [];
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> polyline = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      polyline.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return polyline;
   }
 }

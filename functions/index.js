@@ -2,7 +2,6 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-// ⏰ دالة مساعدة لجلب الوقت والتاريخ الحالي بتوقيت القاهرة
 function getCurrentTimeFormatted() {
     return new Date().toLocaleString('ar-EG', { 
         timeZone: 'Africa/Cairo', 
@@ -11,28 +10,21 @@ function getCurrentTimeFormatted() {
     });
 }
 
-// ============================================================================
-// 1. إشعارات المحادثات في قسم التوصيل (الرحلات) 🚖
-// ============================================================================
+// 1. إشعارات المحادثات في قسم التوصيل 🚖
 exports.sendTripMessageNotification = functions.firestore
     .document('trips/{tripId}/messages/{messageId}')
     .onCreate(async (snap, context) => {
         const messageData = snap.data();
         const timeString = getCurrentTimeFormatted();
-
         try {
             const tripDoc = await admin.firestore().collection('trips').doc(context.params.tripId).get();
             if (!tripDoc.exists) return null;
-            
             const tripData = tripDoc.data();
             const driverId = tripData.driverId;
             const passengerId = tripData.passengerId || tripData.customerId;
-
             let receiverId = messageData.senderId === driverId ? passengerId : driverId;
             let senderName = messageData.senderId === driverId ? (tripData.driverName || 'الكابتن') : (tripData.passengerName || tripData.customerName || 'العميل');
-
             if (!receiverId) return null;
-
             const userDoc = await admin.firestore().collection('users').doc(receiverId).get();
             if (!userDoc.exists || !userDoc.data().fcmToken) return null;
 
@@ -46,42 +38,34 @@ exports.sendTripMessageNotification = functions.firestore
                     priority: "high",
                     notification: {
                         channelId: "lamma_final_sound",
+                        priority: "max", 
                         sound: "default",
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
                 data: { type: 'trip_chat', tripId: context.params.tripId }
             };
-
             await admin.messaging().send(message);
-        } catch (error) { console.error('خطأ في إرسال إشعار رسالة الرحلة:', error); }
+        } catch (error) { console.error(error); }
     });
 
-// ============================================================================
 // 2. إشعارات المحادثات في قسم الاستشارات القانونية ⚖️
-// ============================================================================
 exports.sendLegalMessageNotification = functions.firestore
     .document('legal_requests/{requestId}/messages/{messageId}')
     .onCreate(async (snap, context) => {
         const messageData = snap.data();
         const timeString = getCurrentTimeFormatted();
-
         try {
             const reqDoc = await admin.firestore().collection('legal_requests').doc(context.params.requestId).get();
             if (!reqDoc.exists) return null;
-            
             const reqData = reqDoc.data();
             const clientId = reqData.clientId; 
             const lawyerId = reqData.lawyerId || reqData.providerId || reqData.acceptedBy; 
-
             if (!clientId || !lawyerId) return null;
-
             let receiverId = messageData.senderId === clientId ? lawyerId : clientId;
             let senderName = messageData.senderId === clientId ? (reqData.clientName || 'العميل') : 'المحامي';
-
             const userDoc = await admin.firestore().collection('users').doc(receiverId).get();
             if (!userDoc.exists || !userDoc.data().fcmToken) return null;
-
             const messageBody = messageData.text ? messageData.text : (messageData.imageUrl ? '📎 أرسل مرفقاً' : 'رسالة جديدة');
 
             const message = {
@@ -94,37 +78,29 @@ exports.sendLegalMessageNotification = functions.firestore
                     priority: "high",
                     notification: {
                         channelId: "lamma_final_sound",
+                        priority: "max",
                         sound: "default",
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
                 data: { type: 'legal_chat', requestId: context.params.requestId }
             };
-
             await admin.messaging().send(message);
-        } catch (error) { console.error('خطأ في إرسال إشعار رسالة الاستشارة:', error); }
+        } catch (error) { console.error(error); }
     });
 
-// ============================================================================
-// 3. إشعارات الطلبات القانونية الجديدة للمحامين 📢
-// ============================================================================
+// 3. إشعارات الطلبات القانونية الجديدة 📢
 exports.sendNewRequestNotification = functions.firestore
     .document('legal_requests/{requestId}')
     .onCreate(async (snap, context) => {
         const requestData = snap.data();
         const timeString = getCurrentTimeFormatted();
-
         try {
             const lawyersSnapshot = await admin.firestore().collection('users').where('roles', 'array-contains', 'lawyer').get();
             if (lawyersSnapshot.empty) return null;
-
             const tokens = [];
-            lawyersSnapshot.forEach(doc => {
-                if (doc.data().fcmToken) tokens.push(doc.data().fcmToken);
-            });
-
+            lawyersSnapshot.forEach(doc => { if (doc.data().fcmToken) tokens.push(doc.data().fcmToken); });
             if (tokens.length === 0) return null;
-
             const message = {
                 tokens: tokens,
                 notification: {
@@ -135,31 +111,26 @@ exports.sendNewRequestNotification = functions.firestore
                     priority: "high",
                     notification: {
                         channelId: "lamma_final_sound",
+                        priority: "max",
                         sound: "default",
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
                 data: { type: 'new_legal_request', requestId: context.params.requestId }
             };
-
             await admin.messaging().sendEachForMulticast(message);
-        } catch (error) { console.error('خطأ في إرسال إشعار الطلب القانوني الجديد:', error); }
+        } catch (error) { console.error(error); }
     });
 
-// ============================================================================
-// 4. إشعارات طلبات المشاوير/التوصيل الجديدة للكباتن 🚖
-// ============================================================================
+// 4. إشعارات المشاوير الجديدة للكباتن 🚖
 exports.sendNewTripNotification = functions.firestore
     .document('trips/{tripId}')
     .onCreate(async (snap, context) => {
         const tripData = snap.data();
-        if (tripData.isDriverPost === true) return null; // لا ترسل إشعار إذا كانت رحلة سفر من الكابتن
-
+        if (tripData.isDriverPost === true) return null;
         const timeString = getCurrentTimeFormatted();
-
         try {
             const price = tripData.offeredPrice || tripData.price || tripData.suggestedPrice || 'غير محدد';
-
             const message = {
                 topic: 'drivers_radar',
                 notification: {
@@ -170,72 +141,47 @@ exports.sendNewTripNotification = functions.firestore
                     priority: "high",
                     notification: {
                         channelId: "lamma_final_sound",
+                        priority: "max",
                         sound: "default",
                         clickAction: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 },
                 data: { type: 'new_trip_request', tripId: context.params.tripId }
             };
-
             await admin.messaging().send(message);
-        } catch (error) { console.error('خطأ في إرسال إشعار المشوار الجديد:', error); }
+        } catch (error) { console.error(error); }
     });
 
-// ============================================================================
-// 5. إشعارات إلغاء الرحلة (جديد 🚀)
-// ============================================================================
+// 5. إشعارات إلغاء الرحلة 🚀
 exports.sendTripCancellationNotification = functions.firestore
     .document('trips/{tripId}')
     .onUpdate(async (change, context) => {
         const beforeData = change.before.data();
         const afterData = change.after.data();
-
-        // نتحقق إذا كانت الحالة تحولت إلى ملغي
         if (beforeData.status !== 'canceled' && afterData.status === 'canceled') {
             const timeString = getCurrentTimeFormatted();
-            const canceledBy = afterData.canceledBy; // 'driver' أو 'passenger'
-            
-            let receiverId = null;
-            let title = '';
-            let body = `تم إلغاء الرحلة المتفق عليها | 🕒 ${timeString}`;
-
-            if (canceledBy === 'passenger' && afterData.driverId) {
-                // العميل لغى، نبلغ الكابتن
-                receiverId = afterData.driverId;
-                title = 'تم إلغاء الطلب من قبل العميل 🚫';
-            } else if (canceledBy === 'driver' && afterData.passengerId) {
-                // الكابتن لغى، نبلغ العميل
-                receiverId = afterData.passengerId;
-                title = 'اعتذر الكابتن عن المشوار 🚫';
-            }
-
-            if (!receiverId) return null; // لو مفيش طرف تاني متبعتش حاجة
-
+            const canceledBy = afterData.canceledBy;
+            let receiverId = canceledBy === 'passenger' ? afterData.driverId : afterData.passengerId;
+            let title = canceledBy === 'passenger' ? 'تم إلغاء الطلب من قبل العميل 🚫' : 'اعتذر الكابتن عن المشوار 🚫';
+            if (!receiverId) return null;
             try {
                 const userDoc = await admin.firestore().collection('users').doc(receiverId).get();
                 if (!userDoc.exists || !userDoc.data().fcmToken) return null;
-
                 const message = {
                     token: userDoc.data().fcmToken,
-                    notification: {
-                        title: title,
-                        body: body
-                    },
+                    notification: { title: title, body: `تم إلغاء الرحلة المتفق عليها | 🕒 ${timeString}` },
                     android: {
                         priority: "high",
                         notification: {
                             channelId: "lamma_final_sound",
+                            priority: "max",
                             sound: "default",
                             clickAction: "FLUTTER_NOTIFICATION_CLICK"
                         }
                     },
                     data: { type: 'trip_canceled', tripId: context.params.tripId }
                 };
-
                 await admin.messaging().send(message);
-            } catch (error) {
-                console.error('خطأ في إرسال إشعار الإلغاء:', error);
-            }
+            } catch (error) { console.error(error); }
         }
-        return null;
     });

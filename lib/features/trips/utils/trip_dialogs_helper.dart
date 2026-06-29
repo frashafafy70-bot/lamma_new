@@ -2,14 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
-// استدعاء ملف الألوان المركزي
-import 'package:lamma_new/core/theme/app_colors.dart';
 
 class TripDialogsHelper {
   
-  // 1. حوار مسح الطلب من القائمة (مخصص للكابتن والعميل)
+  // دالة مسح الطلب
   static Future<void> showDeleteTripDialog({
     required BuildContext context,
     required String docId,
@@ -19,12 +17,12 @@ class TripDialogsHelper {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        title: Text('مسح الطلب', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.error, fontSize: 18.sp)),
-        content: Text('هل أنت متأكد من إزالة هذا الطلب من القائمة عندك؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+        title: Text('مسح الطلب', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.red, fontSize: 18.sp)),
+        content: Text('هل أنت متأكد من إزالة هذا الطلب؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('تراجع', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 14.sp))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('تراجع', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
             onPressed: () => Navigator.pop(ctx, true), 
             child: Text('نعم، امسح', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 14.sp))
           ),
@@ -33,17 +31,13 @@ class TripDialogsHelper {
     ) ?? false;
 
     if (confirm) {
-      try {
-        await FirebaseFirestore.instance.collection('trips').doc(docId).update({
-          isDriver ? 'isDeletedForDriver' : 'isDeletedForPassenger': true
-        });
-      } catch (e) {
-        debugPrint('خطأ في إخفاء الرحلة: $e');
-      }
+      await FirebaseFirestore.instance.collection('trips').doc(docId).update({
+        isDriver ? 'isDeletedForDriver' : 'isDeletedForPassenger': true
+      });
     }
   }
 
-  // 2. حوار إلغاء الرحلة والاعتذار
+  // دالة إلغاء الرحلة
   static Future<void> showCancelTripDialog({
     required BuildContext context,
     required String docId,
@@ -53,12 +47,12 @@ class TripDialogsHelper {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        title: Text('إلغاء الرحلة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.error, fontSize: 18.sp)),
-        content: Text('هل أنت متأكد من إلغاء هذه الرحلة؟ سيتم إبلاغ الطرف الآخر.', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+        title: Text('إلغاء الرحلة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.red, fontSize: 18.sp)),
+        content: Text('هل أنت متأكد من إلغاء هذه الرحلة؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('تراجع', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 14.sp))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('تراجع', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
             onPressed: () => Navigator.pop(ctx, true), 
             child: Text('نعم، إلغاء', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 14.sp))
           ),
@@ -67,31 +61,22 @@ class TripDialogsHelper {
     ) ?? false;
 
     if (confirm) {
-      try {
-        await FirebaseFirestore.instance.collection('trips').doc(docId).update({
-          'status': 'cancelled', 
-          'cancelledBy': isDriver ? 'driver' : 'passenger' 
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم إلغاء الرحلة بنجاح', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: AppColors.warning)
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء الإلغاء', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: AppColors.error)
-        );
-      }
+      await FirebaseFirestore.instance.collection('trips').doc(docId).update({
+        'status': 'cancelled', 
+        'cancelledBy': isDriver ? 'driver' : 'passenger' 
+      });
     }
   }
 
-  // 3. حوار التفاوض وإرسال سعر جديد
-  static void showNegotiationDialog({
+  // دالة التفاوض
+  static Future<void> showNegotiationDialog({
     required BuildContext context,
     required String docId,
     required Color royalGreen,
     required bool isDriver, 
-  }) {
+  }) async {
     TextEditingController offerCtrl = TextEditingController();
-    showDialog(
+    await showDialog(
       context: context, 
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
@@ -99,31 +84,31 @@ class TripDialogsHelper {
         content: TextField(
           controller: offerCtrl, 
           keyboardType: TextInputType.number,
-          style: TextStyle(color: AppColors.textDark, fontFamily: 'Cairo', fontSize: 14.sp),
+          style: TextStyle(color: Colors.black, fontFamily: 'Cairo', fontSize: 14.sp),
           decoration: InputDecoration(
             labelText: 'اكتب سعرك المقترح', 
-            labelStyle: TextStyle(fontSize: 14.sp, color: AppColors.textMuted.shade600),
+            labelStyle: TextStyle(fontSize: 14.sp),
             suffixText: 'جنيه', 
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: const BorderSide(color: AppColors.dividerColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide(color: royalGreen, width: 2))
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r))
           )
         ), 
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 14.sp))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
             onPressed: () async { 
               if (offerCtrl.text.isEmpty) return;
-              try {
-                await FirebaseFirestore.instance.collection('trips').doc(docId).update({
-                  'status': 'negotiating', 
-                  'negotiationPrice': offerCtrl.text.trim(), 
-                  'lastNegotiator': isDriver ? 'driver' : 'passenger' 
-                }); 
-                Navigator.pop(ctx); 
-              } catch (e) {
-                debugPrint('خطأ في إرسال التفاوض: $e');
+              Map<String, dynamic> updates = {
+                'status': 'negotiating', 
+                'negotiationPrice': offerCtrl.text.trim(), 
+                'lastNegotiator': isDriver ? 'driver' : 'passenger' 
+              };
+              if (isDriver) {
+                String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                updates['driverId'] = uid;
               }
+              await FirebaseFirestore.instance.collection('trips').doc(docId).update(updates); 
+              Navigator.pop(ctx); 
             }, 
             child: Text('إرسال', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
           )
@@ -132,17 +117,17 @@ class TripDialogsHelper {
     );
   }
 
-  // 4. حوار إنهاء الرحلة والتقييم بالنجوم
-  static void showRatingDialog({
+  // 🟢 دالة إنهاء الرحلة والتقييم (محدثة بالرسائل والمنطق الجديد)
+  static Future<void> showRatingDialog({
     required BuildContext context,
     required String docId,
     required Color royalGreen,
     required bool isDriver, 
-  }) {
+  }) async {
     int stars = 5; 
     bool isSubmitting = false;
 
-    showDialog(
+    await showDialog(
       context: context, 
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
@@ -152,18 +137,10 @@ class TripDialogsHelper {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(Icons.close, color: AppColors.textMuted, size: 24.sp),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ),
-                Icon(Icons.verified_rounded, color: AppColors.success, size: 60.sp),
+                Icon(Icons.verified_rounded, color: Colors.green, size: 60.sp),
                 SizedBox(height: 16.h),
-                Text('تم إنهاء الرحلة!', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: AppColors.textDark)),
+                // 🟢 الرسالة المحدثة
+                Text('حمد لله على السلامة!\nلقد وصلت لوجهتك.', textAlign: TextAlign.center, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                 SizedBox(height: 16.h),
                 
                 FittedBox(
@@ -171,7 +148,7 @@ class TripDialogsHelper {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center, 
                     children: List.generate(5, (index) => IconButton(
-                      icon: Icon(index < stars ? Icons.star_rounded : Icons.star_border_rounded, color: AppColors.warning, size: 35.sp), 
+                      icon: Icon(index < stars ? Icons.star_rounded : Icons.star_border_rounded, color: Colors.amber, size: 35.sp), 
                       onPressed: () => setDialogState(() => stars = index + 1)
                     ))
                   ),
@@ -183,9 +160,12 @@ class TripDialogsHelper {
                   onPressed: isSubmitting ? null : () async { 
                     setDialogState(() => isSubmitting = true);
                     try {
+                      // 🟢 حفظ التقييم لكل طرف بوضوح
                       await FirebaseFirestore.instance.collection('trips').doc(docId).update({
                         isDriver ? 'driverRatingForPassenger' : 'passengerRatingForDriver': stars, 
-                        'status': 'completed'
+                        'status': 'completed',
+                        // إضافة ختم زمني للإتمام
+                        'completedAt': FieldValue.serverTimestamp()
                       }); 
                       Navigator.pop(ctx); 
                     } catch (e) {
@@ -195,7 +175,7 @@ class TripDialogsHelper {
                   }, 
                   child: isSubmitting 
                       ? SizedBox(height: 20.h, width: 20.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('إرسال التقييم', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 14.sp))
+                      : Text('تقييم الرحلة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 14.sp))
                 )
               ],
             ),

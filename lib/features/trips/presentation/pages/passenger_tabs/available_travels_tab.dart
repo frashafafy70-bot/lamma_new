@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';import '../../../cubit/passenger/available_travels_cubit.dart';
+import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
+import '../../../cubit/passenger/available_travels_cubit.dart';
 import '../../../cubit/passenger/available_travels_state.dart';
 
 class AvailableTravelsTab extends StatelessWidget {
@@ -23,7 +24,6 @@ class _AvailableTravelsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // تم نقل الألوان هنا لتجنب أي أخطاء في الـ Const Constructor
     final Color primaryBlack = const Color(0xFF121212);
     final Color accentGold = const Color(0xFFD4AF37);
     
@@ -115,7 +115,6 @@ class _AvailableTravelsView extends StatelessWidget {
         var trip = trips[index];
         var data = trip['data'];
         
-        // تم تصحيح طريقة جلب المسافة لتجنب كراش (Type Error) لو فايربيز رجع رقم صحيح
         double dist = (trip['distance'] as num).toDouble();
         
         String distanceText = dist != double.infinity 
@@ -172,9 +171,13 @@ class _AvailableTravelsView extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
                     ), 
                     onPressed: () async {
-                      bool success = await context.read<AvailableTravelsCubit>().bookDriverPost(trip['docId']);
-                      if (success && context.mounted) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trip['docId'])));
+                      try {
+                        bool success = await context.read<AvailableTravelsCubit>().bookDriverPost(trip['docId']);
+                        if (success && context.mounted) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trip['docId'])));
+                        }
+                      } catch (e) {
+                         debugPrint('خطأ في الحجز: $e');
                       }
                     }, 
                     icon: Icon(Icons.event_seat_rounded, size: 18.sp), 
