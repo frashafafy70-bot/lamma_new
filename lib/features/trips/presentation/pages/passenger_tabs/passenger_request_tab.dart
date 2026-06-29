@@ -10,7 +10,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'dart:math' as math;
+import 'dart:math' as math; // 🟢 تم إضافة المكتبة هنا للحماية
 
 import 'package:lamma_new/features/trips/data/services/map_service.dart';
 import 'package:lamma_new/features/trips/data/services/trip_service.dart';
@@ -461,9 +461,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             double availableHeight = constraints.maxHeight;
             double requestedHeight = _tripCategory == 'طلبات' ? screenHeight * 0.65 : screenHeight * 0.52; 
             
-            // 🟢 العبقرية الهندسية: الفورم بياخد الارتفاع المطلوب، ولو الكيبورد فتحت بيصغر سِنة عشان يفضل مرئي
             double visibleSpace = availableHeight - keyboardHeight;
-            double actualContainerHeight = math.min(requestedHeight, visibleSpace);
+            // 🟢 الحماية الهندسية هنا: مستحيل الارتفاع يقل عن الصفر ويسبب الوميض الأحمر
+            double actualContainerHeight = math.max(0.0, math.min(requestedHeight, visibleSpace));
 
             return Stack(
               children: [
@@ -513,11 +513,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                     ),
                   ),
 
-                // 🟢 الفورم بيرفع نفسه بشكل ديناميكي وبيقعد فوق الكيبورد بالضبط
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOutCubic,
-                  // لو الخريطة فول سكرين هينزل تحت، غير كده هيقف فوق الكيبورد
                   bottom: _isMapFullscreen ? -actualContainerHeight : keyboardHeight, 
                   left: 0, 
                   right: 0,
@@ -532,7 +530,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                         BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))
                       ]
                     ),
-                    // ClipRRect بيمنع المحتوى إنه يخرج بره حواف الفورم الدائرية
                     child: ClipRRect(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
                       child: TripForm(

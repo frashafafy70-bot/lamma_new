@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'service_form/ride_service_form.dart';
 import 'service_form/buy_orders_service_form.dart';
+import 'service_form/travel_service_form.dart'; // 🟢 الاستدعاء الجديد
 
 class TripForm extends StatelessWidget {
   final String tripCategory;
@@ -64,8 +65,8 @@ class TripForm extends StatelessWidget {
           return GestureDetector(
             onTap: () => onCategoryChanged(c['id']),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOutBack, 
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic, 
               padding: EdgeInsets.symmetric(horizontal: isSelected ? 18.w : 12.w, vertical: 10.h),
               decoration: BoxDecoration(
                 color: isSelected ? Colors.white : Colors.transparent,
@@ -105,7 +106,6 @@ class TripForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 السكرول شغال براحته ومفيش أي كود يقفله
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 20.h),
@@ -115,7 +115,7 @@ class TripForm extends StatelessWidget {
         children: [
           _buildTripCategorySelector(),
           SizedBox(height: 16.h),
-          _buildSelectedForm(),
+          _buildSelectedForm(), 
         ],
       ),
     );
@@ -151,13 +151,23 @@ class TripForm extends StatelessWidget {
         primaryGreen: primaryGreen,
         accentGold: accentGold,
       );
-    } else {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40.h),
-          child: Text('خدمات السفر قريباً...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-        ),
+    } else if (tripCategory == 'خارجي') { 
+      // 🟢 تم استبدال "قريباً" بفورم السفر الحقيقي
+      return TravelServiceForm(
+        vehicleType: vehicleType,
+        isSubmittingTrip: isSubmittingTrip,
+        pickupController: pickupController,
+        destinationController: destinationController,
+        priceController: priceController,
+        priceFocusNode: priceFocusNode,
+        onVehicleChanged: onVehicleChanged,
+        onOpenMapSelection: onOpenMapSelection,
+        onSubmit: onSubmit,
+        primaryGreen: primaryGreen,
+        accentGold: accentGold,
       );
+    } else {
+      return const SizedBox.shrink();
     }
   }
 }

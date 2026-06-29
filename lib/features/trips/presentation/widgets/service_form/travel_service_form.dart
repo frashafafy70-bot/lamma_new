@@ -1,80 +1,56 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// استدعاء الـ Widget الذكي للريكورد بتاعك
-import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart'; 
-
-class BuyOrdersServiceForm extends StatelessWidget {
-  final bool isSubmittingTrip;
-  final TextEditingController errandDetailsController;
-  final TextEditingController errandEstimatedCostController;
+class TravelServiceForm extends StatelessWidget {
+  final String vehicleType;
+  final Function(String) onVehicleChanged;
   final TextEditingController pickupController;
   final TextEditingController destinationController;
   final TextEditingController priceController;
   final FocusNode priceFocusNode;
+  final Function(String) onOpenMapSelection;
+  final VoidCallback onSubmit;
+  final bool isSubmittingTrip;
   final Color primaryGreen;
   final Color accentGold;
-  final Function(String) onOpenMapSelection;
-  final Function(File?) onAudioRecorded;
-  final VoidCallback onSubmit;
 
-  const BuyOrdersServiceForm({
+  const TravelServiceForm({
     super.key,
-    required this.isSubmittingTrip,
-    required this.errandDetailsController,
-    required this.errandEstimatedCostController,
+    required this.vehicleType,
+    required this.onVehicleChanged,
     required this.pickupController,
     required this.destinationController,
     required this.priceController,
     required this.priceFocusNode,
+    required this.onOpenMapSelection,
+    required this.onSubmit,
+    required this.isSubmittingTrip,
     required this.primaryGreen,
     required this.accentGold,
-    required this.onOpenMapSelection,
-    required this.onAudioRecorded,
-    required this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 السر في الـ Column ده مع mainAxisSize: MainAxisSize.min عشان يمنع الشاشة الحمرا
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, 
+      mainAxisSize: MainAxisSize.min,
       children: [
-        
-        OrderInputWidget(
-          controller: errandDetailsController,
-          onAudioRecorded: onAudioRecorded,
-        ),
-        SizedBox(height: 16.h),
-        
-        _buildPremiumTextField(
-          controller: errandEstimatedCostController,
-          label: 'سعر الطلبات التقريبي',
-          suffixText: 'جنيه',
-          icon: Icons.account_balance_wallet_rounded,
-          iconColor: primaryGreen,
-          isNumber: true,
-        ),
-        SizedBox(height: 16.h),
-        
         _buildPremiumLocationField(
-          label: 'مكان الشراء',
+          label: 'نقطة التحرك (من)',
           controller: pickupController,
           icon: Icons.my_location_rounded,
           iconColor: accentGold,
           onMapTap: () {
-            FocusScope.of(context).unfocus(); 
+            FocusScope.of(context).unfocus();
             onOpenMapSelection('pickup');
           },
         ),
         SizedBox(height: 16.h),
         
         _buildPremiumLocationField(
-          label: 'مكان تسليم الطلب',
+          label: 'محافظة / مدينة الوصول',
           controller: destinationController,
-          icon: Icons.location_on_rounded,
+          icon: Icons.emoji_transportation_rounded,
           iconColor: primaryGreen,
           onMapTap: () {
             FocusScope.of(context).unfocus();
@@ -86,7 +62,7 @@ class BuyOrdersServiceForm extends StatelessWidget {
         _buildPremiumTextField(
           controller: priceController,
           focusNode: priceFocusNode,
-          label: 'أجرة التوصيل للكابتن',
+          label: 'سعرك المقترح للرحلة',
           suffixText: 'جنيه',
           icon: Icons.payments_outlined,
           iconColor: accentGold,
@@ -117,7 +93,7 @@ class BuyOrdersServiceForm extends StatelessWidget {
             child: isSubmittingTrip
                 ? CircularProgressIndicator(color: accentGold)
                 : Text(
-                    'إرسال الطلب للكباتن', 
+                    'إرسال طلب السفر', 
                     style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
                   ),
           ),
