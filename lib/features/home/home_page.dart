@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -27,13 +28,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final Color primaryNavy = const Color(0xFF0F172A); 
+  final Color royalGreen = const Color(0xFF1B4332); 
   final Color goldAccent = const Color(0xFFD4AF37); 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   late HomeCubit _homeCubit;
-  
-  // 🟢 مستمع الرحلات اللحظي لمنع ضياع إشعارات الطلبات والتفاوض
   StreamSubscription<QuerySnapshot>? _tripsSubscription;
   bool _isFirstTripsLoad = true;
 
@@ -114,9 +114,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================================
-  // 🟢 المستمع الذكي للطلبات اللحظية (تم حل مشكلة الأخطاء الحمراء نهائياً هنا)
-  // ============================================================================
   void _startLiveTripsNotificationListener() {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -132,14 +129,12 @@ class _HomePageState extends State<HomePage> {
       }
 
       for (var change in snapshot.docChanges) {
-        // 🟢 السطر الذكي للحماية من الأخطاء والتحذيرات
         var rawData = change.doc.data();
         if (rawData is! Map<String, dynamic>) continue; 
 
         String status = rawData['status'] ?? 'pending';
         String category = rawData['tripCategory'] ?? 'مشوار';
 
-        // 👤 إشعارات الراكب (العميل)
         if (change.type == DocumentChangeType.modified && rawData['passengerId'] == userId) {
           if (status == 'accepted') {
             _triggerPopupWithSound('تم قبول طلبك! 🚖', 'وافق الكابتن على طلب الـ $category وهو في طريقه إليك الآن.');
@@ -152,7 +147,6 @@ class _HomePageState extends State<HomePage> {
           }
         }
         
-        // 🚖 إشعارات الكابتن
         if (change.type == DocumentChangeType.added && status == 'pending' && rawData['passengerId'] != userId) {
           if (_homeCubit.state.activeRole == 'captain') {
             _triggerPopupWithSound('طلب مشوار جديد متاح! 🗺️', 'يوجد طلب $category جديد قيد الانتظار على الرادار الآن.');
@@ -177,24 +171,24 @@ class _HomePageState extends State<HomePage> {
       context: context, 
       isScrollControlled: true, 
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
       builder: (bottomSheetContext) {
         return SizedBox(
           height: MediaQuery.of(bottomSheetContext).size.height * 0.65, 
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.w),
             child: Column(
               children: [
-                Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-                const SizedBox(height: 16),
-                Text('الإشعارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy, fontFamily: 'Cairo')),
+                Container(width: 40.w, height: 5.h, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r))),
+                SizedBox(height: 16.h),
+                Text('الإشعارات', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy, fontFamily: 'Cairo')),
                 const Divider(),
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance.collection('users').doc(userId).collection('notifications').orderBy('timestamp', descending: true).snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(child: Text('لا توجد إشعارات حالياً 🔕', style: TextStyle(fontFamily: 'Cairo', fontSize: 16)));
+                        return Center(child: Text('لا توجد إشعارات حالياً 🔕', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp)));
                       }
                       return ListView.builder(
                         itemCount: snapshot.data!.docs.length,
@@ -289,28 +283,43 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Scaffold(
                   key: _scaffoldKey,
-                  backgroundColor: Colors.grey.shade50,
+                  backgroundColor: const Color(0xFFF8FAFC), 
+                  extendBody: true, 
                   body: Directionality(textDirection: TextDirection.rtl, child: bodyContent),
                   bottomNavigationBar: Directionality(
                     textDirection: TextDirection.rtl,
                     child: Container(
-                      decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, -5))]),
+                      margin: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 24.h), 
+                      decoration: BoxDecoration(
+                        color: primaryNavy, // 🟢 لون كحلي فخم للبار ليعمل Framing مع البار العلوي
+                        borderRadius: BorderRadius.circular(30.r), 
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryNavy.withValues(alpha: 0.3), 
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 8),
+                          )
+                        ],
+                      ),
                       child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                        borderRadius: BorderRadius.circular(30.r),
                         child: BottomNavigationBar(
                           currentIndex: state.bottomNavIndex, 
                           onTap: (index) => context.read<HomeCubit>().changeTab(index), 
                           type: BottomNavigationBarType.fixed, 
-                          backgroundColor: Colors.white, 
-                          selectedItemColor: goldAccent, 
-                          unselectedItemColor: Colors.grey.shade400, 
-                          selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12), 
+                          backgroundColor: Colors.transparent, // 🟢 شفاف ليأخذ لون الحاوية الكحلي
+                          selectedItemColor: goldAccent, // 🟢 الذهبي يبرز بشدة على الكحلي
+                          unselectedItemColor: Colors.grey.shade500, // 🟢 رمادي خافت للعناصر غير المحددة
+                          selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13), 
                           unselectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11),
+                          showUnselectedLabels: true,
+                          elevation: 0, 
                           items: const [
-                            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'الرئيسية'), 
-                            BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'البحث'), 
-                            BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'الطلبات'), 
-                            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'الحساب')
+                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home_rounded)), label: 'الرئيسية'), 
+                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.search_rounded)), label: 'البحث'), 
+                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.receipt_long_rounded)), label: 'الطلبات'), 
+                            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.person_rounded)), label: 'الحساب')
                           ],
                         ),
                       ),
@@ -322,7 +331,7 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     color: Colors.black.withValues(alpha: 0.7), 
                     child: Center(
-                      child: CircularProgressIndicator(color: goldAccent),
+                      child: CircularProgressIndicator(color: royalGreen),
                     ),
                   ),
               ],
@@ -335,12 +344,12 @@ class _HomePageState extends State<HomePage> {
 
   void _confirmPasswordReset(BuildContext pageContext) {
     showDialog(context: pageContext, builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), 
-      title: Row(textDirection: TextDirection.rtl, children: [Icon(Icons.lock_reset_rounded, color: primaryNavy), const SizedBox(width: 8), const Text('تغيير كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))]), 
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)), 
+      title: Row(textDirection: TextDirection.rtl, children: [Icon(Icons.lock_reset_rounded, color: primaryNavy), SizedBox(width: 8.w), const Text('تغيير كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))]), 
       content: const Text('هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14), textDirection: TextDirection.rtl), 
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
-        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, foregroundColor: Colors.white), onPressed: () { Navigator.pop(ctx); pageContext.read<HomeCubit>().sendPasswordResetEmail(); }, child: const Text('إرسال الرابط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), onPressed: () { Navigator.pop(ctx); pageContext.read<HomeCubit>().sendPasswordResetEmail(); }, child: const Text('إرسال الرابط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
       ],
     ));
   }
@@ -348,16 +357,16 @@ class _HomePageState extends State<HomePage> {
   void _showSupportDialog(BuildContext pageContext, String currentUserName, String currentUserEmail) {
     final TextEditingController complaintCtrl = TextEditingController();
     showDialog(context: pageContext, builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), 
-      title: Row(textDirection: TextDirection.rtl, children: [const Icon(Icons.support_agent_rounded, color: Colors.orange), const SizedBox(width: 8), const Text('الدعم الفني والشكاوى', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16))]), 
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)), 
+      title: Row(textDirection: TextDirection.rtl, children: [const Icon(Icons.support_agent_rounded, color: Colors.orange), SizedBox(width: 8.w), const Text('الدعم الفني والشكاوى', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16))]), 
       content: TextField(
         controller: complaintCtrl, maxLines: 4, textDirection: TextDirection.rtl, 
-        decoration: InputDecoration(hintText: 'اكتب شكوتك، مشكلتك، أو مقترحك هنا...', hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryNavy, width: 2))),
+        decoration: InputDecoration(hintText: 'اكتب شكوتك، مشكلتك، أو مقترحك هنا...', hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide(color: royalGreen, width: 2))),
       ), 
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, foregroundColor: Colors.white), 
+          style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), 
           onPressed: () async { 
             if (complaintCtrl.text.trim().isEmpty) return; 
             Navigator.pop(ctx); 

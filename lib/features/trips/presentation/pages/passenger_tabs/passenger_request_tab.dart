@@ -10,6 +10,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'dart:math' as math;
 
 import 'package:lamma_new/features/trips/data/services/map_service.dart';
 import 'package:lamma_new/features/trips/data/services/trip_service.dart';
@@ -18,8 +19,8 @@ import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit
 import '../../widgets/map_selection_overlay.dart';
 import '../../widgets/trip_form.dart'; 
 
-// 🟢 استدعاء ملف الثوابت
 import 'package:lamma_new/core/constants/app_constants.dart'; 
+import 'package:lamma_new/core/theme/app_colors.dart';
 
 class PassengerRequestTab extends StatefulWidget {
   final TabController tabController;
@@ -32,9 +33,6 @@ class PassengerRequestTab extends StatefulWidget {
 class _PassengerRequestTabState extends State<PassengerRequestTab> {
   late PassengerRequestCubit _requestCubit;
 
-  final Color primaryGreen = const Color(0xFF1B4332); 
-  final Color accentGold = const Color(0xFFF3C444); 
-  
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {}; 
   LatLng? _pickupLocation;
@@ -120,7 +118,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       Position initialPosition = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation)
       );
-      _updateLocationOnMap(initialPosition, isFirstLoad: true);
+      if (mounted) _updateLocationOnMap(initialPosition, isFirstLoad: true);
 
       _positionStreamSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -128,7 +126,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           distanceFilter: 3, 
         )
       ).listen((Position livePosition) {
-        _updateLocationOnMap(livePosition, isFirstLoad: false);
+        if (mounted) _updateLocationOnMap(livePosition, isFirstLoad: false);
       });
 
     } catch (e) { 
@@ -140,7 +138,12 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   void _showLocationError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)), 
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+      ),
     );
   }
 
@@ -149,20 +152,30 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('صلاحية الموقع مطلوبة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-        content: const Text('لقد قمت برفض صلاحية الموقع بشكل دائم. لكي تتمكن من استخدام التطبيق بشكل صحيح، يرجى تفعيل الصلاحية من إعدادات الهاتف.', style: TextStyle(fontFamily: 'Cairo')),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+        title: Row(
+          children: [
+            Icon(Icons.location_off_rounded, color: AppColors.error, size: 24.sp),
+            SizedBox(width: 8.w),
+            Text('صلاحية الموقع', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)),
+          ],
+        ),
+        content: Text('لقد قمت برفض صلاحية الموقع بشكل دائم. لكي تتمكن من استخدام التطبيق بشكل صحيح، يرجى تفعيل الصلاحية من إعدادات الهاتف.', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo')),
+            child: Text('إلغاء', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontSize: 14.sp)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.royalGreen,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
+            ),
             onPressed: () {
               Geolocator.openAppSettings();
               Navigator.pop(context);
             },
-            child: const Text('فتح الإعدادات', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')),
+            child: Text('فتح الإعدادات', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
           ),
         ],
       ),
@@ -291,7 +304,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     bool isErrand = _tripCategory == 'طلبات';
     
     if (_destinationController.text.trim().isEmpty || _priceController.text.trim().isEmpty || _pickupController.text.trim().isEmpty) {
-      _showLocationError('الرجاء إكمال جميع الحقول!');
+      _showLocationError('الرجاء إكمال جميع الحقول الأساسية!');
       return;
     }
 
@@ -329,7 +342,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   Widget _buildGoogleMap(bool showMapControls, double formHeight) {
     if (_isLoadingMap) {
-      return Center(child: CircularProgressIndicator(color: accentGold));
+      return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
     }
     return GoogleMap(
       initialCameraPosition: CameraPosition(
@@ -372,76 +385,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           _requestCubit.getAddressFromLatLng(_tempMapCenter!);
         }
       },
-    );
-  }
-
-  Widget _buildContinueButton() {
-    return Positioned(
-      bottom: 30.h, left: 30.w, right: 30.w,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen, 
-          foregroundColor: accentGold,
-          shadowColor: Colors.black45,
-          elevation: 12,
-          padding: EdgeInsets.symmetric(vertical: 16.h),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r))
-        ),
-        onPressed: () { 
-          setState(() => _isMapFullscreen = false);
-          _fitMapToMarkers(); 
-        },
-        icon: Icon(Icons.arrow_drop_up_rounded, size: 28.sp),
-        label: Text('تكملة الحجز 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
-      ),
-    );
-  }
-
-  Widget _buildBottomForm(double currentContainerHeight, double keyboardHeight) {
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-      bottom: _isMapFullscreen ? -currentContainerHeight : 0, 
-      left: 0, 
-      right: 0,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: currentContainerHeight, 
-        padding: EdgeInsets.only(bottom: keyboardHeight), 
-        decoration: BoxDecoration(
-          color: Colors.white, 
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, -5))]
-        ),
-        child: TripForm(
-          tripCategory: _tripCategory,
-          vehicleType: _vehicleType,
-          isSubmittingTrip: _isSubmittingTrip,
-          errandDetailsController: _errandDetailsController,
-          errandEstimatedCostController: _errandEstimatedCostController,
-          pickupController: _pickupController,
-          destinationController: _destinationController,
-          priceController: _priceController,
-          priceFocusNode: _priceFocusNode,
-          primaryGreen: primaryGreen,
-          accentGold: accentGold,
-          onCategoryChanged: (category) {
-            setState(() { 
-              _tripCategory = category; 
-              _mapSelectionMode = 'none'; 
-            });
-            FocusScope.of(context).unfocus();
-          },
-          onVehicleChanged: (vehicle) => setState(() => _vehicleType = vehicle),
-          onOpenMapSelection: _openMapSelection,
-          onSubmit: _validateAndSubmitTrip, 
-          onAudioRecorded: (File? audio) {
-            setState(() {
-              _orderAudioFile = audio;
-            });
-          },
-        ),
-      ),
     );
   }
 
@@ -493,8 +436,17 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           _errandDetailsController.clear();
           _errandEstimatedCostController.clear();
           
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم إرسال طلبك بنجاح!', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)), backgroundColor: primaryGreen));
-          widget.tabController.animateTo(0); 
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم إرسال طلبك بنجاح! 🚀', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)), 
+              backgroundColor: AppColors.royalGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+            )
+          );
+          
+          widget.tabController.animateTo(2); 
+
         } else if (state is TripSubmitError) {
           setState(() => _isSubmittingTrip = false);
           _showLocationError(state.message);
@@ -508,16 +460,15 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           builder: (context, constraints) {
             double availableHeight = constraints.maxHeight;
             double requestedHeight = _tripCategory == 'طلبات' ? screenHeight * 0.65 : screenHeight * 0.52; 
-            double formHeight = requestedHeight > availableHeight ? availableHeight : requestedHeight;
-
-            double currentContainerHeight = keyboardHeight > 0 
-                ? (formHeight + keyboardHeight > availableHeight ? availableHeight : formHeight + keyboardHeight)
-                : formHeight;
+            
+            // 🟢 العبقرية الهندسية: الفورم بياخد الارتفاع المطلوب، ولو الكيبورد فتحت بيصغر سِنة عشان يفضل مرئي
+            double visibleSpace = availableHeight - keyboardHeight;
+            double actualContainerHeight = math.min(requestedHeight, visibleSpace);
 
             return Stack(
               children: [
                 Positioned.fill(
-                  child: _buildGoogleMap(showMapControls, formHeight),
+                  child: _buildGoogleMap(showMapControls, requestedHeight),
                 ),
 
                 if (isPickingMap)
@@ -525,8 +476,8 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                     mapSearchController: _mapSearchController,
                     placePredictions: _placePredictions,
                     isReverseGeocoding: _isReverseGeocoding,
-                    primaryGreen: primaryGreen, 
-                    accentGold: accentGold,
+                    primaryGreen: AppColors.royalGreen, 
+                    accentGold: AppColors.accentGold,
                     onSearch: (input) => _requestCubit.searchForPlaces(input), 
                     onSelectPlace: (placeId, desc) => _requestCubit.fetchPlaceDetails(placeId, desc), 
                     onCancel: () {
@@ -542,9 +493,77 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   ),
 
                 if (_isMapFullscreen && !isPickingMap)
-                  _buildContinueButton(),
+                  Positioned(
+                    bottom: 30.h, left: 30.w, right: 30.w,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.royalGreen, 
+                        foregroundColor: AppColors.accentGold,
+                        shadowColor: AppColors.royalGreen.withValues(alpha: 0.4),
+                        elevation: 10,
+                        padding: EdgeInsets.symmetric(vertical: 14.h),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r))
+                      ),
+                      onPressed: () { 
+                        setState(() => _isMapFullscreen = false);
+                        _fitMapToMarkers(); 
+                      },
+                      icon: Icon(Icons.check_circle_rounded, size: 24.sp),
+                      label: Text('تأكيد الموقع 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                    ),
+                  ),
 
-                _buildBottomForm(currentContainerHeight, keyboardHeight),
+                // 🟢 الفورم بيرفع نفسه بشكل ديناميكي وبيقعد فوق الكيبورد بالضبط
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  // لو الخريطة فول سكرين هينزل تحت، غير كده هيقف فوق الكيبورد
+                  bottom: _isMapFullscreen ? -actualContainerHeight : keyboardHeight, 
+                  left: 0, 
+                  right: 0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    height: actualContainerHeight, 
+                    decoration: BoxDecoration(
+                      color: Colors.white, 
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))
+                      ]
+                    ),
+                    // ClipRRect بيمنع المحتوى إنه يخرج بره حواف الفورم الدائرية
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
+                      child: TripForm(
+                        tripCategory: _tripCategory,
+                        vehicleType: _vehicleType,
+                        isSubmittingTrip: _isSubmittingTrip,
+                        errandDetailsController: _errandDetailsController,
+                        errandEstimatedCostController: _errandEstimatedCostController,
+                        pickupController: _pickupController,
+                        destinationController: _destinationController,
+                        priceController: _priceController,
+                        priceFocusNode: _priceFocusNode,
+                        primaryGreen: AppColors.royalGreen,
+                        accentGold: AppColors.accentGold,
+                        onCategoryChanged: (category) {
+                          setState(() { 
+                            _tripCategory = category; 
+                            _mapSelectionMode = 'none'; 
+                          });
+                          FocusScope.of(context).unfocus();
+                        },
+                        onVehicleChanged: (vehicle) => setState(() => _vehicleType = vehicle),
+                        onOpenMapSelection: _openMapSelection,
+                        onSubmit: _validateAndSubmitTrip, 
+                        onAudioRecorded: (File? audio) {
+                          setState(() => _orderAudioFile = audio);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ],
             );
           },

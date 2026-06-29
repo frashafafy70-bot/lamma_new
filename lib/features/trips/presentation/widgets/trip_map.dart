@@ -9,6 +9,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 
+// استدعاء ملف الألوان المركزي
+import 'package:lamma_new/core/theme/app_colors.dart';
+
 class TripMap extends StatefulWidget {
   const TripMap({super.key});
 
@@ -128,7 +131,7 @@ class _TripMapState extends State<TripMap> {
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: const Color(0xFF131E31)),
+        SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.primaryDark),
       );
     }
   }
@@ -136,7 +139,7 @@ class _TripMapState extends State<TripMap> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // عشان الخريطة تاخد الشاشة كلها
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -148,7 +151,7 @@ class _TripMapState extends State<TripMap> {
             backgroundColor: Colors.white,
             elevation: 2,
             onPressed: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_forward_rounded, color: Colors.black87), // سهم رجوع مناسب للعربي
+            child: const Icon(Icons.arrow_forward_rounded, color: AppColors.textDark), 
           ),
         ),
       ),
@@ -180,7 +183,7 @@ class _TripMapState extends State<TripMap> {
           // 🟢 2. الماركر الثابت الفخم في منتصف الشاشة
           Center(
             child: Padding(
-              padding: EdgeInsets.only(bottom: 60.h), // الرفع لضمان إن النقطة هي المركز الحقيقي
+              padding: EdgeInsets.only(bottom: 60.h), 
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -203,10 +206,10 @@ class _TripMapState extends State<TripMap> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('نقطة الانطلاق', style: TextStyle(color: Colors.grey.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                                Text('نقطة الانطلاق', style: TextStyle(color: AppColors.textMuted.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                                 Text(
                                   _currentAddress,
-                                  style: TextStyle(color: Colors.black, fontSize: 13.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                                  style: TextStyle(color: AppColors.textDark, fontSize: 13.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -214,18 +217,18 @@ class _TripMapState extends State<TripMap> {
                             ),
                           ),
                           SizedBox(width: 8.w),
-                          Icon(Icons.arrow_forward_ios, size: 14.sp, color: Colors.black),
+                          const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textDark),
                         ],
                       ),
                     ),
                   ),
                   SizedBox(height: 8.h),
-                  // أيقونة الشخص (الأسود)
+                  // أيقونة الشخص 
                   Container(
                     width: 40.w,
                     height: 40.w,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: AppColors.primaryDark,
                       borderRadius: BorderRadius.circular(12.r),
                       boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
                     ),
@@ -239,7 +242,7 @@ class _TripMapState extends State<TripMap> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 3.5),
+                      border: Border.all(color: AppColors.primaryDark, width: 3.5),
                     ),
                   ),
                 ],
@@ -247,9 +250,9 @@ class _TripMapState extends State<TripMap> {
             ),
           ),
 
-          // 🟢 3. زر الموقع الحالي (فوق الشيت السحابي)
+          // 🟢 3. زر الموقع الحالي 
           Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.38, // بيتضبط فوق الشيت المبدئي
+            bottom: MediaQuery.of(context).size.height * 0.38, 
             right: 16.w,
             child: FloatingActionButton(
               heroTag: 'gps_btn',
@@ -257,12 +260,12 @@ class _TripMapState extends State<TripMap> {
               elevation: 4,
               onPressed: _getCurrentUserLocation,
               child: _isGettingLocation 
-                  ? const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                  : const Icon(Icons.near_me_outlined, color: Colors.black87),
+                  ? const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(color: AppColors.primaryDark, strokeWidth: 2))
+                  : const Icon(Icons.near_me_outlined, color: AppColors.textDark),
             ),
           ),
 
-          // 🟢 4. الشيت السحابي הפخم (DraggableScrollableSheet)
+          // 🟢 4. الشيت السحابي 
           DraggableScrollableSheet(
             initialChildSize: 0.35, 
             minChildSize: 0.25,     
@@ -282,7 +285,7 @@ class _TripMapState extends State<TripMap> {
                     Center(
                       child: Container(
                         width: 45.w, height: 5.h,
-                        decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)),
+                        decoration: BoxDecoration(color: AppColors.textMuted.shade300, borderRadius: BorderRadius.circular(10.r)),
                       ),
                     ),
                     SizedBox(height: 20.h),
@@ -297,18 +300,17 @@ class _TripMapState extends State<TripMap> {
                     ),
                     SizedBox(height: 20.h),
 
-                    // زر تأكيد الموقع والانتقال (نفس وظيفة الزرار القديم بتاعك)
+                    // زر تأكيد الموقع والانتقال 
                     SizedBox(
                       width: double.infinity,
                       height: 52.h,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF131E31), // الكحلي بتاعك
+                          backgroundColor: AppColors.primaryDark, 
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                           elevation: 0,
                         ),
                         onPressed: _isLoadingAddress ? null : () {
-                          // إرجاع البيانات زي ما كنت عاملها بالظبط عشان متأثرش على باقي التطبيق
                           Navigator.pop(context, {
                             'address': _currentAddress,
                             'location': GeoPoint(_centerPosition.latitude, _centerPosition.longitude),
@@ -316,26 +318,26 @@ class _TripMapState extends State<TripMap> {
                         },
                         child: Text(
                           'تأكيد الانطلاق من هنا',
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: const Color(0xFFF3C444)),
+                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
                         ),
                       ),
                     ),
                     
                     SizedBox(height: 24.h),
                     
-                    // أمثلة لأماكن محفوظة (بتظهر لما الشيت يتسحب لفوق)
+                    // أمثلة لأماكن محفوظة 
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.grey.shade100, child: const Icon(Icons.home_rounded, color: Colors.black87)),
+                      leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.home_rounded, color: AppColors.textDark)),
                       title: const Text('المنزل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                      subtitle: const Text('إضافة عنوان المنزل', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 12)),
+                      subtitle: const Text('إضافة عنوان المنزل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
                     ),
                     const Divider(),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.grey.shade100, child: const Icon(Icons.work_rounded, color: Colors.black87)),
+                      leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.work_rounded, color: AppColors.textDark)),
                       title: const Text('العمل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                      subtitle: const Text('إضافة عنوان العمل', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 12)),
+                      subtitle: const Text('إضافة عنوان العمل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -347,19 +349,20 @@ class _TripMapState extends State<TripMap> {
     );
   }
 
-  // ويدجت الكروت (Ride / City to city)
+  // ويدجت الكروت 
   Widget _buildServiceTypeCard(String title, IconData iconData, bool isSelected) {
     return Expanded(
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 12.h),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.shade50 : Colors.transparent,
+          // تم استبدال اللون الأزرق بلون الأخضر الملكي مع شفافية في حالة التحديد
+          color: isSelected ? AppColors.royalGreen.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12.r),
-          border: isSelected ? Border.all(color: Colors.blue.shade200, width: 1.5) : null,
+          border: isSelected ? Border.all(color: AppColors.royalGreen, width: 1.5) : null,
         ),
         child: Column(
           children: [
-            Icon(iconData, size: 35.sp, color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600),
+            Icon(iconData, size: 35.sp, color: isSelected ? AppColors.royalGreen : AppColors.textMuted.shade600),
             SizedBox(height: 8.h),
             Text(
               title,
@@ -367,7 +370,7 @@ class _TripMapState extends State<TripMap> {
                 fontFamily: 'Cairo', 
                 fontSize: 13.sp, 
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                color: isSelected ? Colors.blue.shade800 : Colors.grey.shade700
+                color: isSelected ? AppColors.royalGreen : AppColors.textMuted.shade700
               ),
             ),
           ],

@@ -4,22 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// 🟢 الإضافات الضرورية لربط الإشعارات بقاعدة البيانات
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../cubit/home_cubit.dart';
-
-// 🟢 استدعاء الكروت وصفحة التبديل الفخمة الجديدة
 import 'widgets/service_square_card.dart';
 import 'account_switch_widget.dart'; 
 
-// 🟢 تم تحويل الاستدعاءات لمسارات مطلقة (Absolute Paths) لحل خطأ الـ Unused import نهائياً
 import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
-
-// 🟢 استدعاء كيوبت الرحلات النشطة للكابتن عشان نغلف بيه التاب تحت
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
 class HomeMainView extends StatefulWidget {
@@ -41,6 +36,11 @@ class HomeMainView extends StatefulWidget {
 }
 
 class _HomeMainViewState extends State<HomeMainView> {
+  
+  final Color royalGreen = const Color(0xFF1B4332);
+  final Color primaryNavy = const Color(0xFF0F172A);
+  final Color goldAccent = const Color(0xFFD4AF37);
+
   String _getRoleArabicName(String role) {
     switch (role) {
       case 'customer': return 'عميل';
@@ -52,7 +52,6 @@ class _HomeMainViewState extends State<HomeMainView> {
     }
   }
 
-  // دالة فتح صفحة تبديل الحساب (Full Page) واستلام النتيجة
   void _openAccountSwitchPage(BuildContext mainContext) async {
     final String? newSelectedRole = await Navigator.push<String>(
       mainContext,
@@ -61,138 +60,43 @@ class _HomeMainViewState extends State<HomeMainView> {
       ),
     );
 
-    // نتأكد إن اليوزر اختار مهنة جديدة وإن الشاشة لسه موجودة
     if (newSelectedRole != null && newSelectedRole != widget.activeRole && mainContext.mounted) {
       mainContext.read<HomeCubit>().switchUserRole(newSelectedRole);
     }
   }
 
-  // دالة بناء الكروت التفاعلية بناءً على وضع الحساب الحالي
-  List<Widget> _buildServiceCards(BuildContext context, String role) {
-    if (role == 'captain') {
-      // 🚖 كروت وضع الكابتن
-      return [
-        ServiceSquareCard(
-          title: 'لوحة تحكم الكابتن',
-          subtitle: 'الرادار والرحلات النشطة لايف',
-          icon: Icons.local_shipping_rounded,
-          iconColor: const Color(0xFFF3C444), // ذهبي
-          onTap: () {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => const CaptainRadarPage()),
-            );
-          },
-        ),
-        ServiceSquareCard(
-          title: 'رحلاتي السابقة',
-          subtitle: 'سجل الرحلات والأرباح',
-          icon: Icons.history_rounded,
-          iconColor: Colors.green,
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('قسم سجل الرحلات قيد الإنشاء', style: TextStyle(fontFamily: 'Cairo')),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-        ),
-      ];
-    } else if (role == 'lawyer') {
-      // ⚖️ كروت وضع المحامي
-      return [
-        ServiceSquareCard(
-          title: 'لوحة التحكم للمحامي',
-          subtitle: 'إدارة الاستشارات والتوكيلات',
-          icon: Icons.gavel_rounded,
-          iconColor: const Color(0xFF131E31),
-          onTap: () {},
-        ),
-      ];
-    } else {
-      // 👤 كروت وضع العميل (الافتراضي)
-      return [
-        // 1. كارت خدمات التوصيل والرحلات للعميل
-        ServiceSquareCard(
-          title: 'توصيل ورحلات', 
-          subtitle: 'اطلب كابتن فوراً', 
-          icon: Icons.local_taxi_rounded, 
-          iconColor: const Color(0xFFF3C444), 
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
-          },
-        ),
-        
-        // 2. كارت الخدمات القانونية
-        ServiceSquareCard(
-          title: 'خدمات قانونية', 
-          subtitle: 'استشارات وتوكيلات', 
-          icon: Icons.gavel_rounded, 
-          iconColor: const Color(0xFF131E31), 
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')),
-                backgroundColor: Color(0xFF131E31),
-              ),
-            );
-          },
-        ),
-
-        // 3. كارت المتجر والتسوق
-        ServiceSquareCard(
-          title: 'شوب ومتاجر', 
-          subtitle: 'تسوق منتجاتك', 
-          icon: Icons.storefront_rounded, 
-          iconColor: Colors.green,
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-        ),
-      ];
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 🟢 استخراج معرف المستخدم الحالي لاستخدامه في جلب الإشعارات
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Colors.transparent, 
         appBar: AppBar(
-          backgroundColor: const Color(0xFF131E31), // كحلي غامق
+          backgroundColor: primaryNavy,
           elevation: 0,
           automaticallyImplyLeading: false,
           title: Row(
             children: [
               CircleAvatar(
                 radius: 18.r,
-                backgroundColor: const Color(0xFFF3C444), // ذهبي
+                backgroundColor: goldAccent, 
                 backgroundImage: widget.profileImageUrl.isNotEmpty ? NetworkImage(widget.profileImageUrl) : null,
-                child: widget.profileImageUrl.isEmpty ? const Icon(Icons.person, color: Color(0xFF131E31), size: 20) : null,
+                child: widget.profileImageUrl.isEmpty ? Icon(Icons.person, color: primaryNavy, size: 20.sp) : null,
               ),
               SizedBox(width: 10.w),
-              Text('مرحباً، ${widget.userName}', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold)),
+              Expanded(child: Text('مرحباً، ${widget.userName}', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
             ],
           ),
           actions: [
-            // 🟢 الحل النهائي لجرس الإشعارات الحي في الشاشة الرئيسية
             if (currentUserId.isNotEmpty)
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
                     .doc(currentUserId)
                     .collection('notifications')
-                    .where('isRead', isEqualTo: false) // تتبع الإشعارات غير المقروءة فقط
+                    .where('isRead', isEqualTo: false) 
                     .snapshots(),
                 builder: (context, snapshot) {
                   int unreadCount = 0;
@@ -202,7 +106,7 @@ class _HomeMainViewState extends State<HomeMainView> {
 
                   return IconButton(
                     icon: Badge(
-                      isLabelVisible: unreadCount > 0, // الدائرة الحمراء تظهر فقط لو العدد أكبر من 0
+                      isLabelVisible: unreadCount > 0, 
                       label: Text(unreadCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
                       backgroundColor: Colors.redAccent,
                       child: const Icon(Icons.notifications_none, color: Colors.white),
@@ -218,61 +122,128 @@ class _HomeMainViewState extends State<HomeMainView> {
               ),
           ],
         ),
-        body: Padding(
-          padding: EdgeInsets.all(16.w),
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 100.h), 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // بنر حالة الحساب والتبديل السريع
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(16.w),
-                decoration: BoxDecoration(color: const Color(0xFF131E31), borderRadius: BorderRadius.circular(16.r)),
+                padding: EdgeInsets.all(20.w),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryNavy, royalGreen],
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                  ),
+                  borderRadius: BorderRadius.circular(20.r),
+                  boxShadow: [BoxShadow(color: royalGreen.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))]
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('وضع الحساب الحالي', style: TextStyle(color: Colors.grey.shade400, fontSize: 12.sp, fontFamily: 'Cairo')),
-                        Text(_getRoleArabicName(widget.activeRole), style: TextStyle(color: const Color(0xFFF3C444), fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                        Text('وضع الحساب الحالي', style: TextStyle(color: Colors.white70, fontSize: 13.sp, fontFamily: 'Cairo')),
+                        SizedBox(height: 4.h),
+                        Text(_getRoleArabicName(widget.activeRole), style: TextStyle(color: goldAccent, fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                       ],
                     ),
                     ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF3C444), foregroundColor: const Color(0xFF131E31)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: goldAccent, 
+                        foregroundColor: primaryNavy,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
+                      ),
                       onPressed: () => _openAccountSwitchPage(context),
-                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                      label: Text('تبديل الوضع', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
+                      icon: Icon(Icons.swap_horiz_rounded, size: 20.sp),
+                      label: Text('تبديل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
                     ),
                   ],
                 ),
               ),
               
-              SizedBox(height: 24.h),
-              Text('الخدمات المتاحة:', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: const Color(0xFF0F172A))),
+              SizedBox(height: 30.h),
+              Text('الخدمات المتاحة', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy)),
               SizedBox(height: 16.h),
               
-              // شبكة الكروت
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2, 
-                  crossAxisSpacing: 14.w, 
-                  mainAxisSpacing: 14.h, 
-                  childAspectRatio: 1.0,
+              if (widget.activeRole == 'captain') ...[
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(20.w),
+                  decoration: BoxDecoration(
+                    color: primaryNavy,
+                    borderRadius: BorderRadius.circular(20.r),
+                    boxShadow: [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 5))],
+                    border: Border.all(color: goldAccent.withValues(alpha: 0.3), width: 1.w),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 12.w, height: 12.w,
+                                decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.greenAccent, blurRadius: 8)]),
+                              ),
+                              SizedBox(width: 8.w),
+                              Text('متصل وجاهز للطلبات', style: TextStyle(fontFamily: 'Cairo', color: Colors.greenAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          Icon(Icons.directions_car_rounded, color: goldAccent, size: 28.sp),
+                        ],
+                      ),
+                      SizedBox(height: 20.h),
+                      Text('جاهز لاستقبال مشاوير جديدة؟', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 6.h),
+                      Text('ادخل على الرادار لمتابعة الطلبات المتاحة في محيطك الآن.', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade400, fontSize: 13.sp)),
+                      SizedBox(height: 20.h),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50.h,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: goldAccent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                          ),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => const CaptainRadarPage()));
+                          },
+                          child: Text('افتح الرادار الآن 📡', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (widget.activeRole == 'lawyer') ...[
+                GridView.count(
+                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 16.w, mainAxisSpacing: 16.h, childAspectRatio: 0.95,
                   children: [
-                    ..._buildServiceCards(context, widget.activeRole),
-                    
-                    // كارت إدارة الحساب (متاح لجميع الأوضاع دائماً)
-                    ServiceSquareCard(
-                      title: 'إدارة الحساب', 
-                      subtitle: 'تعديل البيانات والمهن', 
-                      icon: Icons.manage_accounts_rounded, 
-                      iconColor: Colors.blueAccent,
-                      onTap: () => _openAccountSwitchPage(context),
-                    ),
+                    ServiceSquareCard(title: 'لوحة التحكم', subtitle: 'الاستشارات والتوكيلات', icon: Icons.gavel_rounded, iconColor: primaryNavy, onTap: () {}),
                   ],
                 ),
-              ),
+              ] else ...[
+                GridView.count(
+                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 16.w, mainAxisSpacing: 16.h, childAspectRatio: 0.95,
+                  children: [
+                    ServiceSquareCard(title: 'توصيل ورحلات', subtitle: 'اطلب كابتن فوراً', icon: Icons.local_taxi_rounded, iconColor: goldAccent, onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
+                    }),
+                    ServiceSquareCard(title: 'خدمات قانونية', subtitle: 'استشارات وتوكيلات', icon: Icons.gavel_rounded, iconColor: primaryNavy, onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryNavy));
+                    }),
+                    ServiceSquareCard(title: 'شوب ومتاجر', subtitle: 'تسوق منتجاتك', icon: Icons.storefront_rounded, iconColor: royalGreen, onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: royalGreen));
+                    }),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -281,7 +252,6 @@ class _HomeMainViewState extends State<HomeMainView> {
   }
 }
 
-// الصفحة الحاضنة الكاملة لتشغيل التبويبين (الرادار والرحلات النشطة)
 class CaptainRadarPage extends StatefulWidget {
   const CaptainRadarPage({super.key});
 
@@ -295,7 +265,7 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _captainTabController = TabController(length: 2, vsync: this);
+    _captainTabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -311,18 +281,19 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
       child: Scaffold(
         appBar: AppBar(
           title: const Text('لوحة تحكم الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
-          backgroundColor: const Color(0xFF131E31),
+          backgroundColor: const Color(0xFF0F172A),
           iconTheme: const IconThemeData(color: Colors.white),
           elevation: 0,
           bottom: TabBar(
             controller: _captainTabController,
-            indicatorColor: const Color(0xFFF3C444),
-            labelColor: const Color(0xFFF3C444),
+            indicatorColor: const Color(0xFFD4AF37),
+            labelColor: const Color(0xFFD4AF37),
             unselectedLabelColor: Colors.white70,
-            labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14),
+            labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
             tabs: const [
-              Tab(text: 'رادار الرحلات', icon: Icon(Icons.radar_rounded)),
-              Tab(text: 'الرحلات النشطة', icon: Icon(Icons.play_circle_fill_rounded)),
+              Tab(text: 'الرادار', icon: Icon(Icons.radar_rounded)),
+              Tab(text: 'النشطة', icon: Icon(Icons.play_circle_fill_rounded)),
+              Tab(text: 'السجل', icon: Icon(Icons.history_rounded)), 
             ],
           ),
         ),
@@ -330,11 +301,13 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
           controller: _captainTabController,
           children: [
             DriverRadarTab(tabController: _captainTabController),
-            // 🟢 التعديل الأهم: تغليف التاب بـ BlocProvider عشان الكيوبت يتقري صح وميضربش شاشة حمراء
+            
             BlocProvider(
               create: (context) => DriverActiveTripsCubit(),
-              child: DriverActiveTripsTab(tabController: _captainTabController),
+              child: const DriverActiveTripsTab(), 
             ),
+            
+            const DriverHistoryTab(),
           ],
         ),
       ),

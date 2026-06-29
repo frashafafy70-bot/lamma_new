@@ -1,41 +1,40 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
-// 🟢 استدعاء الثوابت لحماية الكود من الأخطاء الإملائية
 import 'package:lamma_new/core/constants/firebase_constants.dart';
+
+import '../../data/services/driver_radar_service.dart';
 import 'driver_radar_state.dart';
 
 class DriverRadarCubit extends Cubit<DriverRadarState> {
-  DriverRadarCubit() : super(DriverRadarInitial());
-
+  final DriverRadarService _radarService;
   StreamSubscription? _radarSubscription;
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  // 🟢 بنستقبل الـ Service في الـ Constructor
+  DriverRadarCubit(this._radarService) : super(DriverRadarInitial());
 
   void startListeningToRadar() {
     emit(DriverRadarLoading());
 
-    _radarSubscription = FirebaseFirestore.instance
-        .collection(FirebaseConstants.tripsCollection)
-        .where('isDriverPost', isEqualTo: false)
-        .snapshots()
-        .listen((snapshot) {
-          
+    _radarSubscription?.cancel(); // إغلاق أي استماع قديم
+    
+    _radarSubscription = _radarService.getRadarTripsStream().listen((snapshot) {
+      
       var trips = snapshot.docs.where((doc) {
-        var data = doc.data();
+        var data = doc.data() as Map<String, dynamic>;
         String status = data[FirebaseConstants.fieldStatus] ?? FirebaseConstants.statusPending;
         
         return status == 'available' || 
                status == FirebaseConstants.statusPending || 
-               (status == FirebaseConstants.statusNegotiating && data['driverId'] == currentUserId);
+               (status == FirebaseConstants.statusNegotiating && data['driverId'] == _radarService.currentUserId);
       }).toList();
 
       trips.sort((a, b) {
-        var dataA = a.data();
-        var dataB = b.data();
+        var dataA = a.data() as Map<String, dynamic>;
+        var dataB = b.data() as Map<String, dynamic>;
         Timestamp? timeA = dataA['createdAt'];
         Timestamp? timeB = dataB['createdAt'];
+        
         if (timeA == null && timeB == null) return 0;
         if (timeA == null) return 1;
         if (timeB == null) return -1;
@@ -51,27 +50,20 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
 
   Future<void> acceptTrip(String docId, String agreedPrice) async {
     try {
-      await FirebaseFirestore.instance.collection(FirebaseConstants.tripsCollection).doc(docId).update({
-        FirebaseConstants.fieldStatus: FirebaseConstants.statusAccepted, 
-        'driverId': currentUserId, 
-        'driverName': FirebaseAuth.instance.currentUser?.displayName ?? 'كابتن لمة',
-        FirebaseConstants.fieldFinalPrice: agreedPrice
-      });
+      await _radarService.acceptTrip(docId, agreedPrice);
+      // 🟢 بنبعت حالة نجاح عشان الواجهة تقفل الديالوج أو تنقل التابة
+      emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح! 🚗'));
     } catch (e) {
-      emit(DriverRadarError('حدث خطأ أثناء القبول'));
+      emit(DriverRadarActionError('حدث خطأ أثناء القبول: $e'));
     }
   }
 
   Future<void> negotiateTrip(String docId, String offer) async {
     try {
-      await FirebaseFirestore.instance.collection(FirebaseConstants.tripsCollection).doc(docId).update({
-        FirebaseConstants.fieldStatus: FirebaseConstants.statusNegotiating, 
-        'driverId': currentUserId, 
-        FirebaseConstants.fieldNegotiationPrice: offer,
-        FirebaseConstants.fieldLastNegotiator: 'driver'
-      });
+      await _radarService.negotiateTrip(docId, offer);
+      emit(DriverRadarActionSuccess('تم إرسال عرض السعر للعميل! 🤝'));
     } catch (e) {
-      emit(DriverRadarError('حدث خطأ أثناء التفاوض'));
+      emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: $e'));
     }
   }
 

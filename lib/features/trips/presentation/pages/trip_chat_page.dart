@@ -142,11 +142,11 @@ class _TripChatPageState extends State<TripChatPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red.shade400, size: 70.sp),
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 70.sp),
             SizedBox(height: 16.h),
-            Text('حدث خطأ!', style: TextStyle(fontFamily: 'Cairo', color: Colors.red.shade700, fontSize: 18.sp, fontWeight: FontWeight.bold)),
+            Text('حدث خطأ!', style: TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontSize: 18.sp, fontWeight: FontWeight.bold)),
             SizedBox(height: 8.h),
-            Text(errorMessage, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade700, fontSize: 14.sp)),
+            Text(errorMessage, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted.shade700, fontSize: 14.sp)),
             SizedBox(height: 24.h),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
@@ -162,7 +162,7 @@ class _TripChatPageState extends State<TripChatPage> {
 
   Widget _buildChatList(List<dynamic> messages) {
     return ListView.builder(
-      controller: _scrollController, // 🟢 تم ربط المتحكم هنا
+      controller: _scrollController, 
       reverse: true,
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
       itemCount: messages.length + 1, 
@@ -184,13 +184,13 @@ class _TripChatPageState extends State<TripChatPage> {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEEFCD), 
+            color: const Color(0xFFFEEFCD), // لون الإشعار المخصص
             borderRadius: BorderRadius.circular(8.r),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))]
           ),
           child: Text(
             '🔒 الرسائل مشفرة تماماً',
-            style: TextStyle(fontFamily: 'Cairo', color: Colors.black87, fontSize: 11.sp, fontWeight: FontWeight.w600),
+            style: TextStyle(fontFamily: 'Cairo', color: AppColors.textDark, fontSize: 11.sp, fontWeight: FontWeight.w600),
           ),
         ),
       ),

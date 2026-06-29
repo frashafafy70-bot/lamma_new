@@ -1,10 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
 
 class SearchView extends StatefulWidget {
-  final String activeRole; 
+  final String activeRole;
 
   const SearchView({super.key, required this.activeRole});
 
@@ -13,193 +12,94 @@ class SearchView extends StatefulWidget {
 }
 
 class _SearchViewState extends State<SearchView> {
+  final TextEditingController _searchController = TextEditingController();
+  
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
-  
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  final Color royalGreen = const Color(0xFF1B4332);
 
-  final List<String> _categories = ['الكل', 'رحلات وتوصيل', 'استشارات قانونية', 'خدمات طبية'];
-  int _selectedCategoryIndex = 0;
+  String _selectedCategory = 'الكل';
+  final List<String> _categories = ['الكل', 'رحلات وتوصيل', 'استشارات قانونية', 'متاجر', 'خدمات طبية'];
 
-  Timer? _debounce;
-  bool _isLoading = false;
+  // 🟢 قاعدة بيانات محلية ذكية للخدمات عشان البحث يشتغل طلقة بدون أخطاء فايربيز
+  final List<Map<String, dynamic>> _allServices = [
+    {'title': 'طلب كابتن فوراً', 'category': 'رحلات وتوصيل', 'icon': Icons.local_taxi_rounded, 'color': const Color(0xFFF3C444), 'route': const TripsServicesPage()},
+    {'title': 'توصيل طلبات (دليفري)', 'category': 'رحلات وتوصيل', 'icon': Icons.delivery_dining_rounded, 'color': const Color(0xFFF3C444), 'route': const TripsServicesPage()},
+    {'title': 'استشارة محامي', 'category': 'استشارات قانونية', 'icon': Icons.gavel_rounded, 'color': const Color(0xFF0F172A), 'route': null},
+    {'title': 'توكيل رسمي', 'category': 'استشارات قانونية', 'icon': Icons.description_rounded, 'color': const Color(0xFF0F172A), 'route': null},
+    {'title': 'تسوق من الماركت', 'category': 'متاجر', 'icon': Icons.storefront_rounded, 'color': const Color(0xFF1B4332), 'route': null},
+    {'title': 'صيدليات', 'category': 'متاجر', 'icon': Icons.local_pharmacy_rounded, 'color': const Color(0xFF1B4332), 'route': null},
+    {'title': 'حجز كشف طبي', 'category': 'خدمات طبية', 'icon': Icons.medical_services_rounded, 'color': Colors.blueAccent, 'route': null},
+  ];
+
   List<Map<String, dynamic>> _searchResults = [];
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    _debounce?.cancel(); 
-    super.dispose();
+  void initState() {
+    super.initState();
+    _searchResults = []; // تبدأ فارغة لطلب كتابة شيء
   }
 
-  Future<void> _performSearch() async {
-    if (_searchQuery.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _isLoading = false;
-      });
+  void _performSearch(String query) {
+    if (query.isEmpty && _selectedCategory == 'الكل') {
+      setState(() { _searchResults = []; });
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    List<Map<String, dynamic>> tempResults = [];
-    String query = _searchQuery.trim().toLowerCase();
-
-    try {
-      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 1) {
-        var tripsSnap = await FirebaseFirestore.instance
-            .collection('trips')
-            .where('status', isEqualTo: 'available')
-            .get();
-
-        for (var doc in tripsSnap.docs) {
-          var data = doc.data();
-          String fromCity = (data['fromCity'] ?? '').toString().toLowerCase();
-          String toCity = (data['toCity'] ?? '').toString().toLowerCase();
-
-          if (fromCity.contains(query) || toCity.contains(query)) {
-            tempResults.add({
-              'id': doc.id,
-              'type': 'trip',
-              'title': 'رحلة: ${data['fromCity']} ⬅️ ${data['toCity']}',
-              'subtitle': 'الكابتن: ${data['driverName']} | السعر: ${data['price']} ج',
-              'icon': Icons.local_taxi_rounded,
-              'color': Colors.blue,
-              'data': data
-            });
-          }
-        }
-      }
-
-      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 2) {
-        var lawyersSnap = await FirebaseFirestore.instance
-            .collection('users')
-            .where('activeRole', isEqualTo: 'lawyer')
-            .get();
-
-        for (var doc in lawyersSnap.docs) {
-          var data = doc.data();
-          String name = (data['name'] ?? '').toString().toLowerCase();
-          
-          if (name.contains(query)) {
-            tempResults.add({
-              'id': doc.id,
-              'type': 'lawyer',
-              'title': data['name'] ?? 'محامي',
-              'subtitle': 'استشارات قانونية محترفة',
-              'icon': Icons.gavel_rounded,
-              'color': goldAccent,
-              'data': data
-            });
-          }
-        }
-      }
-
-      if (_selectedCategoryIndex == 0 || _selectedCategoryIndex == 3) {
-        var medicalSnap = await FirebaseFirestore.instance
-            .collection('users')
-            .where('activeRole', whereIn: ['doctor', 'nurse'])
-            .get();
-
-        for (var doc in medicalSnap.docs) {
-          var data = doc.data();
-          String name = (data['name'] ?? '').toString().toLowerCase();
-          String role = data['activeRole'] == 'doctor' ? 'طبيب' : 'تمريض';
-          
-          if (name.contains(query)) {
-            tempResults.add({
-              'id': doc.id,
-              'type': 'medical',
-              'title': data['name'] ?? role,
-              'subtitle': 'رعاية صحية ($role)',
-              'icon': Icons.medical_services_rounded,
-              'color': Colors.teal,
-              'data': data
-            });
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _searchResults = tempResults;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint("خطأ في البحث: $e");
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء البحث', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)))
-        );
-      }
-    }
-  }
-
-  void _onSearchChanged(String value) {
-    setState(() => _searchQuery = value);
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      _performSearch();
+    setState(() {
+      _searchResults = _allServices.where((service) {
+        final matchesCategory = _selectedCategory == 'الكل' || service['category'] == _selectedCategory;
+        final matchesQuery = service['title'].toString().toLowerCase().contains(query.toLowerCase()) || 
+                             service['category'].toString().toLowerCase().contains(query.toLowerCase());
+        return matchesCategory && matchesQuery;
+      }).toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Column(
         children: [
+          // 🟢 الهيدر الفخم مع شريط البحث
           Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20.h,
-              bottom: 20.h,
-              left: 20.w,
-              right: 20.w,
-            ),
+            padding: EdgeInsets.only(top: 60.h, left: 20.w, right: 20.w, bottom: 20.h),
             decoration: BoxDecoration(
               color: primaryNavy,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
-              boxShadow: [
-                BoxShadow(color: primaryNavy.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5))
-              ]
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30.r), bottomRight: Radius.circular(30.r)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'البحث الشامل',
-                  style: TextStyle(color: Colors.white, fontSize: 24.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                ),
-                SizedBox(height: 16.h),
-                TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
-                  decoration: InputDecoration(
-                    hintText: 'عن ماذا تبحث؟ (كابتن، محامي، طبيب...)',
-                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13.sp),
-                    prefixIcon: Icon(Icons.search_rounded, color: goldAccent, size: 24.sp),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear_rounded, color: Colors.grey, size: 20.sp),
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                              FocusScope.of(context).unfocus();
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 16.w),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15.r),
-                      borderSide: BorderSide.none,
+                Text('البحث الشامل', style: TextStyle(fontFamily: 'Cairo', fontSize: 24.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                SizedBox(height: 20.h),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15.r),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _performSearch,
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                    decoration: InputDecoration(
+                      hintText: 'عن ماذا تبحث؟ (كابتن، محامي، توصيل...)',
+                      hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
+                      prefixIcon: Icon(Icons.search_rounded, color: goldAccent),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close_rounded, color: Colors.grey.shade400),
+                              onPressed: () {
+                                _searchController.clear();
+                                _performSearch('');
+                                FocusScope.of(context).unfocus();
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
                     ),
                   ),
                 ),
@@ -207,102 +107,117 @@ class _SearchViewState extends State<SearchView> {
             ),
           ),
           
+          SizedBox(height: 16.h),
+
+          // 🟢 الفلاتر (الكاتيجوري)
           SizedBox(
-            height: 60.h,
+            height: 40.h,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
               itemCount: _categories.length,
               itemBuilder: (context, index) {
-                bool isSelected = _selectedCategoryIndex == index;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedCategoryIndex = index);
-                    _performSearch(); 
-                  },
-                  child: Container(
-                    margin: EdgeInsets.only(left: 8.w),
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                    decoration: BoxDecoration(
-                      color: isSelected ? goldAccent : Colors.white,
-                      borderRadius: BorderRadius.circular(20.r),
-                      border: Border.all(color: isSelected ? goldAccent : Colors.grey.shade300),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _categories[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : primaryNavy,
-                        fontFamily: 'Cairo',
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 13.sp,
-                      ),
-                    ),
+                final category = _categories[index];
+                final isSelected = _selectedCategory == category;
+                return Padding(
+                  padding: EdgeInsets.only(left: 8.w),
+                  child: ChoiceChip(
+                    label: Text(category, style: TextStyle(fontFamily: 'Cairo', fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : primaryNavy)),
+                    selected: isSelected,
+                    selectedColor: goldAccent,
+                    backgroundColor: Colors.white,
+                    side: BorderSide(color: isSelected ? goldAccent : Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                        _performSearch(_searchController.text);
+                      });
+                    },
                   ),
                 );
               },
             ),
           ),
-  
+
+          SizedBox(height: 20.h),
+
+          // 🟢 عرض النتائج أو الحالات الفارغة
           Expanded(
-            child: _searchQuery.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_rounded, size: 80.sp, color: Colors.grey.shade300),
-                        SizedBox(height: 16.h),
-                        Text('اكتب ما تبحث عنه للبدء', style: TextStyle(color: Colors.grey.shade500, fontSize: 16.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )
-                : _isLoading
-                    ? Center(child: CircularProgressIndicator(color: goldAccent))
-                    : _searchResults.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.sentiment_dissatisfied_rounded, size: 80.sp, color: Colors.grey.shade400),
-                                SizedBox(height: 16.h),
-                                Text('لا توجد نتائج مطابقة لـ "$_searchQuery"', style: TextStyle(color: Colors.grey.shade600, fontSize: 16.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.only(top: 8.h, left: 16.w, right: 16.w, bottom: 20.h),
-                            itemCount: _searchResults.length,
-                            itemBuilder: (context, index) {
-                              var item = _searchResults[index];
-                              return Card(
-                                elevation: 2,
-                                margin: EdgeInsets.only(bottom: 12.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
-                                child: ListTile(
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                                  leading: Container(
-                                    padding: EdgeInsets.all(10.w),
-                                    decoration: BoxDecoration(
-                                      color: (item['color'] as Color).withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12.r)
-                                    ),
-                                    child: Icon(item['icon'], color: item['color'], size: 24.sp),
-                                  ),
-                                  title: Text(item['title'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp)),
-                                  subtitle: Text(item['subtitle'], style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade600, fontSize: 13.sp)),
-                                  trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: Colors.grey.shade400),
-                                  onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('الانتقال إلى التفاصيل...', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)))
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
+            child: _buildBodyContent(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildBodyContent() {
+    if (_searchController.text.isEmpty && _selectedCategory == 'الكل') {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_rounded, size: 80.sp, color: Colors.grey.shade300),
+            SizedBox(height: 16.h),
+            Text('اكتب ما تبحث عنه للبدء', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.sentiment_dissatisfied_rounded, size: 80.sp, color: Colors.grey.shade300),
+            SizedBox(height: 16.h),
+            Text('لا توجد نتائج مطابقة لبحثك', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 100.h),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final service = _searchResults[index];
+        return Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            leading: CircleAvatar(
+              backgroundColor: (service['color'] as Color).withValues(alpha: 0.1),
+              child: Icon(service['icon'], color: service['color']),
+            ),
+            title: Text(service['title'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: primaryNavy)),
+            subtitle: Text(service['category'], style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600)),
+            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: Colors.grey.shade400),
+            onTap: () {
+              if (service['route'] != null) {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => service['route']));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('هذه الخدمة قيد التجهيز', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryNavy));
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

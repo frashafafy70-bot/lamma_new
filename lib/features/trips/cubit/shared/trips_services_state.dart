@@ -21,3 +21,6 @@ class TripsServicesError extends TripsServicesState {
 
   TripsServicesError(this.errorMessage);
 }
+
+// 5. حالة نجاح إرسال طلب جديد (تمت إضافتها عشان الشاشة تقفل بعد الطلب)
+class TripRequestSuccess extends TripsServicesState {}

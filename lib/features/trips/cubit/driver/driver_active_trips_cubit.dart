@@ -11,7 +11,16 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   void startListeningToActiveTrips() {
-    emit(DriverActiveTripsLoading());
+    if (currentUserId.isEmpty) {
+      emit(DriverActiveTripsError('لم يتم العثور على حساب الكابتن، يرجى تسجيل الدخول مجدداً.'));
+      return;
+    }
+
+    if (state is! DriverActiveTripsLoaded) {
+      emit(DriverActiveTripsLoading());
+    }
+
+    _tripsSubscription?.cancel();
 
     _tripsSubscription = FirebaseFirestore.instance
         .collection('trips')
@@ -22,8 +31,13 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
       var validTrips = snapshot.docs.where((doc) {
         var data = doc.data(); 
         bool isNotDeleted = data['isDeletedForDriver'] != true;
-        bool isValidStatus = data['status'] == 'negotiating' || data['status'] == 'accepted' || data['status'] == 'canceled';
-        return isNotDeleted && isValidStatus;
+        
+        // فلترة الرحلات النشطة فقط
+        bool isActiveStatus = data['status'] == 'negotiating' || 
+                              data['status'] == 'accepted' || 
+                              data['status'] == 'in_progress';
+                             
+        return isNotDeleted && isActiveStatus;
       }).toList();
 
       validTrips.sort((a, b) {
@@ -41,7 +55,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
       emit(DriverActiveTripsLoaded(validTrips));
       
     }, onError: (error) {
-      emit(DriverActiveTripsError('حدث خطأ في تحميل رحلات الكابتن.'));
+      emit(DriverActiveTripsError('حدث خطأ في تحميل الرحلات النشطة.'));
     });
   }
 

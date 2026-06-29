@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "name": "Flutter (lib\\features\\trips\\presentation\\pages\\driver_tabs\\driver_trip_tracking_page.dart)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib\\features\\trips\\presentation\\pages\\driver_tabs\\driver_trip_tracking_page.dart"
+        }
+    ]
+}

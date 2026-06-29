@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io'; // 🟢 تمت الإضافة للتعامل مع ملف الصوت
+import 'dart:io'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // 🟢 تمت الإضافة لرفع الصوت
+import 'package:firebase_storage/firebase_storage.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/trip_model.dart';
 import 'trips_services_state.dart'; 
@@ -51,25 +51,22 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
     required String vehicleType,
     GeoPoint? pickupLocation,
     GeoPoint? destinationLocation,
-    File? orderAudioFile, // 🟢 تم إضافة استقبال ملف الصوت هنا
+    File? orderAudioFile, 
   }) async {
     
-    // اختياري: ممكن تعمل emit(TripsServicesLoading()) هنا لو حابب تظهر مؤشر تحميل وقت الرفع
-    
+    emit(TripsServicesLoading()); // 🟢 إظهار التحميل وقت رفع الطلب
+
     try {
       String? audioUrl;
 
       // 🟢 لو العميل سجل صوت، نرفعه الأول على Firebase Storage
       if (orderAudioFile != null) {
-        // بنعمل اسم مميز للملف عشان مفيش ملفين يمسحوا بعض
         final String fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         final Reference storageRef = FirebaseStorage.instance.ref().child('trip_audios').child(fileName);
 
-        // رفع الملف
         final UploadTask uploadTask = storageRef.putFile(orderAudioFile);
         final TaskSnapshot snapshot = await uploadTask;
 
-        // الحصول على رابط الملف بعد الرفع
         audioUrl = await snapshot.ref.getDownloadURL();
       }
 
@@ -85,18 +82,16 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
         vehicleType: vehicleType,
         status: 'pending', 
         createdAt: DateTime.now(),
-        // المفروض نضيف هنا audioUrl: audioUrl بس محتاجين نعدل الموديل الأول
       );
 
-      // 🟢 بنحول الموديل لـ Map، وبنضيف رابط الصوت لو موجود (لحد ما نعدل الموديل)
       Map<String, dynamic> tripData = newTrip.toMap();
       if (audioUrl != null) {
-        tripData['audioUrl'] = audioUrl;
+        tripData['audioUrl'] = audioUrl; // 🟢 رفع رابط الصوت
       }
 
       await FirebaseFirestore.instance.collection('trips').add(tripData);
       
-      // اختياري: لو عندك State للنجاح وقت الإرسال تقدر تعملها emit هنا
+      emit(TripRequestSuccess()); // 🟢 إرسال حالة النجاح
       
     } catch (e) {
       emit(TripsServicesError(e.toString()));

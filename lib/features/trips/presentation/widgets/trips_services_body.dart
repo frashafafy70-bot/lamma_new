@@ -1,227 +1,151 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../cubit/shared/trips_services_cubit.dart';
-import '../../cubit/shared/trips_services_state.dart';
-import 'service_card_widget.dart';
-import 'trip_form.dart'; 
-import 'trip_map.dart'; 
+// استدعاء الفورمز الفرعية من الفولدر اللي إنت عملته
+import 'service_form/ride_service_form.dart';
+import 'service_form/buy_orders_service_form.dart';
 
-class TripsServicesBody extends StatefulWidget {
-  const TripsServicesBody({super.key});
+class TripForm extends StatelessWidget {
+  final String tripCategory;
+  final String vehicleType;
+  final bool isSubmittingTrip;
+  final TextEditingController errandDetailsController;
+  final TextEditingController errandEstimatedCostController;
+  final TextEditingController pickupController;
+  final TextEditingController destinationController;
+  final TextEditingController priceController;
+  final FocusNode priceFocusNode;
+  final Color primaryGreen;
+  final Color accentGold;
+  final Function(String) onCategoryChanged;
+  final Function(String) onVehicleChanged;
+  final Function(String) onOpenMapSelection;
+  final VoidCallback onSubmit;
+  final Function(File?) onAudioRecorded;
 
-  @override
-  State<TripsServicesBody> createState() => _TripsServicesBodyState();
-}
+  const TripForm({
+    super.key,
+    required this.tripCategory,
+    required this.vehicleType,
+    required this.isSubmittingTrip,
+    required this.errandDetailsController,
+    required this.errandEstimatedCostController,
+    required this.pickupController,
+    required this.destinationController,
+    required this.priceController,
+    required this.priceFocusNode,
+    required this.primaryGreen,
+    required this.accentGold,
+    required this.onCategoryChanged,
+    required this.onVehicleChanged,
+    required this.onOpenMapSelection,
+    required this.onSubmit,
+    required this.onAudioRecorded,
+  });
 
-class _TripsServicesBodyState extends State<TripsServicesBody> {
-  late TextEditingController _errandDetailsController;
-  late TextEditingController _errandEstimatedCostController;
-  late TextEditingController _pickupController;
-  late TextEditingController _destinationController;
-  late TextEditingController _priceController;
-  late FocusNode _priceFocusNode;
-
-  String _currentCategory = 'داخلي';
-  String _currentVehicleType = 'سيارة';
-  
-  GeoPoint? _pickupGeoPoint;
-  GeoPoint? _destinationGeoPoint;
-  
-  File? _orderAudioFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _errandDetailsController = TextEditingController();
-    _errandEstimatedCostController = TextEditingController();
-    _pickupController = TextEditingController();
-    _destinationController = TextEditingController();
-    _priceController = TextEditingController();
-    _priceFocusNode = FocusNode();
-    
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (currentUserId.isNotEmpty) {
-      context.read<TripsServicesCubit>().fetchTrips(currentUserId);
-    }
-  }
-
-  @override
-  void dispose() {
-    _errandDetailsController.dispose();
-    _errandEstimatedCostController.dispose();
-    _pickupController.dispose();
-    _destinationController.dispose();
-    _priceController.dispose();
-    _priceFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _openTripFormBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, 
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return TripForm(
-              tripCategory: _currentCategory,
-              vehicleType: _currentVehicleType,
-              isSubmittingTrip: false, 
-              errandDetailsController: _errandDetailsController,
-              errandEstimatedCostController: _errandEstimatedCostController,
-              pickupController: _pickupController,
-              destinationController: _destinationController,
-              priceController: _priceController,
-              priceFocusNode: _priceFocusNode,
-              primaryGreen: const Color(0xFF131E31), 
-              accentGold: const Color(0xFFD4AF37), 
-              onCategoryChanged: (category) {
-                setSheetState(() => _currentCategory = category);
-              },
-              onVehicleChanged: (vehicle) {
-                setSheetState(() => _currentVehicleType = vehicle);
-              },
-              onOpenMapSelection: (type) async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const TripMap()),
-                );
-
-                if (result != null && result is Map<String, dynamic>) {
-                  setSheetState(() {
-                    if (type == 'pickup') {
-                      _pickupController.text = result['address'];
-                      _pickupGeoPoint = result['location'];
-                    } else if (type == 'destination') {
-                      _destinationController.text = result['address'];
-                      _destinationGeoPoint = result['location'];
-                    }
-                  });
-                }
-              },
-              onAudioRecorded: (File? audio) {
-                setSheetState(() {
-                  _orderAudioFile = audio;
-                });
-              },
-              onSubmit: () {
-                if (_pickupController.text.isEmpty || _destinationController.text.isEmpty || _priceController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('برجاء ملء جميع الحقول المطلوبة', style: TextStyle(fontFamily: 'Cairo'))),
-                  );
-                  return;
-                }
-
-                final currentUser = FirebaseAuth.instance.currentUser;
-                if (currentUser != null) {
-                  context.read<TripsServicesCubit>().requestNewTrip(
-                    passengerId: currentUser.uid,
-                    passengerName: currentUser.displayName ?? 'عميل جديد',
-                    pickup: _pickupController.text,
-                    destination: _destinationController.text,
-                    suggestedPrice: _priceController.text,
-                    vehicleType: _currentVehicleType,
-                    pickupLocation: _pickupGeoPoint, 
-                    destinationLocation: _destinationGeoPoint, 
-                    orderAudioFile: _orderAudioFile, // 🟢 تم إرسال ملف الصوت هنا للـ Cubit
-                  );
-
-                  _pickupController.clear();
-                  _destinationController.clear();
-                  _priceController.clear();
-                  _pickupGeoPoint = null;
-                  _destinationGeoPoint = null;
-                  _orderAudioFile = null; 
-                  
-                  Navigator.pop(sheetContext);
-                }
-              },
-            );
-          },
+  Widget _buildTripCategorySelector() {
+    List<Map<String, dynamic>> categories = [
+      {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded},
+      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded},
+      {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
+    ];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: categories.map((c) {
+        bool isSelected = tripCategory == c['id'];
+        return GestureDetector(
+          onTap: () => onCategoryChanged(c['id']),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+            decoration: BoxDecoration(
+              color: isSelected ? accentGold.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(c['icon'], color: isSelected ? accentGold : Colors.grey.shade500, size: 22.sp),
+                SizedBox(width: 6.w),
+                Text(
+                  c['name'],
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 14.sp,
+                    color: isSelected ? primaryGreen : Colors.grey.shade600
+                  )
+                )
+              ]
+            ),
+          ),
         );
-      },
+      }).toList(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: BlocBuilder<TripsServicesCubit, TripsServicesState>(
-        builder: (context, state) {
-          if (state is TripsServicesLoading || state is TripsServicesInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
-            );
-          }
-
-          if (state is TripsServicesError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    state.errorMessage, 
-                    style: const TextStyle(color: Colors.red, fontFamily: 'Cairo'),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF121212)),
-                    onPressed: () {
-                      final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                      context.read<TripsServicesCubit>().fetchTrips(currentUserId);
-                    },
-                    child: const Text('إعادة المحاولة', style: TextStyle(color: Color(0xFFD4AF37), fontFamily: 'Cairo')),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (state is TripsServicesSuccess) {
-            if (state.trips.isEmpty) {
-              return const Center(
-                child: Text(
-                  'لا توجد رحلات متاحة حالياً',
-                  style: TextStyle(fontSize: 16, color: Colors.grey, fontFamily: 'Cairo'),
-                ),
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.trips.length,
-              itemBuilder: (context, index) {
-                final trip = state.trips[index];
-                
-                return ServiceCardWidget(
-                  serviceData: trip,
-                );
-              },
-            );
-          }
-
-          return const SizedBox.shrink();
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openTripFormBottomSheet,
-        backgroundColor: const Color(0xFF131E31), 
-        icon: const Icon(Icons.add_location_alt_rounded, color: Color(0xFFD4AF37)), 
-        label: const Text(
-          'اطلب كابتن', 
-          style: TextStyle(color: Color(0xFFD4AF37), fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-        ),
+    return Padding(
+      padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildTripCategorySelector(),
+          SizedBox(height: 16.h),
+          
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _buildSelectedForm(),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildSelectedForm() {
+    if (tripCategory == 'داخلي') {
+      return RideServiceForm(
+        vehicleType: vehicleType,
+        isSubmittingTrip: isSubmittingTrip,
+        pickupController: pickupController,
+        destinationController: destinationController,
+        priceController: priceController,
+        priceFocusNode: priceFocusNode,
+        onVehicleChanged: onVehicleChanged,
+        onOpenMapSelection: onOpenMapSelection,
+        onSubmit: onSubmit,
+        // تمرير الألوان للفورم الأول
+        primaryGreen: primaryGreen,
+        accentGold: accentGold,
+      );
+    } else if (tripCategory == 'طلبات') {
+      return BuyOrdersServiceForm(
+        isSubmittingTrip: isSubmittingTrip,
+        errandDetailsController: errandDetailsController,
+        errandEstimatedCostController: errandEstimatedCostController,
+        pickupController: pickupController,
+        destinationController: destinationController,
+        priceController: priceController,
+        priceFocusNode: priceFocusNode,
+        onOpenMapSelection: onOpenMapSelection,
+        onAudioRecorded: onAudioRecorded,
+        onSubmit: onSubmit,
+        // تمرير الألوان للفورم الثاني
+        primaryGreen: primaryGreen,
+        accentGold: accentGold,
+      );
+    } else {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40.h),
+          child: Text('خدمات السفر قريباً...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+        ),
+      );
+    }
   }
 }

@@ -6,20 +6,27 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection; 
 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
-import 'trip_dialogs_helper.dart';
+import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
+
+// 💡 خطوة الحل النهائي بعد نسخ هذا الكود:
+// 1. انزل في الكود للسطر رقم 106 أو أي مكان فيه كلمة `TripDialogsHelper` (هتلاقي تحتها خط أحمر).
+// 2. ضع مؤشر الماوس (الكيرسور) على الكلمة.
+// 3. اضغط من لوحة المفاتيح على: `Ctrl + .` (كنترول مع حرف الزين).
+// 4. هتظهرلك قائمة صغيرة، اختار منها أول خيار: `Import library '...'`
+// المحرر هيكتب المسار الصحيح فوق تلقائياً والـ 6 أخطاء هيختفوا فوراً!
 
 class ActiveTripCard extends StatelessWidget {
   final String docId;
   final Map<String, dynamic> data;
   final Color royalGreen;
-  final bool isDriver; // 🟢 تم إضافة الصفة هنا
+  final bool isDriver; 
 
   const ActiveTripCard({
     super.key,
     required this.docId,
     required this.data,
     required this.royalGreen,
-    required this.isDriver, // 🟢 مطلوبة الآن عند الاستدعاء
+    required this.isDriver, 
   });
 
   String _formatTripDate(dynamic createdAt) {
@@ -76,7 +83,6 @@ class ActiveTripCard extends StatelessWidget {
                   children: [
                     Icon(isErrand ? Icons.shopping_bag : (isDriver ? Icons.local_taxi : Icons.person_pin), color: royalGreen, size: 24.sp),
                     SizedBox(width: 8.w),
-                    // 🟢 تغيير العنوان ديناميكياً للعميل والكابتن
                     Text(
                       isErrand ? 'طلب أوردر' : (isDriver ? 'توصيل عميل (${data['vehicleType'] ?? ''})' : 'رحلتي (${data['vehicleType'] ?? ''})'), 
                       style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 15.sp, color: royalGreen)
@@ -103,7 +109,6 @@ class ActiveTripCard extends StatelessWidget {
                     ),
                     SizedBox(width: 8.w),
                     InkWell(
-                      // 🟢 تمرير الصفة للـ Helper
                       onTap: () => TripDialogsHelper.showDeleteTripDialog(context: context, docId: docId, isDriver: isDriver),
                       child: Container(
                         padding: EdgeInsets.all(4.w),
@@ -183,7 +188,6 @@ class ActiveTripCard extends StatelessWidget {
                 child: Text('لقد تم إلغاء هذه الرحلة', textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp))
               )
             else if (isNegotiating)
-              // 🟢 الـ Builder ده بيحدد مين اللي عليه الدور يقبل أو يرفض بذكاء
               Builder(
                 builder: (context) {
                   bool isMyTurnToNegotiate = (isDriver && data['lastNegotiator'] == 'passenger') || (!isDriver && data['lastNegotiator'] == 'driver');

@@ -1,9 +1,9 @@
-import 'dart:io'; // 🟢 ضروري للتعامل مع ملفات الصوت
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// 🟢 استدعاء الـ Widget الجديد للريكورد (تأكد من المسار لو مختلف عندك)
-import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart'; 
+import 'service_form/ride_service_form.dart';
+import 'service_form/buy_orders_service_form.dart';
 
 class TripForm extends StatelessWidget {
   final String tripCategory;
@@ -21,7 +21,7 @@ class TripForm extends StatelessWidget {
   final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
-  final Function(File?) onAudioRecorded; // 🟢 تمرير ملف الصوت للشاشة الرئيسية
+  final Function(File?) onAudioRecorded;
 
   const TripForm({
     super.key,
@@ -40,7 +40,7 @@ class TripForm extends StatelessWidget {
     required this.onVehicleChanged,
     required this.onOpenMapSelection,
     required this.onSubmit,
-    required this.onAudioRecorded, // 🟢 إضافته هنا
+    required this.onAudioRecorded,
   });
 
   Widget _buildTripCategorySelector() {
@@ -49,212 +49,115 @@ class TripForm extends StatelessWidget {
       {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded},
       {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
     ];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: categories.map((c) {
-        bool isSelected = tripCategory == c['id'];
-        return GestureDetector(
-          onTap: () => onCategoryChanged(c['id']),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-            decoration: BoxDecoration(
-              color: isSelected ? accentGold.withValues(alpha: 0.15) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(c['icon'], color: isSelected ? accentGold : Colors.grey.shade500, size: 22.sp),
-                SizedBox(width: 6.w),
-                Text(
-                  c['name'],
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 14.sp,
-                    color: isSelected ? primaryGreen : Colors.grey.shade600
-                  )
-                )
-              ]
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
-  Widget _buildVehicleTypeSelector() {
-    List<Map<String, dynamic>> vehicles = [
-      {'name': 'سيارة', 'icon': Icons.directions_car_rounded},
-      {'name': 'موتوسيكل', 'icon': Icons.two_wheeler_rounded},
-      {'name': 'توكتوك', 'icon': Icons.electric_rickshaw_rounded}
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('اختر نوع المركبة:', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
-        SizedBox(height: 8.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: vehicles.map((v) {
-            bool isSelected = vehicleType == v['name'];
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onVehicleChanged(v['name']),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: EdgeInsets.symmetric(horizontal: 4.w),
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                  decoration: BoxDecoration(
-                    color: isSelected ? accentGold.withValues(alpha: 0.1) : Colors.white,
-                    border: Border.all(color: isSelected ? accentGold : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                    borderRadius: BorderRadius.circular(12.r),
-                    boxShadow: isSelected ? [BoxShadow(color: accentGold.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))] : []
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(v['icon'], color: isSelected ? accentGold : Colors.grey.shade400, size: 32.sp),
-                      SizedBox(height: 4.h),
-                      Text(v['name'], style: TextStyle(fontFamily: 'Cairo', fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? primaryGreen : Colors.black87, fontSize: 13.sp))
-                    ]
-                  ),
-                ),
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 6.w),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(30.r),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: categories.map((c) {
+          bool isSelected = tripCategory == c['id'];
+          return GestureDetector(
+            onTap: () => onCategoryChanged(c['id']),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutBack, 
+              padding: EdgeInsets.symmetric(horizontal: isSelected ? 18.w : 12.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(25.r),
+                boxShadow: isSelected ? [
+                  BoxShadow(color: accentGold.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3))
+                ] : [],
+                border: isSelected ? Border.all(color: accentGold.withValues(alpha: 0.3), width: 1) : Border.all(color: Colors.transparent, width: 1),
               ),
-            );
-          }).toList(),
-        ),
-      ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedScale(
+                    scale: isSelected ? 1.2 : 1.0, 
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutBack,
+                    child: AnimatedRotation(
+                      turns: isSelected ? 0 : -0.02, 
+                      duration: const Duration(milliseconds: 300),
+                      child: Icon(c['icon'], color: isSelected ? accentGold : Colors.grey.shade400, size: 22.sp),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    style: TextStyle(fontFamily: 'Cairo', fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600, fontSize: isSelected ? 14.sp : 13.sp, color: isSelected ? primaryGreen : Colors.grey.shade500),
+                    child: Text(c['name']),
+                  )
+                ]
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isErrand = tripCategory == 'طلبات';
-    
-    // حساب مساحة الكيبورد الحالية ديناميكياً لزق العناصر
-    double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-
+    // 🟢 السكرول شغال براحته ومفيش أي كود يقفله
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w),
+      padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 20.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildTripCategorySelector(),
           SizedBox(height: 16.h),
-          
-          if (isErrand)
-            Column(
-              children: [
-                // 🟢 هنا تم استبدال الـ TextField بالـ Widget الذكي بتاعنا
-                OrderInputWidget(
-                  controller: errandDetailsController,
-                  onAudioRecorded: onAudioRecorded,
-                ),
-                SizedBox(height: 12.h),
-                TextField(
-                  controller: errandEstimatedCostController,
-                  keyboardType: TextInputType.number,
-                  // إجبار الحقل على الارتفاع فوق الكيبورد عند التركيز
-                  scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 120.h),
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold, color: primaryGreen),
-                  decoration: InputDecoration(
-                    labelText: 'سعر الطلبات التقريبي',
-                    suffixText: 'جنيه',
-                    prefixIcon: Icon(Icons.account_balance_wallet, color: primaryGreen),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide.none)
-                  )
-                ),
-                SizedBox(height: 16.h)
-              ]
-            ),
-          
-          if (!isErrand)
-            Column(
-              children: [
-                _buildVehicleTypeSelector(),
-                SizedBox(height: 16.h)
-              ]
-            ),
-          
-          TextField(
-            controller: pickupController,
-            keyboardType: TextInputType.text,
-            // إجبار الحقل على الارتفاع فوق الكيبورد عند التركيز
-            scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 120.h),
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              labelText: isErrand ? 'مكان الشراء' : 'موقع التحرك',
-              suffixIcon: IconButton(
-                icon: Icon(Icons.my_location, color: accentGold),
-                onPressed: () => onOpenMapSelection('pickup'),
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide.none)
-            )
-          ),
-          SizedBox(height: 12.h),
-          
-          TextField(
-            controller: destinationController,
-            keyboardType: TextInputType.text,
-            // إجبار الحقل على الارتفاع فوق الكيبورد عند التركيز
-            scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 120.h),
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              labelText: isErrand ? 'مكان تسليم الطلب' : 'وجهة الوصول',
-              suffixIcon: IconButton(
-                icon: Icon(Icons.location_on, color: primaryGreen),
-                onPressed: () => onOpenMapSelection('destination'),
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide.none)
-            )
-          ),
-          SizedBox(height: 12.h),
-          
-          TextField(
-            controller: priceController,
-            focusNode: priceFocusNode,
-            keyboardType: TextInputType.number,
-            // إجبار الحقل على الارتفاع فوق الكيبورد عند التركيز ليظهر تماماً هو وما تحته
-            scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 140.h),
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              labelText: isErrand ? 'أجرة التوصيل للكابتن' : 'سعرك المقترح',
-              suffixText: 'جنيه',
-              prefixIcon: Icon(Icons.payments, color: accentGold),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide.none)
-            )
-          ),
-          SizedBox(height: 20.h),
-          
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              padding: EdgeInsets.symmetric(vertical: 16.h),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
-            ),
-            onPressed: isSubmittingTrip ? null : onSubmit,
-            child: isSubmittingTrip
-                ? CircularProgressIndicator(color: accentGold)
-                : Text(
-                    isErrand ? 'إرسال الطلب للكباتن' : 'طلب الكابتن وتأكيد السعر',
-                    style: TextStyle(color: accentGold, fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
-                  )
-          ),
-          
-          // المساحة السحرية: تتمدد بمساحة الكيبورد لتسمح بالقوائم بالارتفاع التام للأعلى رؤية واضحة
-          SizedBox(height: keyboardHeight > 0 ? keyboardHeight + 20.h : 40.h),
+          _buildSelectedForm(),
         ],
       ),
     );
+  }
+
+  Widget _buildSelectedForm() {
+    if (tripCategory == 'داخلي') {
+      return RideServiceForm(
+        vehicleType: vehicleType,
+        isSubmittingTrip: isSubmittingTrip,
+        pickupController: pickupController,
+        destinationController: destinationController,
+        priceController: priceController,
+        priceFocusNode: priceFocusNode,
+        onVehicleChanged: onVehicleChanged,
+        onOpenMapSelection: onOpenMapSelection,
+        onSubmit: onSubmit,
+        primaryGreen: primaryGreen,
+        accentGold: accentGold,
+      );
+    } else if (tripCategory == 'طلبات') {
+      return BuyOrdersServiceForm(
+        isSubmittingTrip: isSubmittingTrip,
+        errandDetailsController: errandDetailsController,
+        errandEstimatedCostController: errandEstimatedCostController,
+        pickupController: pickupController,
+        destinationController: destinationController,
+        priceController: priceController,
+        priceFocusNode: priceFocusNode,
+        onOpenMapSelection: onOpenMapSelection,
+        onAudioRecorded: onAudioRecorded,
+        onSubmit: onSubmit,
+        primaryGreen: primaryGreen,
+        accentGold: accentGold,
+      );
+    } else {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40.h),
+          child: Text('خدمات السفر قريباً...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+        ),
+      );
+    }
   }
 }
