@@ -7,8 +7,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// استدعاء الألوان المركزية
+// استدعاء الألوان والثوابت المركزية
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/constants/app_constants.dart'; // 👈 استدعاء الثوابت
 
 class DriverLiveMap extends StatefulWidget {
   final String tripId;
@@ -30,11 +31,11 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
   GoogleMapController? _mapController;
   StreamSubscription<Position>? _positionStream;
   
-  LatLng _currentDriverPosition = const LatLng(30.0444, 31.2357); 
+  // 👈 التعديل هنا لربطها بملف الثوابت
+  LatLng _currentDriverPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
   bool _isLoading = true;
   bool _isFollowingDriver = true; 
 
-  // 🟢 تم إضافة كلمة final هنا لحل التحذير
   final Set<Marker> _markers = {};
 
   final String _premiumMapStyle = '''[

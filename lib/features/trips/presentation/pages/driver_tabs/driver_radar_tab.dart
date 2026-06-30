@@ -18,49 +18,33 @@ class DriverRadarTab extends StatelessWidget {
   
   const DriverRadarTab({super.key, required this.tabController});
 
-  // دالة لقبول الرحلة مباشرة
-  Future<void> _acceptTrip(BuildContext context, String tripId) async {
-    try {
-      String driverId = FirebaseAuth.instance.currentUser!.uid;
-      DocumentSnapshot driverDoc = await FirebaseFirestore.instance.collection('users').doc(driverId).get();
-      String driverName = driverDoc.exists ? (driverDoc.data() as Map<String, dynamic>)['name'] : 'كابتن لَمَّة';
-
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-        'status': 'accepted',
-        'driverId': driverId,
-        'driverName': driverName,
-        'acceptedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم قبول الرحلة بنجاح! 🚗', style: TextStyle(fontFamily: 'Cairo')), 
-            backgroundColor: AppColors.success,
-          )
-        );
-        tabController.animateTo(1); 
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')), 
-            backgroundColor: AppColors.error,
-          )
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // جلب معرف الكابتن الحالي
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return BlocProvider(
       create: (context) => DriverRadarCubit(DriverRadarService())..startListeningToRadar(),
-      child: BlocBuilder<DriverRadarCubit, DriverRadarState>(
+      child: BlocConsumer<DriverRadarCubit, DriverRadarState>(
+        listener: (context, state) {
+          if (state is DriverRadarAcceptSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم قبول الرحلة بنجاح! 🚗', style: TextStyle(fontFamily: 'Cairo')), 
+                backgroundColor: AppColors.success,
+              )
+            );
+            tabController.animateTo(1); 
+          } 
+          else if (state is DriverRadarAcceptFailed) {
+             ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), 
+                backgroundColor: AppColors.error,
+              )
+            );
+          }
+        },
+        buildWhen: (previous, current) => current is DriverRadarLoaded || current is DriverRadarLoading || current is DriverRadarError,
         builder: (context, state) {
           if (state is DriverRadarLoading || state is DriverRadarInitial) {
             return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
@@ -71,17 +55,11 @@ class DriverRadarTab extends StatelessWidget {
           }
 
           if (state is DriverRadarLoaded) {
-            // 🟢 التعديل الجوهري هنا: فلترة الطلبات
             var activeTrips = state.trips.where((doc) {
-              var data = doc.data() as Map<String, dynamic>;
+              var data = (doc.data() as Map<String, dynamic>?) ?? {};
               
               if (data['isDeletedForDriver'] == true) return false;
-              
-              // عرض الطلبات المعلقة
               if (data['status'] == 'pending') return true;
-              
-              // عرض طلبات التفاوض بشرط: أن لا يكون هذا الكابتن هو من قام بالتفاوض عليها
-              // لأنه إذا كان هو من تفاوض، فستكون الرحلة قد ذهبت لتبويب "النشطة" الخاص به
               if (data['status'] == 'negotiating' && data['driverId'] != currentUserId) return true;
 
               return false;
@@ -94,6 +72,7 @@ class DriverRadarTab extends StatelessWidget {
                   children: [
                     Container(
                       padding: EdgeInsets.all(30.w),
+                      // شيلنا الـ const من هنا عشان كانت عاملة إيرور
                       decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accentGoldLight),
                       child: Icon(Icons.radar_rounded, size: 80.sp, color: AppColors.accentGold),
                     ),
@@ -110,7 +89,7 @@ class DriverRadarTab extends StatelessWidget {
               itemCount: activeTrips.length,
               itemBuilder: (context, index) {
                 var doc = activeTrips[index];
-                var data = doc.data() as Map<String, dynamic>;
+                var data = (doc.data() as Map<String, dynamic>?) ?? {};
                 
                 String timeStr = 'الآن';
                 if (data['createdAt'] != null) {
@@ -227,7 +206,10 @@ class DriverRadarTab extends StatelessWidget {
                                 ),
                                 icon: Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18.sp),
                                 label: Text('موافق بالسعر', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.white)),
-                                onPressed: () => _acceptTrip(context, doc.id),
+                                onPressed: () {
+                                  String? negotiatedPrice = data['status'] == 'negotiating' ? displayPrice : null;
+                                  context.read<DriverRadarCubit>().acceptTrip(doc.id, negotiatedPrice: negotiatedPrice);
+                                },
                               ),
                             ),
                           ],
@@ -239,6 +221,7 @@ class DriverRadarTab extends StatelessWidget {
               },
             );
           }
+          // السطر ده هو اللي كان ناقص وعامل إيرور الـ Null
           return const SizedBox.shrink();
         },
       ),

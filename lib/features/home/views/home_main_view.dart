@@ -71,158 +71,208 @@ class _HomeMainViewState extends State<HomeMainView> {
     final TextEditingController toCtrl = TextEditingController();
     final TextEditingController priceCtrl = TextEditingController();
     DateTime? selectedDate;
+    
+    bool isFullCar = false;
+    int availableSeats = 4;
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, 
+      useSafeArea: true, 
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.r))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (BuildContext bottomSheetContext, StateSetter setState) {
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                left: 20.w, right: 20.w, top: 16.h,
               ),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(child: Container(width: 40.w, height: 5.h, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)))),
-                    SizedBox(height: 20.h),
-                    Row(
-                      children: [
-                        Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
-                        SizedBox(width: 10.w),
-                        Text('نشر رحلة سفر جديدة', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
-                      ],
-                    ),
-                    SizedBox(height: 24.h),
-
-                    TextField(
-                      controller: fromCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'نقطة التحرك (من)',
-                        prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
+              child: Container(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+                padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 16.h, bottom: 20.h),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(child: Container(width: 40.w, height: 5.h, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)))),
+                      SizedBox(height: 20.h),
+                      Row(
+                        children: [
+                          Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
+                          SizedBox(width: 10.w),
+                          Text('نشر رحلة سفر جديدة', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: 16.h),
+                      SizedBox(height: 20.h),
 
-                    TextField(
-                      controller: toCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'وجهة السفر (إلى)',
-                        prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
-                      ),
-                    ),
-                    SizedBox(height: 16.h),
-
-                    InkWell(
-                      onTap: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 30)),
-                        );
-                        if (pickedDate != null) {
-                          TimeOfDay? pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.now(),
-                          );
-                          if (pickedTime != null) {
-                            setState(() {
-                              selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-                            });
-                          }
-                        }
-                      },
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(15.r),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_month_rounded, color: Colors.orange),
-                            SizedBox(width: 10.w),
-                            Text(
-                              selectedDate == null 
-                                  ? 'تاريخ ووقت التحرك' 
-                                  : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
-                              style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => isFullCar = false),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 12.h),
+                                decoration: BoxDecoration(
+                                  color: !isFullCar ? royalGreen : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10.r),
+                                  border: Border.all(color: !isFullCar ? royalGreen : Colors.grey.shade300)
+                                ),
+                                child: Center(child: Text('مقاعد فردية', style: TextStyle(color: !isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
+                              ),
                             ),
-                          ],
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => isFullCar = true),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 12.h),
+                                decoration: BoxDecoration(
+                                  color: isFullCar ? royalGreen : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10.r),
+                                  border: Border.all(color: isFullCar ? royalGreen : Colors.grey.shade300)
+                                ),
+                                child: Center(child: Text('سيارة كاملة', style: TextStyle(color: isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+
+                      if (!isFullCar) ...[
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10.r)),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('عدد المقاعد المتاحة:', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
+                                    onPressed: () {
+                                      if (availableSeats > 1) setState(() => availableSeats--);
+                                    },
+                                  ),
+                                  Text('$availableSeats', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold)),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                                    onPressed: () {
+                                      if (availableSeats < 14) setState(() => availableSeats++);
+                                    },
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16.h),
+                      ],
+
+                      TextField(
+                        controller: fromCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'نقطة التحرك (من)',
+                          prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 16.h),
+                      SizedBox(height: 16.h),
 
-                    TextField(
-                      controller: priceCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'سعر المقعد المتوقع (ج.م)',
-                        prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: royalGreen, width: 2)),
-                      ),
-                    ),
-                    SizedBox(height: 24.h),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50.h,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryNavy,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                      TextField(
+                        controller: toCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'وجهة السفر (إلى)',
+                          prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
                         ),
-                        onPressed: () async {
-                          if (fromCtrl.text.isEmpty || toCtrl.text.isEmpty || priceCtrl.text.isEmpty || selectedDate == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء إكمال جميع البيانات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
-                            return;
-                          }
+                      ),
+                      SizedBox(height: 16.h),
 
-                          Navigator.pop(ctx); 
-                          
-                          try {
-                            final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                            await FirebaseFirestore.instance.collection('trips').add({
-                              'driverId': currentUserId,
-                              'driverName': widget.userName,
-                              'pickupLocation': fromCtrl.text.trim(),
-                              'dropoffLocation': toCtrl.text.trim(),
-                              'travelDate': Timestamp.fromDate(selectedDate!),
-                              'price': priceCtrl.text.trim(),
-                              'tripCategory': 'سفر',
-                              'isDriverPost': true, 
-                              'status': 'available', 
-                              'createdAt': FieldValue.serverTimestamp(),
-                            });
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: const Text('تم نشر رحلة السفر بنجاح! 🚌', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: royalGreen)
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('حدث خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red)
-                            );
+                      InkWell(
+                        onTap: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 30)),
+                          );
+                          if (pickedDate != null) {
+                            TimeOfDay? pickedTime = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                            if (pickedTime != null) {
+                              setState(() {
+                                selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                              });
+                            }
                           }
                         },
-                        child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
+                          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(15.r)),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_month_rounded, color: Colors.orange),
+                              SizedBox(width: 10.w),
+                              Text(
+                                selectedDate == null ? 'تاريخ ووقت التحرك' : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
+                                style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 24.h),
-                  ],
+                      SizedBox(height: 16.h),
+
+                      TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: isFullCar ? 'سعر الرحلة بالكامل (ج.م)' : 'سعر المقعد الواحد (ج.م)',
+                          prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                        ),
+                      ),
+                      SizedBox(height: 24.h),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50.h,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r))),
+                          onPressed: () async {
+                            if (fromCtrl.text.isEmpty || toCtrl.text.isEmpty || priceCtrl.text.isEmpty || selectedDate == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء إكمال جميع البيانات', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                              return;
+                            }
+                            Navigator.pop(ctx); 
+                            try {
+                              final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                              await FirebaseFirestore.instance.collection('trips').add({
+                                'driverId': currentUserId,
+                                'driverName': widget.userName,
+                                'pickupLocation': fromCtrl.text.trim(),
+                                'dropoffLocation': toCtrl.text.trim(),
+                                'travelDate': Timestamp.fromDate(selectedDate!),
+                                'price': priceCtrl.text.trim(),
+                                'tripCategory': 'سفر',
+                                'isDriverPost': true, 
+                                'tripType': isFullCar ? 'full_car' : 'seats', 
+                                'availableSeats': isFullCar ? 1 : availableSeats, 
+                                'status': 'available', 
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم نشر رحلة السفر بنجاح! 🚌', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: royalGreen));
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                            }
+                          },
+                          child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -259,18 +309,9 @@ class _HomeMainViewState extends State<HomeMainView> {
           actions: [
             if (currentUserId.isNotEmpty)
               StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(currentUserId)
-                    .collection('notifications')
-                    .where('isRead', isEqualTo: false) 
-                    .snapshots(),
+                stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).collection('notifications').where('isRead', isEqualTo: false).snapshots(),
                 builder: (context, snapshot) {
-                  int unreadCount = 0;
-                  if (snapshot.hasData) {
-                    unreadCount = snapshot.data!.docs.length;
-                  }
-
+                  int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
                   return IconButton(
                     icon: Badge(
                       isLabelVisible: unreadCount > 0, 
@@ -283,16 +324,12 @@ class _HomeMainViewState extends State<HomeMainView> {
                 },
               )
             else
-              IconButton(
-                icon: const Icon(Icons.notifications_none, color: Colors.white), 
-                onPressed: widget.onOpenNotifications,
-              ),
+              IconButton(icon: const Icon(Icons.notifications_none, color: Colors.white), onPressed: widget.onOpenNotifications),
           ],
         ),
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          // 🟢 التعديل هنا: زيادة المسافة السفلية لـ 150.h عشان الكارت يظهر بالكامل فوق الـ Bottom Nav Bar
-          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 150.h), 
+          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 130.h), 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -300,11 +337,7 @@ class _HomeMainViewState extends State<HomeMainView> {
                 width: double.infinity,
                 padding: EdgeInsets.all(20.w),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryNavy, royalGreen],
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                  ),
+                  gradient: LinearGradient(colors: [primaryNavy, royalGreen], begin: Alignment.topRight, end: Alignment.bottomLeft),
                   borderRadius: BorderRadius.circular(20.r),
                   boxShadow: [BoxShadow(color: royalGreen.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))]
                 ),
@@ -334,8 +367,6 @@ class _HomeMainViewState extends State<HomeMainView> {
                 ),
               ),
               
-              SizedBox(height: 30.h),
-              Text('الخدمات المتاحة', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy)),
               SizedBox(height: 16.h),
               
               if (widget.activeRole == 'captain') ...[
@@ -356,10 +387,7 @@ class _HomeMainViewState extends State<HomeMainView> {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 12.w, height: 12.w,
-                                decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.greenAccent, blurRadius: 8)]),
-                              ),
+                              Container(width: 12.w, height: 12.w, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.greenAccent, blurRadius: 8)])),
                               SizedBox(width: 8.w),
                               Text('متصل وجاهز للطلبات', style: TextStyle(fontFamily: 'Cairo', color: Colors.greenAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
                             ],
@@ -376,13 +404,8 @@ class _HomeMainViewState extends State<HomeMainView> {
                         width: double.infinity,
                         height: 50.h,
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: goldAccent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const CaptainRadarPage()));
-                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: goldAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CaptainRadarPage())),
                           child: Text('افتح الرادار الآن 📡', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -391,10 +414,7 @@ class _HomeMainViewState extends State<HomeMainView> {
                 ),
                 
                 SizedBox(height: 16.h), 
-
-                TravelServiceCard(
-                  onAddTravelTap: () => _showAddTravelBottomSheet(context),
-                ),
+                TravelServiceCard(onAddTravelTap: () => _showAddTravelBottomSheet(context)),
 
               ] else if (widget.activeRole == 'lawyer') ...[
                 GridView.count(
@@ -429,11 +449,7 @@ class _HomeMainViewState extends State<HomeMainView> {
 
 class TravelServiceCard extends StatelessWidget {
   final VoidCallback onAddTravelTap;
-
-  const TravelServiceCard({
-    super.key, 
-    required this.onAddTravelTap,
-  });
+  const TravelServiceCard({super.key, required this.onAddTravelTap});
 
   @override
   Widget build(BuildContext context) {
@@ -446,13 +462,7 @@ class TravelServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: primaryNavy,
         borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: primaryNavy.withValues(alpha: 0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 5))],
         border: Border.all(color: goldAccent.withValues(alpha: 0.3), width: 1.w),
       ),
       child: Column(
@@ -463,10 +473,7 @@ class TravelServiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 12.w, height: 12.w,
-                    decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.blueAccent, blurRadius: 8)]),
-                  ),
+                  Container(width: 12.w, height: 12.w, decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.blueAccent, blurRadius: 8)])),
                   SizedBox(width: 8.w),
                   Text('حجز مسبق', style: TextStyle(fontFamily: 'Cairo', color: Colors.blueAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
                 ],
@@ -483,10 +490,7 @@ class TravelServiceCard extends StatelessWidget {
             width: double.infinity,
             height: 50.h,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: goldAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: goldAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
               onPressed: onAddTravelTap,
               child: Text('إضافة رحلة سفر 🗓️', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
             ),
@@ -506,6 +510,7 @@ class CaptainRadarPage extends StatefulWidget {
 
 class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerProviderStateMixin {
   late TabController _captainTabController;
+  final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
@@ -535,10 +540,29 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
             labelColor: const Color(0xFFD4AF37),
             unselectedLabelColor: Colors.white70,
             labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
-            tabs: const [
-              Tab(text: 'الرادار', icon: Icon(Icons.radar_rounded)),
-              Tab(text: 'النشطة', icon: Icon(Icons.play_circle_fill_rounded)),
-              Tab(text: 'السجل', icon: Icon(Icons.history_rounded)), 
+            tabs: [
+              const Tab(text: 'الرادار', icon: Icon(Icons.radar_rounded)),
+              Tab(
+                text: 'النشطة', 
+                icon: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('trip_bookings')
+                      .where('driverId', isEqualTo: _currentUserId)
+                      // 🟢 تم التعديل هنا: دمجنا الحالتين عشان اللمبة تفضل منورة بالطلبات اللي محتاجة أكشن واللي شغالة فعلاً
+                      .where('status', whereIn: ['pending', 'accepted']) 
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    int activeCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                    return Badge(
+                      isLabelVisible: activeCount > 0,
+                      label: Text(activeCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.play_circle_fill_rounded),
+                    );
+                  },
+                ),
+              ),
+              const Tab(text: 'السجل', icon: Icon(Icons.history_rounded)), 
             ],
           ),
         ),
@@ -546,12 +570,7 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
           controller: _captainTabController,
           children: [
             DriverRadarTab(tabController: _captainTabController),
-            
-            BlocProvider(
-              create: (context) => DriverActiveTripsCubit(),
-              child: const DriverActiveTripsTab(), 
-            ),
-            
+            BlocProvider(create: (context) => DriverActiveTripsCubit(), child: const DriverActiveTripsTab()),
             const DriverHistoryTab(),
           ],
         ),

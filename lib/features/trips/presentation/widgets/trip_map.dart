@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/constants/app_constants.dart'; // 👈 استدعاء الثوابت
 import 'package:lamma_new/features/trips/data/services/map_service.dart';
 // استيراد الخريطة الموحدة
 import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
@@ -22,7 +23,7 @@ class TripMap extends StatefulWidget {
     super.key, 
     this.pickupPoint, 
     this.dropoffPoint, 
-    this.isTrackingMode = false, // 👈 تم تصحيح الخطأ هنا (بدون required وبدون تكرار)
+    this.isTrackingMode = false, 
   });
 
   @override
@@ -32,7 +33,8 @@ class TripMap extends StatefulWidget {
 class _TripMapState extends State<TripMap> {
   GoogleMapController? _mapController;
   
-  LatLng _centerPosition = const LatLng(30.0444, 31.2357); 
+  // 👈 التعديل هنا لربطها بملف الثوابت
+  LatLng _centerPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
   String _currentAddress = 'جاري تحديد الموقع...';
   bool _isLoadingAddress = true;
   bool _isGettingLocation = false;

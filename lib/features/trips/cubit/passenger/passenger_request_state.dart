@@ -5,6 +5,21 @@ abstract class PassengerRequestState {}
 
 class PassengerRequestInitial extends PassengerRequestState {}
 
+// 🟢 حالات جلب الموقع الحالي (Geolocator)
+class LocationLoading extends PassengerRequestState {}
+
+class LocationLoaded extends PassengerRequestState {
+  final LatLng position;
+  LocationLoaded(this.position);
+}
+
+class LocationPermissionDenied extends PassengerRequestState {}
+
+class LocationError extends PassengerRequestState {
+  final String message;
+  LocationError(this.message);
+}
+
 // 🟢 حالات جلب العنوان (Reverse Geocoding)
 class AddressLoading extends PassengerRequestState {}
 
@@ -24,7 +39,7 @@ class PlacesSearchLoaded extends PassengerRequestState {
   PlacesSearchLoaded(this.predictions);
 }
 
-// 🟢 حالة جلب تفاصيل مكان معين (عشان نحرك الكاميرا ليه)
+// 🟢 حالة جلب تفاصيل مكان معين
 class PlaceDetailsLoaded extends PassengerRequestState {
   final LatLng location;
   final String description;

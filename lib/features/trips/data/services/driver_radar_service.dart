@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lamma_new/core/constants/firebase_constants.dart';
 
 class DriverRadarService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,33 +11,62 @@ class DriverRadarService {
   // 1. الاستماع لطلبات الرادار
   Stream<QuerySnapshot> getRadarTripsStream() {
     return _firestore
-        .collection(FirebaseConstants.tripsCollection)
+        .collection('trips')
         .where('isDriverPost', isEqualTo: false)
         .snapshots();
   }
 
-  // 2. قبول الرحلة
-  Future<void> acceptTrip(String docId, String agreedPrice) async {
-    // هنجيب اسم الكابتن الفعلي من قاعدة بيانات المستخدمين (لو مش متسجل في الـ Auth)
-    DocumentSnapshot driverDoc = await _firestore.collection('users').doc(currentUserId).get();
-    String driverName = driverDoc.exists ? (driverDoc.data() as Map<String, dynamic>)['name'] : currentUserName;
+  // 2. القبول الآمن للرحلة 
+  Future<void> acceptTripSecurely(String tripId, String? negotiatedPrice) async {
+    final tripRef = _firestore.collection('trips').doc(tripId);
+    final userRef = _firestore.collection('users').doc(currentUserId);
 
-    await _firestore.collection(FirebaseConstants.tripsCollection).doc(docId).update({
-      FirebaseConstants.fieldStatus: 'accepted', // أو FirebaseConstants.statusAccepted لو موجودة
-      'driverId': currentUserId, 
-      'driverName': driverName,
-      FirebaseConstants.fieldFinalPrice: agreedPrice,
-      'acceptedAt': FieldValue.serverTimestamp(),
+    DocumentSnapshot driverDoc = await userRef.get();
+    String driverName = driverDoc.exists 
+        ? (driverDoc.data() as Map<String, dynamic>)['name'] ?? currentUserName 
+        : currentUserName;
+
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot tripSnapshot = await transaction.get(tripRef);
+
+      if (!tripSnapshot.exists) {
+        throw Exception('TRIP_NOT_FOUND');
+      }
+
+      var tripData = tripSnapshot.data() as Map<String, dynamic>;
+      String status = tripData['status'] ?? '';
+      String? existingDriverId = tripData['driverId'];
+
+      bool isPending = status == 'pending';
+      bool isNegotiatingWithMe = status == 'negotiating' && existingDriverId == currentUserId;
+      bool isNegotiatingWithoutDriver = status == 'negotiating' && (existingDriverId == null || existingDriverId.isEmpty);
+
+      if (!(isPending || isNegotiatingWithMe || isNegotiatingWithoutDriver)) {
+        throw Exception('TRIP_ALREADY_TAKEN');
+      }
+
+      Map<String, dynamic> updateData = {
+        'status': 'accepted',
+        'driverId': currentUserId,
+        'driverName': driverName,
+        'acceptedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (negotiatedPrice != null) {
+        updateData['price'] = negotiatedPrice;
+      }
+
+      transaction.update(tripRef, updateData);
     });
   }
 
   // 3. التفاوض على الرحلة
   Future<void> negotiateTrip(String docId, String offer) async {
-    await _firestore.collection(FirebaseConstants.tripsCollection).doc(docId).update({
-      FirebaseConstants.fieldStatus: FirebaseConstants.statusNegotiating, 
-      'driverId': currentUserId, 
-      FirebaseConstants.fieldNegotiationPrice: offer,
-      FirebaseConstants.fieldLastNegotiator: 'driver'
+    await _firestore.collection('trips').doc(docId).update({
+      'status': 'negotiating',
+      'driverId': currentUserId,
+      'negotiationPrice': offer,
+      'lastNegotiator': 'driver'
     });
   }
 }

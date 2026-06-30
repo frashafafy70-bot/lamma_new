@@ -1,98 +1,41 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart'; // 🟢 لإضافة debugPrint
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // 🟢 استدعاء الإشعارات
-import 'package:lamma_new/core/constants/firebase_constants.dart';
-
-import '../../data/services/driver_radar_service.dart';
 import 'driver_radar_state.dart';
+import 'package:lamma_new/features/trips/data/services/driver_radar_service.dart';
 
 class DriverRadarCubit extends Cubit<DriverRadarState> {
-  final DriverRadarService _radarService;
-  StreamSubscription? _radarSubscription;
-  // 🟢 اشتراك الإشعارات للرادار
-  StreamSubscription<RemoteMessage>? _notificationSubscription;
-
-  // 🟢 بنستقبل الـ Service في الـ Constructor وبنشغل مستمع الإشعارات
-  DriverRadarCubit(this._radarService) : super(DriverRadarInitial()) {
-    _listenToRadarNotifications(); 
-  }
-
-  // =======================================================
-  // 🟢 اللوجيك الجديد: الاستماع اللحظي للطلبات الجديدة في الرادار
-  // =======================================================
-  void _listenToRadarNotifications() {
-    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // نتأكد إن الإشعار هو طلب رحلة جديد
-      if (message.data['type'] == 'new_trip' || message.data['channel_id'] == 'lamma_final_sound') {
-        debugPrint("🚨 [RadarCubit] طلب جديد ضرب في الرادار: ${message.notification?.body}");
-        
-        // هنا نقدر نستخدم الـ State عشان نخلي أيقونة الرادار تنور أو ترعش (Animation)
-        // emit(DriverRadarNewTripAlert());
-      }
-    });
-  }
-  // =======================================================
+  final DriverRadarService _service;
+  
+  DriverRadarCubit(this._service) : super(DriverRadarInitial());
 
   void startListeningToRadar() {
     emit(DriverRadarLoading());
-
-    _radarSubscription?.cancel(); // إغلاق أي استماع قديم
-    
-    _radarSubscription = _radarService.getRadarTripsStream().listen((snapshot) {
-      
-      var trips = snapshot.docs.where((doc) {
-        var data = doc.data() as Map<String, dynamic>;
-        String status = data[FirebaseConstants.fieldStatus] ?? FirebaseConstants.statusPending;
-        
-        return status == 'available' || 
-               status == FirebaseConstants.statusPending || 
-               (status == FirebaseConstants.statusNegotiating && data['driverId'] == _radarService.currentUserId);
-      }).toList();
-
-      trips.sort((a, b) {
-        var dataA = a.data() as Map<String, dynamic>;
-        var dataB = b.data() as Map<String, dynamic>;
-        Timestamp? timeA = dataA['createdAt'];
-        Timestamp? timeB = dataB['createdAt'];
-        
-        if (timeA == null && timeB == null) return 0;
-        if (timeA == null) return 1;
-        if (timeB == null) return -1;
-        return timeB.compareTo(timeA); 
-      });
-
-      emit(DriverRadarLoaded(trips));
-      
-    }, onError: (error) {
+    _service.getRadarTripsStream().listen((snapshot) {
+      emit(DriverRadarLoaded(snapshot.docs));
+    }).onError((error) {
       emit(DriverRadarError(error.toString()));
     });
   }
 
-  Future<void> acceptTrip(String docId, String agreedPrice) async {
+  Future<void> acceptTrip(String tripId, {String? negotiatedPrice}) async {
     try {
-      await _radarService.acceptTrip(docId, agreedPrice);
-      // 🟢 بنبعت حالة نجاح عشان الواجهة تقفل الديالوج أو تنقل التابة
-      emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح! 🚗'));
+      await _service.acceptTripSecurely(tripId, negotiatedPrice);
+      emit(DriverRadarAcceptSuccess());
     } catch (e) {
-      emit(DriverRadarActionError('حدث خطأ أثناء القبول: $e'));
+      if (e.toString().contains('TRIP_ALREADY_TAKEN')) {
+        emit(DriverRadarAcceptFailed('عفواً.. قام كابتن آخر بقبول الرحلة أسرع منك! 🏃‍♂️'));
+      } else if (e.toString().contains('TRIP_NOT_FOUND')) {
+        emit(DriverRadarAcceptFailed('عفواً، تم إلغاء هذه الرحلة من قبل العميل.'));
+      } else {
+        emit(DriverRadarAcceptFailed('حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.'));
+      }
     }
   }
 
-  Future<void> negotiateTrip(String docId, String offer) async {
+  Future<void> negotiateTrip(String tripId, String offer) async {
     try {
-      await _radarService.negotiateTrip(docId, offer);
-      emit(DriverRadarActionSuccess('تم إرسال عرض السعر للعميل! 🤝'));
+      await _service.negotiateTrip(tripId, offer);
     } catch (e) {
-      emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: $e'));
+      emit(DriverRadarError('حدث خطأ أثناء التفاوض: $e'));
     }
-  }
-
-  @override
-  Future<void> close() {
-    _notificationSubscription?.cancel(); // 🟢 تنظيف ذاكرة مستمع الإشعارات
-    _radarSubscription?.cancel();
-    return super.close();
   }
 }

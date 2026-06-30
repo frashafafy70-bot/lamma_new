@@ -13,39 +13,40 @@ import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
 // الخريطة المخصصة
 import 'package:lamma_new/features/trips/presentation/widgets/driver_live_map.dart'; 
 
-class DriverTripTrackingPage extends StatelessWidget {
+class DriverTripTrackingPage extends StatefulWidget {
   final String tripId;
-  final String destination;
-  final String price;
-  final double? clientLat; 
-  final double? clientLng;
 
+  // شيلنا كل المتغيرات الثابتة من هنا، مش محتاجين غير الـ ID وهنجيب الباقي "لايف"
   const DriverTripTrackingPage({
     super.key, 
     required this.tripId,
-    required this.destination,
-    required this.price,
-    this.clientLat,
-    this.clientLng,
   });
 
-  // دالة فتح تطبيق خرائط جوجل للتوجيه الصوتي
-  Future<void> _launchGoogleMapsNavigation(BuildContext context) async {
-    if (clientLat == null || clientLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('موقع العميل غير متوفر حالياً', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
-          backgroundColor: AppColors.error,
-        ),
-      );
+  @override
+  State<DriverTripTrackingPage> createState() => _DriverTripTrackingPageState();
+}
+
+class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
+
+  // دالة فتح تطبيق خرائط جوجل للتوجيه الصوتي (بتاخد الإحداثيات الحية)
+  Future<void> _launchGoogleMapsNavigation(double? lat, double? lng) async {
+    if (lat == null || lng == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('موقع العميل غير متوفر حالياً', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return; 
     }
     
-    final Uri googleMapsUrl = Uri.parse("google.navigation:q=$clientLat,$clientLng&mode=d");
+    final Uri googleMapsUrl = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
     if (await canLaunchUrl(googleMapsUrl)) {
       await launchUrl(googleMapsUrl);
     } else {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('لا يمكن فتح خرائط جوجل', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
@@ -56,12 +57,23 @@ class DriverTripTrackingPage extends StatelessWidget {
     }
   }
 
-  // دالة تحديث حالة الرحلة في قاعدة البيانات
+  // دالة تحديث حالة الرحلة في قاعدة البيانات بشكل آمن
   Future<void> _updateTripStatus(String newStatus) async {
-    await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-      'status': newStatus,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).update({
+        'status': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ في تحديث الحالة', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -70,50 +82,77 @@ class DriverTripTrackingPage extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: Text('تتبع الرحلة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)),
-          backgroundColor: AppColors.primaryDark, 
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.navigation_rounded, color: AppColors.accentGold, size: 26.sp),
-              onPressed: () => _launchGoogleMapsNavigation(context),
-              tooltip: 'توجيه عبر خرائط جوجل',
-            ),
-            SizedBox(width: 8.w),
-          ],
-        ),
-        body: Column(
-          children: [
-            // 1. الخريطة المخصصة للكابتن 
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(24.r)),
-                child: DriverLiveMap(
-                  tripId: tripId,
-                  targetLat: clientLat, 
-                  targetLng: clientLng,
-                ), 
-              ),
-            ),
+        // الاستماع للرحلة مرة واحدة بس، وكل الصفحة تتبني على أساسها
+        body: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots(),
+          builder: (context, snapshot) {
+            
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator(color: AppColors.primaryDark));
+            }
 
-            // 2. كارت معلومات الرحلة في الأسفل (مربوط بـ StreamBuilder)
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('trips').doc(tripId).snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Padding(
-                    padding: EdgeInsets.all(20.w),
-                    child: const Center(child: CircularProgressIndicator(color: AppColors.primaryDark)),
-                  );
-                }
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return Center(
+                child: Text('عفواً، بيانات الرحلة غير متاحة أو تم إلغاؤها.', 
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.error)),
+              );
+            }
 
-                var tripData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-                String currentStatus = tripData['status'] ?? 'accepted';
+            var tripData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            
+            // استخراج البيانات "الحية" في كل ثانية
+            String currentStatus = tripData['status'] ?? 'accepted';
+            String destination = tripData['destination'] ?? 'وجهة غير محددة';
+            String price = tripData['price']?.toString() ?? '0';
+            
+            // قراءة الإحداثيات لو موجودة كـ GeoPoint في الفايربيز
+            GeoPoint? pickupGeo = tripData['pickupLocation'];
+            double? clientLat = pickupGeo?.latitude;
+            double? clientLng = pickupGeo?.longitude;
 
-                return Container(
+            return Column(
+              children: [
+                // AppBar مدمج جوه العمود عشان نقدر نمررله اللوكيشن الحي لزرار النافيجيشن
+                Container(
+                  padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                  color: AppColors.primaryDark,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'تتبع الرحلة', 
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: Colors.white)
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.navigation_rounded, color: AppColors.accentGold, size: 26.sp),
+                        onPressed: () => _launchGoogleMapsNavigation(clientLat, clientLng),
+                        tooltip: 'توجيه عبر خرائط جوجل',
+                      ),
+                      SizedBox(width: 8.w),
+                    ],
+                  ),
+                ),
+
+                // 1. الخريطة المخصصة (بتاخد الإحداثيات الحية، لو العميل اتحرك الخريطة هتتحدث)
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(24.r)),
+                    child: DriverLiveMap(
+                      tripId: widget.tripId,
+                      targetLat: clientLat, 
+                      targetLng: clientLng,
+                    ), 
+                  ),
+                ),
+
+                // 2. كارت معلومات الرحلة في الأسفل 
+                Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
                   decoration: BoxDecoration(
@@ -131,7 +170,6 @@ class DriverTripTrackingPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // مؤشر سحب صغير يعطي شكل جمالي
                       Center(
                         child: Container(
                           width: 40.w,
@@ -178,7 +216,6 @@ class DriverTripTrackingPage extends StatelessWidget {
                       
                       Row(
                         children: [
-                          // زرار الشات (ثابت في كل الحالات)
                           Expanded(
                             flex: 1,
                             child: SizedBox(
@@ -190,7 +227,7 @@ class DriverTripTrackingPage extends StatelessWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                                 ),
                                 onPressed: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => TripChatPage(tripId: tripId)));
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => TripChatPage(tripId: widget.tripId)));
                                 },
                                 child: Icon(Icons.chat_rounded, color: Colors.white, size: 24.sp),
                               ),
@@ -198,30 +235,29 @@ class DriverTripTrackingPage extends StatelessWidget {
                           ),
                           SizedBox(width: 12.w),
                           
-                          // الزرار الديناميكي (بيتغير حسب الحالة)
                           Expanded(
                             flex: 3,
                             child: SizedBox(
                               height: 50.h,
-                              child: _buildDynamicActionButton(context, currentStatus),
+                              child: _buildDynamicActionButton(currentStatus),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: MediaQuery.of(context).padding.bottom), // للحماية من حواف الآيفون
+                      SizedBox(height: MediaQuery.of(context).padding.bottom), 
                     ],
                   ),
-                );
-              }
-            ),
-          ],
+                ),
+              ],
+            );
+          }
         ),
       ),
     );
   }
 
-  // ويدجت الزرار الديناميكي
-  Widget _buildDynamicActionButton(BuildContext context, String status) {
+  // ويدجت الزرار الديناميكي (شغال بناءً على الحالة الحية)
+  Widget _buildDynamicActionButton(String status) {
     if (status == 'accepted') {
       return ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
@@ -259,7 +295,7 @@ class DriverTripTrackingPage extends StatelessWidget {
         onPressed: () {
           TripDialogsHelper.showRatingDialog(
             context: context, 
-            docId: tripId, 
+            docId: widget.tripId, 
             royalGreen: AppColors.royalGreen, 
             isDriver: true,
           );
