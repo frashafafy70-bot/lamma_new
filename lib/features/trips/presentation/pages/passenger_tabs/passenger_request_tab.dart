@@ -1,5 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:convert';
+import 'package:http/http.dart' as http; 
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -28,12 +31,12 @@ class PassengerRequestTab extends StatefulWidget {
 
 class _PassengerRequestTabState extends State<PassengerRequestTab> {
   late PassengerRequestCubit _requestCubit;
-
-  // 🟢 مفتاح الفورم عشان نبعتله العناوين بعد اختيارها من الخريطة
   final GlobalKey<TripFormState> _formKey = GlobalKey<TripFormState>();
 
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {}; 
+  final Set<Polyline> _polylines = {}; 
+
   LatLng? _pickupLocation;
   LatLng? _destinationLocation;
   
@@ -47,14 +50,12 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   final TextEditingController _mapSearchController = TextEditingController();
   List<dynamic> _placePredictions = [];
 
+  final double _closeZoom = 16.5; 
+
   @override
   void initState() {
     super.initState();
-    _requestCubit = PassengerRequestCubit(
-      mapService: MapService(), 
-      tripService: TripService(),
-    );
-    // جلب موقع العميل أول ما الشاشة تفتح
+    _requestCubit = PassengerRequestCubit(mapService: MapService(), tripService: TripService());
     _requestCubit.getUserLocation();
   }
 
@@ -93,19 +94,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
         ),
         content: Text('لقد قمت برفض صلاحية الموقع بشكل دائم. لكي تتمكن من استخدام التطبيق، يرجى التفعيل من الإعدادات.', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('إلغاء', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontSize: 14.sp)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('إلغاء', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontSize: 14.sp))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.royalGreen,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
-            ),
-            onPressed: () {
-              Geolocator.openAppSettings();
-              Navigator.pop(context);
-            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
+            onPressed: () { Geolocator.openAppSettings(); Navigator.pop(context); },
             child: Text('فتح الإعدادات', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
           ),
         ],
@@ -113,30 +105,115 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     );
   }
 
+  Future<List<LatLng>> _getRouteCoordinates(LatLng origin, LatLng destination) async {
+    String apiKey = AppConstants.googleMapsApiKey; 
+    String url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$apiKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
+          return _decodePolyline(encodedPolyline);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching route: $e");
+    }
+    return [];
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
+
+  Future<void> _updateRoutePolyline() async {
+    _polylines.clear();
+    if (_pickupLocation != null && _destinationLocation != null) {
+      setState(() {
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('trip_route_temp'),
+            points: [_pickupLocation!, _destinationLocation!],
+            // 🟢 التعديل هنا
+            color: AppColors.royalGreen.withValues(alpha: 0.5), 
+            width: 4, 
+            patterns: [PatternItem.dash(15), PatternItem.gap(10)], 
+            endCap: Cap.roundCap,
+            startCap: Cap.roundCap,
+          )
+        );
+      });
+
+      List<LatLng> routePoints = await _getRouteCoordinates(_pickupLocation!, _destinationLocation!);
+      
+      if (routePoints.isNotEmpty && mounted) {
+        setState(() {
+          _polylines.removeWhere((p) => p.polylineId.value == 'trip_route_temp'); 
+          _polylines.add(
+            Polyline(
+              polylineId: const PolylineId('trip_route'),
+              points: routePoints, 
+              color: AppColors.royalGreen, 
+              width: 5, 
+              patterns: [PatternItem.dash(15), PatternItem.gap(10)], 
+              endCap: Cap.roundCap,
+              startCap: Cap.roundCap,
+            )
+          );
+        });
+        
+        _fitMapToMarkers();
+      }
+    }
+  }
+
   void _updateLocationOnMap(LatLng newLoc) {
     if (!mounted) return;
     setState(() {
       _isLoadingMap = false;
-      
-      // بنحط الدبوس فقط لو مفيش مكان متسجل قبل كده
       if (_pickupLocation == null) {
         _pickupLocation = newLoc;
         _markers.removeWhere((m) => m.markerId.value == 'pickup');
         _markers.add(Marker(
           markerId: const MarkerId('pickup'), 
           position: newLoc, 
-          infoWindow: const InfoWindow(title: 'موقعك الحالي'), 
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow) 
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(title: 'نقطة الانطلاق')
         ));
         
         if (_mapSelectionMode != 'none' && _tempMapCenter == null) {
           _tempMapCenter = newLoc; 
         }
-
         if (_mapController != null && _mapSelectionMode == 'none') {
-          _mapController!.animateCamera(CameraUpdate.newCameraPosition(
-            CameraPosition(target: newLoc, zoom: AppConstants.defaultMapZoom) 
-          )); 
+          _mapController!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: newLoc, zoom: _closeZoom))); 
         }
       }
     });
@@ -156,11 +233,23 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     });
 
     if (mounted && _mapController != null && _tempMapCenter != null) {
-      _mapController!.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(target: _tempMapCenter!, zoom: AppConstants.selectionMapZoom) 
-      ));
+      _mapController!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _tempMapCenter!, zoom: _closeZoom)));
       _requestCubit.getAddressFromLatLng(_tempMapCenter!);
     }
+  }
+  
+  void _onMapTap(LatLng position) {
+    if (_mapSelectionMode == 'none') {
+      setState(() {
+        _isMapFullscreen = true;
+        _mapSelectionMode = 'pickup'; 
+      });
+    }
+
+    _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: position, zoom: _closeZoom)));
+    
+    setState(() => _tempMapCenter = position);
+    _requestCubit.getAddressFromLatLng(position);
   }
 
   void _fitMapToMarkers() {
@@ -171,39 +260,48 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       } else {
         bounds = LatLngBounds(southwest: _pickupLocation!, northeast: _destinationLocation!);
       }
-      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 90));
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
     } else if (_pickupLocation != null && _mapController != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_pickupLocation!, 16));
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_pickupLocation!, _closeZoom));
     } else if (_destinationLocation != null && _mapController != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_destinationLocation!, 16));
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_destinationLocation!, _closeZoom));
     }
   }
 
   void _confirmMapSelection() {
     setState(() { 
       LatLng finalLoc = _tempMapCenter ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
-      String fallbackCoordinatesText = "إحداثيات: ${finalLoc.latitude.toStringAsFixed(4)}, ${finalLoc.longitude.toStringAsFixed(4)}";
       String locationText = (_mapSearchController.text.trim().isNotEmpty && _mapSearchController.text != 'جاري تحديد الموقع...' && _mapSearchController.text != 'جاري جلب العنوان...') 
           ? _mapSearchController.text.trim() 
-          : fallbackCoordinatesText; 
+          : "إحداثيات: ${finalLoc.latitude.toStringAsFixed(4)}, ${finalLoc.longitude.toStringAsFixed(4)}"; 
       
       if (_mapSelectionMode == 'pickup') { 
         _pickupLocation = finalLoc; 
         _markers.removeWhere((m) => m.markerId.value == 'pickup'); 
-        _markers.add(Marker(markerId: const MarkerId('pickup'), position: finalLoc, infoWindow: const InfoWindow(title: 'مكان التحرك'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow))); 
+        _markers.add(Marker(
+          markerId: const MarkerId('pickup'), 
+          position: finalLoc, 
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
+          infoWindow: const InfoWindow(title: 'نقطة الانطلاق')
+        )); 
       } else if (_mapSelectionMode == 'destination') { 
         _destinationLocation = finalLoc; 
         _markers.removeWhere((m) => m.markerId.value == 'destination'); 
-        _markers.add(Marker(markerId: const MarkerId('destination'), position: finalLoc, infoWindow: const InfoWindow(title: 'وجهة الوصول'), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed))); 
+        _markers.add(Marker(
+          markerId: const MarkerId('destination'), 
+          position: finalLoc, 
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), 
+          infoWindow: const InfoWindow(title: 'وجهة الوصول')
+        )); 
       } 
       
-      // 🟢 إرسال العنوان الجديد للفورم مباشرة
+      _updateRoutePolyline(); 
       _formKey.currentState?.updateLocationText(_mapSelectionMode, locationText);
-
       _mapSelectionMode = 'none'; 
       _isMapFullscreen = false; 
     });
-    _fitMapToMarkers(); 
+    
+    Future.delayed(const Duration(milliseconds: 300), () => _fitMapToMarkers()); 
   }
 
   void _showLoadingDialog() {
@@ -226,8 +324,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   const CircularProgressIndicator(color: AppColors.royalGreen),
                   SizedBox(height: 20.h),
                   Text('جاري إرسال طلبك...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                  SizedBox(height: 8.h),
-                  Text('برجاء الانتظار قليلاً ⏳', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey)),
                 ],
               ),
             ),
@@ -243,10 +339,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return BlocProvider.value(
-      value: _requestCubit, // 🟢 توفير الكيوبت للفورم الداخلي عشان يقدر يقرأ الحالات ويبعت الطلب
+      value: _requestCubit, 
       child: BlocConsumer<PassengerRequestCubit, PassengerRequestState>(
         listener: (context, state) {
-          // حالات الموقع
           if (state is LocationLoading) {
             setState(() => _isLoadingMap = true);
           } else if (state is LocationLoaded) {
@@ -258,53 +353,29 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             setState(() => _isLoadingMap = false);
             _showLocationPermissionDialog();
           } 
-          
-          // حالات العنوان
           else if (state is AddressLoading) {
-            setState(() {
-              _isReverseGeocoding = true;
-              _mapSearchController.text = 'جاري تحديد الموقع...';
-            });
+            setState(() { _isReverseGeocoding = true; _mapSearchController.text = 'جاري تحديد الموقع...'; });
           } else if (state is AddressLoaded) {
-            setState(() {
-              _isReverseGeocoding = false;
-              _mapSearchController.text = state.address;
-            });
+            setState(() { _isReverseGeocoding = false; _mapSearchController.text = state.address; });
           } else if (state is AddressError) {
-            setState(() {
-              _isReverseGeocoding = false;
-              _mapSearchController.text = state.message;
-            });
+            setState(() { _isReverseGeocoding = false; _mapSearchController.text = state.message; });
           } 
-          
-          // حالات البحث
           else if (state is PlacesSearchLoaded) {
             setState(() => _placePredictions = state.predictions);
           } else if (state is PlaceDetailsLoaded) {
-            setState(() {
-              _tempMapCenter = state.location;
-              _mapSearchController.text = state.description;
-              _placePredictions = [];
-            });
-            _mapController?.animateCamera(CameraUpdate.newCameraPosition(
-              CameraPosition(target: state.location, zoom: AppConstants.selectionMapZoom)
-            ));
+            setState(() { _tempMapCenter = state.location; _mapSearchController.text = state.description; _placePredictions = []; });
+            _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: state.location, zoom: _closeZoom)));
             FocusScope.of(context).unfocus();
           } 
-          
-          // إرسال الطلب (Submit)
           else if (state is TripSubmitting) {
             _showLoadingDialog(); 
           } else if (state is TripSubmitSuccess) {
-            Navigator.of(context, rootNavigator: true).pop(); // إغلاق الديالوج
-            
-            // إعادة ضبط الفورم بعد النجاح
+            Navigator.of(context, rootNavigator: true).pop(); 
             _formKey.currentState?.destinationController.clear();
             _formKey.currentState?.priceController.clear();
             _formKey.currentState?.errandDetailsController.clear();
             _formKey.currentState?.errandEstimatedCostController.clear();
             _formKey.currentState?.orderAudioFile = null;
-            
             _showSnackBar('تم إرسال طلبك بنجاح! 🚀', isError: false);
             widget.tabController.animateTo(2); 
           } else if (state is TripSubmitError) {
@@ -318,33 +389,31 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           return LayoutBuilder(
             builder: (context, constraints) {
               double availableHeight = constraints.maxHeight;
-              // 🟢 خلينا الارتفاع ثابت ومناسب، والفورم جواه Scrollable لو احتاج مساحة أكبر
               double requestedHeight = screenHeight * 0.55; 
               double visibleSpace = availableHeight - keyboardHeight;
               double actualContainerHeight = math.max(0.0, math.min(requestedHeight, visibleSpace));
 
               return Stack(
                 children: [
-                  // 🗺️ الخريطة
                   Positioned.fill(
                     child: _isLoadingMap 
                       ? const Center(child: CircularProgressIndicator(color: AppColors.accentGold))
                       : LammaGoogleMap(
                           initialCameraPosition: CameraPosition(
                             target: _pickupLocation ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude),
-                            zoom: AppConstants.defaultMapZoom,
+                            zoom: _closeZoom,
                           ),
-                          markers: isPickingMap ? {} : _markers,
+                          markers: _markers, 
+                          polylines: _polylines, 
                           showCenterPin: isPickingMap,
+                          mapPadding: EdgeInsets.only(bottom: _isMapFullscreen ? 90.h : actualContainerHeight + 10.h, top: isPickingMap ? 100.h : 0),
+                          onTap: _onMapTap,
                           onMapCreated: (controller) => _mapController = controller,
                           onCameraMove: (position) {
                             if (isPickingMap) {
                               _tempMapCenter = position.target;
                               if (!_isReverseGeocoding) {
-                                setState(() {
-                                  _isReverseGeocoding = true;
-                                  _mapSearchController.text = 'جاري تحديد الموقع...';
-                                });
+                                setState(() { _isReverseGeocoding = true; _mapSearchController.text = 'جاري تحديد الموقع...'; });
                               }
                             }
                           },
@@ -356,7 +425,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                         ),
                   ),
 
-                  // 🔍 شريط البحث أثناء اختيار الموقع
                   if (isPickingMap)
                     MapSelectionOverlay(
                       mapSearchController: _mapSearchController,
@@ -367,18 +435,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                       onSearch: (input) => _requestCubit.searchForPlaces(input), 
                       onSelectPlace: (placeId, desc) => _requestCubit.fetchPlaceDetails(placeId, desc), 
                       onCancel: () {
-                        setState(() { 
-                          _mapSelectionMode = 'none'; 
-                          _isMapFullscreen = false;
-                          _placePredictions = []; 
-                        }); 
+                        setState(() { _mapSelectionMode = 'none'; _isMapFullscreen = false; _placePredictions = []; }); 
                         FocusScope.of(context).unfocus();
                         _fitMapToMarkers(); 
                       },
                       onConfirm: _confirmMapSelection,
                     ),
 
-                  // 📌 زر التأكيد في وضع الشاشة الكاملة
                   if (_isMapFullscreen && !isPickingMap)
                     Positioned(
                       bottom: 30.h, left: 30.w, right: 30.w,
@@ -386,21 +449,18 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.royalGreen, 
                           foregroundColor: AppColors.accentGold,
+                          // 🟢 التعديل هنا
                           shadowColor: AppColors.royalGreen.withValues(alpha: 0.4),
                           elevation: 10,
                           padding: EdgeInsets.symmetric(vertical: 14.h),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r))
                         ),
-                        onPressed: () { 
-                          setState(() => _isMapFullscreen = false);
-                          _fitMapToMarkers(); 
-                        },
+                        onPressed: () { setState(() => _isMapFullscreen = false); _fitMapToMarkers(); },
                         icon: Icon(Icons.check_circle_rounded, size: 24.sp),
                         label: Text('تأكيد الموقع 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
                       ),
                     ),
 
-                  // 📋 فورم الطلب
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
@@ -414,14 +474,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                       decoration: BoxDecoration(
                         color: Colors.white, 
                         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))
-                        ]
+                        // 🟢 التعديل هنا
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))]
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
                         child: TripForm(
-                          key: _formKey, // ربط الـ Key عشان نقدر نحدث العنوان
+                          key: _formKey, 
                           pickupLocation: _pickupLocation,
                           destinationLocation: _destinationLocation,
                           onOpenMapSelection: _openMapSelection,

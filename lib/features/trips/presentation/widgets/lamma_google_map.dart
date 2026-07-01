@@ -8,7 +8,9 @@ class LammaGoogleMap extends StatefulWidget {
   final void Function(GoogleMapController)? onMapCreated;
   final void Function(CameraPosition)? onCameraMove;
   final VoidCallback? onCameraIdle; 
-  final bool showCenterPin; // 👈 التعديل الجديد: إظهار دبوس الاختيار الذكي
+  final void Function(LatLng)? onTap; 
+  final bool showCenterPin; 
+  final EdgeInsets mapPadding; // 👈 عشان زرار اللوكيشن ميبقاش تحت الفورم
 
   const LammaGoogleMap({
     super.key, 
@@ -18,7 +20,9 @@ class LammaGoogleMap extends StatefulWidget {
     this.onMapCreated,
     this.onCameraMove,
     this.onCameraIdle, 
-    this.showCenterPin = false, // الافتراضي مخفي عشان شاشات التتبع
+    this.onTap, 
+    this.showCenterPin = false, 
+    this.mapPadding = EdgeInsets.zero, // 👈 الافتراضي صفر
   });
 
   @override
@@ -26,87 +30,21 @@ class LammaGoogleMap extends StatefulWidget {
 }
 
 class _LammaGoogleMapState extends State<LammaGoogleMap> {
-  bool _isCameraMoving = false; // 👈 حالة الكاميرا لتشغيل أنيميشن الدبوس
+  bool _isCameraMoving = false; 
 
-  // 🟢 الثيم الكحلي + الذهبي + الأخضر الملكي مدمج مباشرة لسرعة التحميل الفورية
-  final String _mapStyle = '''
+  // 🟢 ثيم Lamma الفاتح: شوارع واضحة، مساحات خضراء بلون التطبيق، وطرق سريعة دهبي
+  final String _lammaLightStyle = '''
   [
-    {
-      "elementType": "geometry",
-      "stylers": [{"color": "#0A192F"}] 
-    },
-    {
-      "elementType": "labels.icon",
-      "stylers": [{"visibility": "off"}]
-    },
-    {
-      "elementType": "labels.text.fill",
-      "stylers": [{"color": "#8892B0"}]
-    },
-    {
-      "elementType": "labels.text.stroke",
-      "stylers": [{"color": "#0A192F"}]
-    },
-    {
-      "featureType": "administrative",
-      "elementType": "geometry",
-      "stylers": [{"color": "#8892B0"}]
-    },
-    {
-      "featureType": "poi",
-      "elementType": "geometry",
-      "stylers": [{"color": "#112240"}]
-    },
-    {
-      "featureType": "poi",
-      "elementType": "labels.text.fill",
-      "stylers": [{"color": "#8892B0"}]
-    },
-    {
-      "featureType": "landscape.natural",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#1B4332"}] 
-    },
-    {
-      "featureType": "poi.park",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#1B4332"}] 
-    },
-    {
-      "featureType": "road",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#112240"}]
-    },
-    {
-      "featureType": "road",
-      "elementType": "labels.text.fill",
-      "stylers": [{"color": "#8892B0"}]
-    },
-    {
-      "featureType": "road.arterial",
-      "elementType": "geometry",
-      "stylers": [{"color": "#1D3557"}]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry",
-      "stylers": [{"color": "#D4AF37"}] 
-    },
-    {
-      "featureType": "road.highway.controlled_access",
-      "elementType": "geometry",
-      "stylers": [{"color": "#F1C40F"}]
-    },
-    {
-      "featureType": "water",
-      "elementType": "geometry",
-      "stylers": [{"color": "#020C1B"}] 
-    },
-    {
-      "featureType": "water",
-      "elementType": "labels.text.fill",
-      "stylers": [{"color": "#D4AF37"}]
-    }
+    {"featureType": "administrative", "elementType": "geometry", "stylers": [{"color": "#a7a7a7"}]},
+    {"featureType": "landscape.natural", "elementType": "geometry.fill", "stylers": [{"color": "#e8ecd7"}]},
+    {"featureType": "poi.park", "elementType": "geometry.fill", "stylers": [{"color": "#d5e0d3"}]},
+    {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#ffffff"}]},
+    {"featureType": "road", "elementType": "geometry.stroke", "stylers": [{"color": "#e0e0e0"}]},
+    {"featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{"color": "#f9e5a3"}]},
+    {"featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{"color": "#e8c973"}]},
+    {"featureType": "water", "elementType": "geometry.fill", "stylers": [{"color": "#b8d1d8"}]},
+    {"elementType": "labels.text.fill", "stylers": [{"color": "#333333"}]},
+    {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]}
   ]
   ''';
 
@@ -119,31 +57,28 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
           initialCameraPosition: widget.initialCameraPosition,
           markers: widget.markers,
           polylines: widget.polylines,
+          padding: widget.mapPadding, // 👈 تطبيق الـ Padding عشان زرار اللوكيشن يترفع لفوق
           zoomControlsEnabled: false,
           mapToolbarEnabled: false,
-          myLocationButtonEnabled: false,
+          myLocationEnabled: true, // 👈 تشغيل موقعك
+          myLocationButtonEnabled: true, // 👈 إظهار زرار موقعك
           compassEnabled: false,
-          style: _mapStyle, // استخدام الثيم المدمج 
+          style: _lammaLightStyle, // 👈 تطبيق ثيم لَمَّة
+          onTap: widget.onTap, 
           onMapCreated: (GoogleMapController controller) {
             if (widget.onMapCreated != null) {
               widget.onMapCreated!(controller);
             }
           },
           onCameraMoveStarted: () {
-            // إخفاء الدبوس عند بدء السحب
             if (widget.showCenterPin) {
-              setState(() {
-                _isCameraMoving = true;
-              });
+              setState(() => _isCameraMoving = true);
             }
           },
           onCameraMove: widget.onCameraMove,
           onCameraIdle: () {
-            // إظهار الدبوس عند الاستقرار وتأكيد الموقع
             if (widget.showCenterPin) {
-              setState(() {
-                _isCameraMoving = false;
-              });
+              setState(() => _isCameraMoving = false);
             }
             if (widget.onCameraIdle != null) {
               widget.onCameraIdle!();
@@ -151,10 +86,9 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
           },
         ),
         
-        // 🟢 دبوس الموقع الذكي (يظهر فقط إذا كان showCenterPin = true)
         if (widget.showCenterPin)
           AnimatedOpacity(
-            opacity: _isCameraMoving ? 0.0 : 1.0, // يختفي أثناء السحب ويظهر عند الاستقرار
+            opacity: _isCameraMoving ? 0.0 : 1.0, 
             duration: const Duration(milliseconds: 200),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -162,7 +96,7 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
+                    color: const Color(0xFF1B4332), // 👈 لون أخضر ملكي للـ Tooltip
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))
@@ -171,8 +105,7 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
                   child: const Text('تأكيد الموقع هنا', style: TextStyle(color: Color(0xFFD4AF37), fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
-                const Icon(Icons.location_on, color: Color(0xFFD4AF37), size: 42),
-                // إزاحة بسيطة لأعلى ليكون سن الدبوس في منتصف الشاشة بالضبط
+                const Icon(Icons.location_on, color: Color(0xFF1B4332), size: 42), // 👈 الدبوس أخضر
                 const SizedBox(height: 42), 
               ],
             ),
