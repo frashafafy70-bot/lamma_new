@@ -2,6 +2,7 @@
 
 import 'dart:ui'; 
 import 'package:flutter/material.dart'; 
+import 'package:flutter/foundation.dart'; // ضروري جداً لشرط kIsWeb
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
@@ -12,12 +13,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart'; 
 import 'firebase_options.dart';
 
+// استدعاءات الخدمات الخاصة بيك
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/services/navigation_service.dart';
 import 'package:lamma_new/core/services/fcm_service.dart';
 import 'package:lamma_new/core/services/notification_service.dart';
-
-// 👈 ضفنا مسار ملف خدمة الخرائط (تأكد إن المسار صحيح عندك)
 import 'package:lamma_new/features/trips/data/services/map_service.dart'; 
 
 import 'features/auth/presentation/pages/login_page.dart'; 
@@ -38,23 +38,23 @@ void main() async {
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  FlutterError.onError = (errorDetails) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-  };
+  // بوابة الحماية: خدمات الموبايل فقط لا تعمل على الويب
+  if (!kIsWeb) {
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 🟢 تهيئة الخدمات المركزية
-  await NotificationService.initLocalNotifications();
-  await FCMService.initFCM();
+    await NotificationService.initLocalNotifications();
+    await FCMService.initFCM();
+  }
 
-  // 🟢 👈 تهيئة خدمة الخرائط وتحميل أيقونات السيارات في الذاكرة
-  // تأكد إن المتغير GOOGLE_MAPS_API_KEY موجود جوه ملف .env بتاعك
   String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
   await MapService().init(apiKey: apiKey);
 
@@ -77,6 +77,16 @@ class LammaApp extends StatelessWidget {
             BlocProvider(create: (context) => TripActionsCubit()), 
           ],
           child: MaterialApp(
+            // 🟢 التعديل اللي بيخلي التطبيق ملموم في النص ومقاسه موبايل دايماً
+            builder: (context, widget) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: widget,
+                ),
+              );
+            },
+            
             navigatorKey: NavigationService.navigatorKey, 
             debugShowCheckedModeBanner: false,
             localizationsDelegates: const [

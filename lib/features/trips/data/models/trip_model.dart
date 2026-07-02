@@ -18,6 +18,8 @@ class TripModel {
   final GeoPoint? fromLocation; 
   final GeoPoint? toLocation; 
   final String? time;
+  final DateTime? travelDate; // 🟢 تم الإضافة: تاريخ ووقت السفر الفعلي
+  final String? tripType;     // 🟢 تم الإضافة: نوع الحجز (سيارة كاملة / مقاعد)
   final String? availableSeats;
   final String? suggestedPrice; 
   final String? price; 
@@ -48,6 +50,8 @@ class TripModel {
     this.fromLocation,
     this.toLocation,
     this.time,
+    this.travelDate, // 🟢
+    this.tripType,   // 🟢
     this.availableSeats,
     this.suggestedPrice,
     this.price,
@@ -80,6 +84,8 @@ class TripModel {
       fromLocation: map['fromLocation'],
       toLocation: map['toLocation'],
       time: map['time'],
+      travelDate: map['travelDate'] != null ? (map['travelDate'] as Timestamp).toDate() : null, // 🟢
+      tripType: map['tripType'], // 🟢
       availableSeats: map['availableSeats']?.toString(),
       suggestedPrice: map['suggestedPrice']?.toString(),
       price: map['price']?.toString(),
@@ -112,6 +118,8 @@ class TripModel {
       if (fromLocation != null) 'fromLocation': fromLocation,
       if (toLocation != null) 'toLocation': toLocation,
       if (time != null) 'time': time,
+      if (travelDate != null) 'travelDate': Timestamp.fromDate(travelDate!), // 🟢
+      if (tripType != null) 'tripType': tripType, // 🟢
       if (availableSeats != null) 'availableSeats': availableSeats,
       if (suggestedPrice != null) 'suggestedPrice': suggestedPrice,
       if (price != null) 'price': price,

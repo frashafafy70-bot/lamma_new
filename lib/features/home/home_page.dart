@@ -16,6 +16,9 @@ import 'package:lamma_new/features/home/views/orders_view.dart';
 import 'package:lamma_new/features/home/views/profile_view.dart';
 import 'package:lamma_new/features/home/role_registration_sheets.dart'; 
 
+// 🟢 استدعاء الإشعار الفخم بتاعنا
+import 'package:lamma_new/core/shared_widgets/premium_toast.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -35,7 +38,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _homeCubit = HomeCubit()..loadUserProfile();
-    // 🟢 تم إزالة أكواد الإشعارات المكررة من هنا لأن FCMService هو المايسترو الآن
   }
 
   @override
@@ -54,6 +56,8 @@ class _HomePageState extends State<HomePage> {
       ));
       return;
     }
+
+    context.read<HomeCubit>().markAllNotificationsAsRead();
 
     showModalBottomSheet(
       context: context, 
@@ -82,7 +86,6 @@ class _HomePageState extends State<HomePage> {
                         itemCount: snapshot.data!.docs.length,
                         itemBuilder: (context, index) {
                           var notif = snapshot.data!.docs[index];
-                          if (notif['isRead'] == false) notif.reference.update({'isRead': true});
                           return ListTile(
                             leading: CircleAvatar(backgroundColor: goldAccent.withValues(alpha: 0.2), child: Icon(Icons.notifications_active, color: goldAccent)), 
                             title: Text(notif['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
@@ -108,8 +111,9 @@ class _HomePageState extends State<HomePage> {
       child: BlocListener<HomeCubit, HomeState>(
         listenWhen: (previous, current) => previous.actionStatus != current.actionStatus,
         listener: (context, state) {
+          // 🟢 هنا الإعدام الفعلي للإشعار القديم واستبداله بالجديد
           if (state.actionStatus == HomeActionStatus.success && state.successMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.successMessage!, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
+            PremiumToast.show(context, state.successMessage!); // الإشعار الفخم
             context.read<HomeCubit>().clearActionStatus(); 
           }
           else if (state.actionStatus == HomeActionStatus.error && state.errorMessage != null) {
@@ -137,6 +141,8 @@ class _HomePageState extends State<HomePage> {
                   userName: state.userName, 
                   activeRole: state.activeRole, 
                   profileImageUrl: state.profileImageUrl,
+                  unreadCount: state.unreadNotificationsCount,
+                  activeOrdersCount: state.activeOrdersCount, 
                   onOpenNotifications: () => _openNotifications(context) 
                 ); 
                 break;
@@ -163,6 +169,8 @@ class _HomePageState extends State<HomePage> {
                   userName: state.userName, 
                   activeRole: state.activeRole, 
                   profileImageUrl: state.profileImageUrl,
+                  unreadCount: state.unreadNotificationsCount, 
+                  activeOrdersCount: state.activeOrdersCount, 
                   onOpenNotifications: () => _openNotifications(context)
                 );
             }
@@ -213,16 +221,37 @@ class _HomePageState extends State<HomePage> {
                               const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home_rounded)), label: 'الرئيسية'), 
                               const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.search_rounded)), label: 'البحث'), 
                               
-                              // 🟢 هنا تم إضافة النقطة الحمراء (Badge) بناءً على state.hasNewNotification
                               BottomNavigationBarItem(
                                 icon: Padding(
                                   padding: const EdgeInsets.only(bottom: 4), 
-                                  child: Badge(
-                                    isLabelVisible: state.hasNewNotification, // تظهر لو في إشعار
-                                    backgroundColor: Colors.red,
-                                    smallSize: 10,
-                                    child: const Icon(Icons.receipt_long_rounded),
-                                  ),
+                                  child: state.activeRole == 'captain'
+                                    ? StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
+                                        builder: (context, snapshot) {
+                                          int radarCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                                          int totalCaptainAlerts = state.activeOrdersCount + radarCount;
+                                          return Badge(
+                                            isLabelVisible: totalCaptainAlerts > 0 || state.hasNewNotification, 
+                                            label: totalCaptainAlerts > 0 ? Text(totalCaptainAlerts.toString(), style: const TextStyle(fontFamily: 'Cairo')) : null,
+                                            backgroundColor: Colors.red,
+                                            child: const Icon(Icons.receipt_long_rounded),
+                                          );
+                                        }
+                                      )
+                                    // 🟢 هنا التعديل للعميل: خلينا العميل يقرأ هو كمان الرحلات المتاحة لايف
+                                    : StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: true).where('status', isEqualTo: 'available').snapshots(),
+                                        builder: (context, snapshot) {
+                                          int availableTravels = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                                          int totalCustomerAlerts = state.activeOrdersCount + availableTravels;
+                                          return Badge(
+                                            isLabelVisible: totalCustomerAlerts > 0 || state.hasNewNotification, 
+                                            label: totalCustomerAlerts > 0 ? Text(totalCustomerAlerts.toString(), style: const TextStyle(fontFamily: 'Cairo')) : null,
+                                            backgroundColor: Colors.red,
+                                            child: const Icon(Icons.receipt_long_rounded),
+                                          );
+                                        }
+                                      ),
                                 ), 
                                 label: 'الطلبات'
                               ), 
@@ -282,6 +311,7 @@ class _HomePageState extends State<HomePage> {
             try { 
               User? user = FirebaseAuth.instance.currentUser; 
               await FirebaseFirestore.instance.collection('support_tickets').add({'uid': user?.uid, 'name': currentUserName, 'email': currentUserEmail, 'message': complaintCtrl.text.trim(), 'status': 'open', 'timestamp': FieldValue.serverTimestamp()}); 
+              // سبتلك بتاعة الدعم الفني عشان بتبقى محتاجة تظهر بشكل رسمي شوية، لو حابب تقلبها Premium هي كمان قول لي!
               ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('تم إرسال رسالتك للدعم الفني بنجاح ✅', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green)); 
             } catch(e) { 
               ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('حدث خطأ أثناء الإرسال ❌', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red)); 

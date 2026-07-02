@@ -5,10 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+import 'dart:math' as math; // 🟢 استيراد مكتبة الماث عشان الرادار
 
 import '../../cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
-// 🟢 استدعاء صفحة الخريطة الجديدة للتتبع
 import 'package:lamma_new/features/trips/presentation/widgets/trip_map.dart'; 
 
 class MyRequestTripCard extends StatelessWidget {
@@ -29,7 +29,7 @@ class MyRequestTripCard extends StatelessWidget {
       case 'available': return Colors.grey; 
       case 'negotiating': return Colors.orange;
       case 'accepted': return Colors.blue;
-      case 'in_progress': return Colors.indigo; // 🟢 إضافة لون مميز لحالة قيد التنفيذ
+      case 'in_progress': return Colors.indigo; 
       case 'completed': return Colors.green;
       case 'canceled': return Colors.red;
       default: return Colors.grey;
@@ -42,7 +42,7 @@ class MyRequestTripCard extends StatelessWidget {
       case 'available': return 'في انتظار كابتن'; 
       case 'negotiating': return 'جاري التفاوض';
       case 'accepted': return 'تم القبول';
-      case 'in_progress': return 'الرحلة جارية'; // 🟢 تسمية واضحة للعميل
+      case 'in_progress': return 'الرحلة جارية'; 
       case 'completed': return 'مكتملة';
       case 'canceled': return 'ملغية';
       default: return status;
@@ -170,7 +170,9 @@ class MyRequestTripCard extends StatelessWidget {
     bool isErrand = category == 'طلبات';
     bool isNegotiating = status == 'negotiating';
     
-    // 🟢 دمج الحالتين (مقبول أو قيد التنفيذ) لضمان ظهور معلومات الكابتن وأزرار التتبع
+    // 🟢 هل نحن في حالة انتظار لكابتن؟
+    bool isWaitingForCaptain = status == 'pending' || status == 'available' || status == 'searching';
+    
     bool isAcceptedOrInProgress = status == 'accepted' || status == 'in_progress';
 
     String formattedDate = '';
@@ -288,25 +290,44 @@ class MyRequestTripCard extends StatelessWidget {
             ],
             SizedBox(height: 16.h),
 
+            // 🟢 جزء الخريطة مع الرادار
             if (mapCenter != null) ...[
               SizedBox(
                 height: 130.h,
                 width: double.infinity,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12.r),
-                  child: IgnorePointer( 
-                    child: GoogleMap(
-                      liteModeEnabled: true, 
-                      initialCameraPosition: CameraPosition(
-                        target: mapCenter,
-                        zoom: 12.5, 
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // 1. الخريطة الأصلية
+                      IgnorePointer( 
+                        child: GoogleMap(
+                          liteModeEnabled: true, 
+                          initialCameraPosition: CameraPosition(
+                            target: mapCenter,
+                            zoom: 12.5, 
+                          ),
+                          markers: trackingMarkers,
+                          myLocationEnabled: false,
+                          zoomControlsEnabled: false,
+                          mapToolbarEnabled: false,
+                          compassEnabled: false,
+                        ),
                       ),
-                      markers: trackingMarkers,
-                      myLocationEnabled: false,
-                      zoomControlsEnabled: false,
-                      mapToolbarEnabled: false,
-                      compassEnabled: false,
-                    ),
+                      
+                      // 2. الرادار (يظهر فقط أثناء الانتظار)
+                      if (isWaitingForCaptain)
+                        IgnorePointer(
+                          child: Container(
+                            color: Colors.white.withValues(alpha: 0.1), // تعتيم خفيف جدًا للخريطة عشان الرادار يبان
+                            child: _LammaPingPongRadar(
+                              color: royalGreen,
+                              size: 100.sp, // حجم الموجات
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -365,7 +386,6 @@ class MyRequestTripCard extends StatelessWidget {
                     ],
                   ),
                   
-                  // 🟢 إضافة زري المحادثة والتتبع إذا كانت الرحلة مقبولة أو قيد التنفيذ
                   if (isAcceptedOrInProgress) ...[
                     SizedBox(height: 12.h),
                     Row(
@@ -396,7 +416,6 @@ class MyRequestTripCard extends StatelessWidget {
                               elevation: 0,
                             ), 
                             onPressed: () {
-                              // جلب الإحداثيات وفتح خريطة التتبع
                               LatLng? pickup;
                               if (data['pickupLocation'] is GeoPoint) {
                                 pickup = LatLng((data['pickupLocation'] as GeoPoint).latitude, (data['pickupLocation'] as GeoPoint).longitude);
@@ -431,4 +450,93 @@ class MyRequestTripCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// =================================================================
+// 🟢 ويدجت الرادار البصري (Ping Pong / Ripple) الخاصة بالكارت
+// =================================================================
+class _LammaPingPongRadar extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _LammaPingPongRadar({
+    this.color = const Color(0xFF1B4332), 
+    this.size = 60.0,
+  });
+
+  @override
+  State<_LammaPingPongRadar> createState() => _LammaPingPongRadarState();
+}
+
+class _LammaPingPongRadarState extends State<_LammaPingPongRadar> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2), 
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _RadarPainter(
+        animation: _controller,
+        color: widget.color,
+      ),
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.search_rounded, 
+              color: widget.color,
+              size: widget.size * 0.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RadarPainter extends CustomPainter {
+  final Animation<double> animation;
+  final Color color;
+
+  _RadarPainter({required this.animation, required this.color}) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Rect.fromLTRB(0.0, 0.0, size.width, size.height);
+    for (int wave = 3; wave >= 0; wave--) {
+      circle(canvas, rect, wave + animation.value);
+    }
+  }
+
+  void circle(Canvas canvas, Rect rect, double value) {
+    final double opacity = (1.0 - (value / 4.0)).clamp(0.0, 1.0);
+    final Color waveColor = color.withValues(alpha: opacity * 0.6); 
+    final Paint paint = Paint()..color = waveColor;
+    final double radius = math.min(rect.width, rect.height) / 2.0;
+    canvas.drawCircle(rect.center, radius * (value / 4.0), paint);
+  }
+
+  @override
+  bool shouldRepaint(_RadarPainter oldDelegate) => true;
 }

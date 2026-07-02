@@ -61,6 +61,7 @@ dependencies:
   firebase_crashlytics: ^4.3.10
   google_sign_in: ^6.2.1
   rxdart: ^0.28.0
+  lottie: ^3.4.0
 
 dev_dependencies:
   flutter_test:
@@ -85,3 +86,4 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/map_styles/
+    - assets/animations/

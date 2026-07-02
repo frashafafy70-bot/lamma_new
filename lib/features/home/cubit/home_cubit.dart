@@ -7,42 +7,106 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart'; 
-import 'home_state.dart'; 
 
+import 'home_state.dart'; 
 import 'package:lamma_new/core/constants/app_strings.dart';
 import 'package:lamma_new/core/constants/firebase_constants.dart';
+import 'package:lamma_new/features/trips/data/models/trip_model.dart';
+import 'package:lamma_new/features/trips/data/services/trip_service.dart';
 
 class HomeCubit extends Cubit<HomeState> {
+  // 🟢 استدعاء الـ Service عشان الـ Cubit ميكلمش الفايربيز مباشرة في الرحلات
+  final TripService _tripService;
+
   StreamSubscription<RemoteMessage>? _notificationSubscription;
+  StreamSubscription<QuerySnapshot>? _unreadNotificationsSub; 
+  StreamSubscription<int>? _activeOrdersSub; // 🟢 ستريم واحد بس بدل 4!
 
-  HomeCubit() : super(HomeState()) {
-    _listenToForegroundNotifications(); 
-  }
-
+  // هنسيب دول مؤقتاً لحد ما نفصل شغل الـ Auth والـ User Profile في Services لوحدهم
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const String _cachedRoleKey = 'CACHED_ACTIVE_ROLE';
 
+  // 🟢 Dependency Injection: لو مكتبة get_it مش موجودة، هيعمل نسخة لنفسه عشان التطبيق ميضربش
+  HomeCubit({TripService? tripService}) 
+      : _tripService = tripService ?? TripService(), 
+        super(HomeState()) {
+    _listenToForegroundNotifications(); 
+  }
+
   void _listenToForegroundNotifications() {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint("🔔 [HomeCubit] إشعار لايف وصل: ${message.notification?.title}");
-      
-      // 🟢 تفعيل النقطة الحمراء فوراً عند وصول أي إشعار يخص الطلبات أو التنبيهات
       if (message.data['type'] == 'new_trip' || message.data['channel_id'] == 'lamma_final_sound') {
         emit(state.copyWith(hasNewNotification: true));
       }
     });
   }
 
+  void _listenToUnreadNotifications(String uid) {
+    _unreadNotificationsSub?.cancel();
+    _unreadNotificationsSub = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      emit(state.copyWith(unreadNotificationsCount: snapshot.docs.length));
+    });
+  }
+
+  // 🟢 شوف النضافة! الكيوبت بقى بيسمع للنتيجة النهائية من السيرفيس بس
+  void _listenToActiveOrders(String uid, String role) {
+    _activeOrdersSub?.cancel(); // نقفل أي استماع قديم عشان الـ Memory Leak
+
+    if (role == 'captain') {
+      _activeOrdersSub = _tripService.getCaptainActiveOrdersCountStream(uid).listen((count) {
+        emit(state.copyWith(activeOrdersCount: count));
+      }, onError: (e) {
+        debugPrint("❌ خطأ في الاستماع لطلبات الكابتن: $e");
+      });
+    } else {
+      _activeOrdersSub = _tripService.getPassengerActiveOrdersCountStream(uid).listen((count) {
+        emit(state.copyWith(activeOrdersCount: count));
+      }, onError: (e) {
+        debugPrint("❌ خطأ في الاستماع لطلبات العميل: $e");
+      });
+    }
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+    
+    var unreadDocs = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (unreadDocs.docs.isEmpty) return;
+
+    WriteBatch batch = _firestore.batch();
+    for (var doc in unreadDocs.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
+    
+    emit(state.copyWith(hasNewNotification: false, unreadNotificationsCount: 0));
+  }
+
   @override
   Future<void> close() {
     _notificationSubscription?.cancel();
+    _unreadNotificationsSub?.cancel();
+    _activeOrdersSub?.cancel(); // 🟢 قفلنا الستريم الجديد
     return super.close();
   }
 
   void changeTab(int index) {
-    // 🟢 بمجرد ما المستخدم يغير التاب (أو يروح لتاب الطلبات) بنمسح النقطة الحمراء
     emit(state.copyWith(
       bottomNavIndex: index,
       hasNewNotification: false, 
@@ -53,14 +117,13 @@ class HomeCubit extends Cubit<HomeState> {
     User? user = _auth.currentUser;
     if (user != null) {
       emit(state.copyWith(status: HomeStatus.loading, userEmail: user.email ?? ''));
-      
+      _listenToUnreadNotifications(user.uid); 
+
       final prefs = await SharedPreferences.getInstance();
       final cachedRole = prefs.getString(_cachedRoleKey);
       if (cachedRole != null) {
-        emit(state.copyWith(
-          activeRole: cachedRole,
-          status: HomeStatus.loaded, 
-        ));
+        emit(state.copyWith(activeRole: cachedRole, status: HomeStatus.loaded));
+        _listenToActiveOrders(user.uid, cachedRole); 
       }
 
       try {
@@ -70,6 +133,7 @@ class HomeCubit extends Cubit<HomeState> {
           String fetchedRole = (data[FirebaseConstants.activeRoleField] ?? FirebaseConstants.roleCustomer).toString().trim().toLowerCase();
           
           await prefs.setString(_cachedRoleKey, fetchedRole);
+          _listenToActiveOrders(user.uid, fetchedRole); 
 
           emit(state.copyWith(
             userName: data['name'] ?? 'مستخدم لَمَّة',
@@ -91,7 +155,6 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> switchUserRole(String newRole) async {
     User? user = _auth.currentUser;
     if (user == null) return;
-
     if (newRole.trim().toLowerCase() == state.activeRole.trim().toLowerCase()) return;
 
     emit(state.copyWith(actionStatus: HomeActionStatus.loading));
@@ -120,6 +183,8 @@ class HomeCubit extends Cubit<HomeState> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_cachedRoleKey, newRole);
+
+      _listenToActiveOrders(user.uid, newRole); 
 
       emit(state.copyWith(
         activeRole: newRole,
@@ -162,6 +227,8 @@ class HomeCubit extends Cubit<HomeState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_cachedRoleKey, role);
 
+      _listenToActiveOrders(user.uid, role); 
+
       emit(state.copyWith(
         activeRole: role,
         actionStatus: HomeActionStatus.success,
@@ -188,5 +255,22 @@ class HomeCubit extends Cubit<HomeState> {
 
   void clearActionStatus() {
     emit(state.copyWith(actionStatus: HomeActionStatus.idle, pendingRegistrationRole: null));
+  }
+
+  // 🟢 بص الدالة هنا بقت سطرين بس، بتبعت الداتا للـ Service وهو يتصرف
+  Future<void> addTravelTrip({required TripModel trip}) async {
+    emit(state.copyWith(actionStatus: HomeActionStatus.loading));
+    try {
+      await _tripService.addTravelTrip(trip);
+      emit(state.copyWith(
+        actionStatus: HomeActionStatus.success,
+        successMessage: 'تم نشر رحلة السفر بنجاح! 🚌',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        actionStatus: HomeActionStatus.error,
+        errorMessage: 'حدث خطأ أثناء إضافة الرحلة، برجاء المحاولة مرة أخرى.',
+      ));
+    }
   }
 }

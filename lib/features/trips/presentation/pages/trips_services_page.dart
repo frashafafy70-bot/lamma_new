@@ -34,11 +34,12 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
+  // 🟢 الكود لضبط العداد (يجمع المشاوير النشطة الصافية + حجوزات السفر)
   Stream<int> getActiveRequestsCountStream() {
     Stream<QuerySnapshot> tripsStream = FirebaseFirestore.instance
         .collection('trips')
-        .where('passengerId', isEqualTo: _currentUserId) // 👈 تم التعديل هنا لتطابق المفتاح المحفوظ في الـ Cubit
-        .where('status', whereIn: ['pending', 'negotiating', 'accepted'])
+        .where('passengerId', isEqualTo: _currentUserId)
+        .where('isDriverPost', isEqualTo: false)
         .snapshots();
 
     Stream<QuerySnapshot> bookingsStream = FirebaseFirestore.instance
@@ -51,7 +52,22 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
       tripsStream, 
       bookingsStream, 
       (QuerySnapshot trips, QuerySnapshot bookings) {
-        return trips.docs.length + bookings.docs.length;
+        
+        int validTrips = 0;
+        for (var doc in trips.docs) {
+          final data = (doc.data() as Map<String, dynamic>?) ?? {};
+          bool isDeleted = data['isDeletedForPassenger'] == true || data['isDeleted'] == true;
+          String status = data['status'] ?? '';
+          bool isFinished = status == 'canceled' || status == 'completed';
+          
+          if (!isDeleted && !isFinished) {
+            validTrips++;
+          }
+        }
+
+        int validBookings = bookings.docs.length;
+
+        return validTrips + validBookings;
       }
     );
   }
@@ -111,7 +127,35 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                   labelPadding: EdgeInsets.zero, 
                   tabs: [
                     const Tab(text: 'طلب مشوار'),
-                    const Tab(text: 'رحلات السفر'),
+                    // 🟢 التعديل هنا: إضافة الـ StreamBuilder لتابة رحلات السفر
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('رحلات السفر'),
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('trips')
+                                .where('isDriverPost', isEqualTo: true)
+                                .where('status', isEqualTo: 'available')
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              int availableTravelTrips = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                              if (availableTravelTrips > 0) {
+                                return Padding(
+                                  padding: EdgeInsets.only(right: 6.w),
+                                  child: Badge(
+                                    label: Text(availableTravelTrips.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp)),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                     Tab(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

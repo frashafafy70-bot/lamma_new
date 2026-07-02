@@ -193,7 +193,8 @@ class _CaptainRegistrationPageState extends State<CaptainRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      var uploads = await Future.wait([
+      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
+      var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'captain', docName: 'car_license_front', file: carLicenseFront!),
         widget.cubit.uploadDocument(role: 'captain', docName: 'car_license_back', file: carLicenseBack!),
         widget.cubit.uploadDocument(role: 'captain', docName: 'personal_id_front', file: personalIdFront!),
@@ -250,7 +251,8 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      var uploads = await Future.wait([
+      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
+      var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'bar_id_front', file: barIdFront!),
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'personal_id_back', file: personalIdBack!),
@@ -305,7 +307,8 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      var uploads = await Future.wait([
+      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
+      var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'doctor', docName: 'medical_id_front', file: medicalIdFront!),
         widget.cubit.uploadDocument(role: 'doctor', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'doctor', docName: 'personal_id_back', file: personalIdBack!),
@@ -360,7 +363,8 @@ class _NurseRegistrationPageState extends State<NurseRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      var uploads = await Future.wait([
+      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
+      var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'nurse', docName: 'nurse_id_front', file: nurseIdFront!),
         widget.cubit.uploadDocument(role: 'nurse', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'nurse', docName: 'personal_id_back', file: personalIdBack!),

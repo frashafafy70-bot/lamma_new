@@ -1,6 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+// ==========================================
+// 1. شاشة الاستدعاء (لتفادي مشكلة الـ Overflow)
+// ==========================================
+class MapScreen extends StatelessWidget {
+  const MapScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // نقطة بداية الكاميرا (مثال: القاهرة)
+    const CameraPosition initialPosition = CameraPosition(
+      target: LatLng(30.0444, 31.2357),
+      zoom: 14.4746,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('خريطة لمَّة', style: TextStyle(fontFamily: 'Cairo')),
+        backgroundColor: const Color(0xFF1B4332),
+      ),
+      // استخدام Column لعرض عناصر فوق الخريطة إن أردت
+      body: Column(
+        children: [
+          // إذا كان لديك عناصر هنا مثل أزرار (سيارة / موتوسيكل)، ضعها هنا
+          // مثال بسيط:
+          Container(
+            padding: const EdgeInsets.all(8.0),
+            color: Colors.grey[200],
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Text('سيارة'),
+                Text('موتوسيكل'),
+              ],
+            ),
+          ),
+          
+          // 👇 السر هنا: استخدام Expanded يجعل الخريطة تأخذ باقي المساحة المتاحة فقط
+          // وبذلك نتجنب مشكلة الـ RenderFlex Overflow تماماً
+          const Expanded(
+            child: LammaGoogleMap(
+              initialCameraPosition: initialPosition,
+              showCenterPin: true, // إظهار الدبوس في المنتصف
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 2. الكود الخاص بك للخريطة (لم يتم تغييره لأنه سليم)
+// ==========================================
 class LammaGoogleMap extends StatefulWidget {
   final CameraPosition initialCameraPosition;
   final Set<Marker> markers;
@@ -10,7 +63,7 @@ class LammaGoogleMap extends StatefulWidget {
   final VoidCallback? onCameraIdle; 
   final void Function(LatLng)? onTap; 
   final bool showCenterPin; 
-  final EdgeInsets mapPadding; // 👈 عشان زرار اللوكيشن ميبقاش تحت الفورم
+  final EdgeInsets mapPadding; 
 
   const LammaGoogleMap({
     super.key, 
@@ -22,7 +75,7 @@ class LammaGoogleMap extends StatefulWidget {
     this.onCameraIdle, 
     this.onTap, 
     this.showCenterPin = false, 
-    this.mapPadding = EdgeInsets.zero, // 👈 الافتراضي صفر
+    this.mapPadding = EdgeInsets.zero, 
   });
 
   @override
@@ -32,7 +85,6 @@ class LammaGoogleMap extends StatefulWidget {
 class _LammaGoogleMapState extends State<LammaGoogleMap> {
   bool _isCameraMoving = false; 
 
-  // 🟢 ثيم Lamma الفاتح: شوارع واضحة، مساحات خضراء بلون التطبيق، وطرق سريعة دهبي
   final String _lammaLightStyle = '''
   [
     {"featureType": "administrative", "elementType": "geometry", "stylers": [{"color": "#a7a7a7"}]},
@@ -57,13 +109,13 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
           initialCameraPosition: widget.initialCameraPosition,
           markers: widget.markers,
           polylines: widget.polylines,
-          padding: widget.mapPadding, // 👈 تطبيق الـ Padding عشان زرار اللوكيشن يترفع لفوق
+          padding: widget.mapPadding,
           zoomControlsEnabled: false,
           mapToolbarEnabled: false,
-          myLocationEnabled: true, // 👈 تشغيل موقعك
-          myLocationButtonEnabled: true, // 👈 إظهار زرار موقعك
+          myLocationEnabled: true, 
+          myLocationButtonEnabled: true, 
           compassEnabled: false,
-          style: _lammaLightStyle, // 👈 تطبيق ثيم لَمَّة
+          style: _lammaLightStyle, 
           onTap: widget.onTap, 
           onMapCreated: (GoogleMapController controller) {
             if (widget.onMapCreated != null) {
@@ -96,7 +148,7 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B4332), // 👈 لون أخضر ملكي للـ Tooltip
+                    color: const Color(0xFF1B4332), 
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))
@@ -105,7 +157,7 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
                   child: const Text('تأكيد الموقع هنا', style: TextStyle(color: Color(0xFFD4AF37), fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
-                const Icon(Icons.location_on, color: Color(0xFF1B4332), size: 42), // 👈 الدبوس أخضر
+                const Icon(Icons.location_on, color: Color(0xFF1B4332), size: 42), 
                 const SizedBox(height: 42), 
               ],
             ),

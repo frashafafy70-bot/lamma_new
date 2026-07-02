@@ -10,6 +10,9 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/data/services/driver_radar_service.dart'; 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
+// 🟢 تم استدعاء الموديل هنا
+import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
+
 import '../../../cubit/driver/driver_radar_cubit.dart';
 import '../../../cubit/driver/driver_radar_state.dart';
 
@@ -72,7 +75,6 @@ class DriverRadarTab extends StatelessWidget {
                   children: [
                     Container(
                       padding: EdgeInsets.all(30.w),
-                      // شيلنا الـ const من هنا عشان كانت عاملة إيرور
                       decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accentGoldLight),
                       child: Icon(Icons.radar_rounded, size: 80.sp, color: AppColors.accentGold),
                     ),
@@ -91,14 +93,23 @@ class DriverRadarTab extends StatelessWidget {
                 var doc = activeTrips[index];
                 var data = (doc.data() as Map<String, dynamic>?) ?? {};
                 
+                // 🟢 10/10 Clean Architecture: تحويل البيانات لـ TripModel
+                TripModel trip = TripModel.fromMap(data, doc.id);
+                
                 String timeStr = 'الآن';
-                if (data['createdAt'] != null) {
-                  timeStr = DateFormat('hh:mm a').format((data['createdAt'] as Timestamp).toDate());
+                if (trip.createdAt != null) {
+                  timeStr = DateFormat('hh:mm a').format(trip.createdAt!);
                 }
 
-                String displayPrice = data['status'] == 'negotiating' && data['negotiationPrice'] != null 
-                    ? data['negotiationPrice'].toString() 
-                    : data['price']?.toString() ?? '0';
+                // 🟢 استخدام بيانات الموديل بدلاً من الـ Maps
+                String displayPrice = trip.status == 'negotiating' && trip.negotiationPrice != null 
+                    ? trip.negotiationPrice!
+                    : trip.price ?? '0';
+
+                // تأمين جلب اسم العميل أو العنوان لو المسميات مختلفة في الداتابيز
+                String clientName = trip.passengerName ?? data['clientName'] ?? 'عميل';
+                String pickupPoint = trip.pickup ?? data['pickupAddress'] ?? 'موقع الانطلاق';
+                String dropoffPoint = trip.destination ?? data['dropoffAddress'] ?? 'وجهة الوصول';
 
                 return Card(
                   elevation: 4,
@@ -123,7 +134,7 @@ class DriverRadarTab extends StatelessWidget {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(data['clientName'] ?? 'عميل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.textDark)),
+                                    Text(clientName, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.textDark)),
                                     Text(timeStr, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: AppColors.textMuted.shade500)),
                                   ],
                                 ),
@@ -137,7 +148,7 @@ class DriverRadarTab extends StatelessWidget {
                           ],
                         ),
                         
-                        if (data['status'] == 'negotiating') ...[
+                        if (trip.status == 'negotiating') ...[
                           SizedBox(height: 10.h),
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
@@ -147,7 +158,7 @@ class DriverRadarTab extends StatelessWidget {
                                 Icon(Icons.handshake_rounded, color: AppColors.warning, size: 16.sp),
                                 SizedBox(width: 8.w),
                                 Text(
-                                  data['lastNegotiator'] == 'driver' ? 'في انتظار رد العميل' : 'العميل يقترح هذا السعر', 
+                                  trip.lastNegotiator == 'driver' ? 'في انتظار رد العميل' : 'العميل يقترح هذا السعر', 
                                   style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: AppColors.textDark, fontWeight: FontWeight.bold)
                                 ),
                               ],
@@ -160,7 +171,7 @@ class DriverRadarTab extends StatelessWidget {
                           children: [
                             const Icon(Icons.my_location_rounded, color: AppColors.info, size: 20),
                             SizedBox(width: 8.w),
-                            Expanded(child: Text(data['pickupAddress'] ?? data['pickup'] ?? 'موقع الانطلاق', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                            Expanded(child: Text(pickupPoint, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                         SizedBox(height: 12.h),
@@ -168,7 +179,7 @@ class DriverRadarTab extends StatelessWidget {
                           children: [
                             const Icon(Icons.location_on_rounded, color: AppColors.error, size: 20),
                             SizedBox(width: 8.w),
-                            Expanded(child: Text(data['dropoffAddress'] ?? data['destination'] ?? 'وجهة الوصول', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                            Expanded(child: Text(dropoffPoint, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp), maxLines: 2, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                         SizedBox(height: 20.h),
@@ -188,7 +199,7 @@ class DriverRadarTab extends StatelessWidget {
                                 onPressed: () {
                                   TripDialogsHelper.showNegotiationDialog(
                                     context: context, 
-                                    docId: doc.id,
+                                    docId: trip.id!,
                                     royalGreen: AppColors.royalGreen,
                                     isDriver: true, 
                                   );
@@ -207,8 +218,8 @@ class DriverRadarTab extends StatelessWidget {
                                 icon: Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18.sp),
                                 label: Text('موافق بالسعر', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                                 onPressed: () {
-                                  String? negotiatedPrice = data['status'] == 'negotiating' ? displayPrice : null;
-                                  context.read<DriverRadarCubit>().acceptTrip(doc.id, negotiatedPrice: negotiatedPrice);
+                                  String? negotiatedPrice = trip.status == 'negotiating' ? displayPrice : null;
+                                  context.read<DriverRadarCubit>().acceptTrip(trip.id!, negotiatedPrice: negotiatedPrice);
                                 },
                               ),
                             ),
@@ -221,7 +232,6 @@ class DriverRadarTab extends StatelessWidget {
               },
             );
           }
-          // السطر ده هو اللي كان ناقص وعامل إيرور الـ Null
           return const SizedBox.shrink();
         },
       ),
