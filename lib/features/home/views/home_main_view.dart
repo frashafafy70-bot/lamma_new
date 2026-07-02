@@ -1,24 +1,26 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io'; // لو محتاجها للـ File
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+// Cubits
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart'; 
-import 'package:lamma_new/features/trips/presentation/widgets/live_animated_card.dart';
-import 'account_switch_widget.dart'; 
 
-import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
-import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
+// Models & Services
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
+import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
+
+// Widgets & Pages
+import 'package:lamma_new/features/trips/presentation/widgets/live_animated_card.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/travel_service_card.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; // ده الملف اللي انت عامله
+import 'account_switch_widget.dart';
 
 class HomeMainView extends StatefulWidget {
   final String activeRole;
@@ -68,7 +70,6 @@ class _HomeMainViewState extends State<HomeMainView> {
     );
 
     if (newSelectedRole != null && newSelectedRole != widget.activeRole && mainContext.mounted) {
-      // 1. تحديث حالة الرول في الكيوبت (والـ BlocListener في الشاشة الرئيسية هو اللي هيطلع الإشعار)
       mainContext.read<HomeCubit>().switchUserRole(newSelectedRole);
     }
   }
@@ -545,144 +546,6 @@ class _HomeMainViewState extends State<HomeMainView> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class TravelServiceCard extends StatelessWidget {
-  final VoidCallback onAddTravelTap;
-  const TravelServiceCard({super.key, required this.onAddTravelTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryNavy = const Color(0xFF0F172A);
-    final Color goldAccent = const Color(0xFFD4AF37);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(
-        color: primaryNavy,
-        borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 5))],
-        border: Border.all(color: goldAccent.withValues(alpha: 0.3), width: 1.w),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(width: 12.w, height: 12.w, decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.blueAccent, blurRadius: 8)])),
-                  SizedBox(width: 8.w),
-                  Text('حجز مسبق', style: TextStyle(fontFamily: 'Cairo', color: Colors.blueAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
-            ],
-          ),
-          SizedBox(height: 20.h),
-          Text('مسافر لمحافظة تانية قريباً؟', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold)),
-          SizedBox(height: 6.h),
-          Text('حدد مسارك وتاريخ رحلتك، وخلي العملاء تحجز معاك مقدماً وتشاركك التكلفة.', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade400, fontSize: 13.sp)),
-          SizedBox(height: 20.h),
-          SizedBox(
-            width: double.infinity,
-            height: 50.h,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: goldAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
-              onPressed: onAddTravelTap,
-              child: Text('إضافة رحلة سفر 🗓️', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class CaptainRadarPage extends StatefulWidget {
-  const CaptainRadarPage({super.key});
-
-  @override
-  State<CaptainRadarPage> createState() => _CaptainRadarPageState();
-}
-
-class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerProviderStateMixin {
-  late TabController _captainTabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _captainTabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _captainTabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<HomeCubit, HomeState>(
-      builder: (context, state) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Scaffold(
-            appBar: AppBar(
-              title: const Text('لوحة تحكم الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
-              backgroundColor: const Color(0xFF0F172A),
-              iconTheme: const IconThemeData(color: Colors.white),
-              elevation: 0,
-              bottom: TabBar(
-                controller: _captainTabController,
-                indicatorColor: const Color(0xFFD4AF37),
-                labelColor: const Color(0xFFD4AF37),
-                unselectedLabelColor: Colors.white70,
-                labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
-                tabs: [
-                  Tab(
-                    text: 'الرادار', 
-                    icon: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
-                      builder: (context, snapshot) {
-                        int radarCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        return Badge(
-                          isLabelVisible: radarCount > 0,
-                          label: Text(radarCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
-                          backgroundColor: Colors.redAccent,
-                          child: const Icon(Icons.radar_rounded),
-                        );
-                      },
-                    ),
-                  ),
-                  Tab(
-                    text: 'النشطة', 
-                    icon: Badge(
-                      isLabelVisible: state.activeOrdersCount > 0,
-                      label: Text(state.activeOrdersCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
-                      backgroundColor: Colors.redAccent,
-                      child: const Icon(Icons.play_circle_fill_rounded),
-                    ),
-                  ),
-                  const Tab(text: 'السجل', icon: Icon(Icons.history_rounded)), 
-                ],
-              ),
-            ),
-            body: TabBarView(
-              controller: _captainTabController,
-              children: [
-                DriverRadarTab(tabController: _captainTabController),
-                BlocProvider(create: (context) => DriverActiveTripsCubit(), child: const DriverActiveTripsTab()),
-                const DriverHistoryTab(),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
