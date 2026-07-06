@@ -1,0 +1,24 @@
+Lamma project modification report
+
+Main task:
+- Converted internal role naming from captain/Captain to driver/Driver.
+- Converted Arabic visible wording from كابتن / الكابتن to سائق / السائق where found.
+
+Important renamed code concepts:
+- roleCaptain -> roleDriver
+- captainName -> driverName
+- showCaptain -> showDriver
+- CaptainRegistrationPage -> DriverRegistrationPage
+- CaptainRadarPage -> DriverRadarPage
+- getCaptainActiveOrdersCountStream -> getDriverActiveOrdersCountStream
+- isCaptain -> isDriver
+- totalCaptainAlerts -> totalDriverAlerts
+
+Verification performed:
+- Searched lib/ and functions/ for remaining captain/Captain/كابتن/الكابتن references: none found.
+- Could not run flutter analyze because Flutter SDK is not available in this environment.
+
+Recommended next local commands:
+flutter pub get
+flutter analyze
+flutter run

@@ -206,7 +206,7 @@ class ActiveTripCard extends StatelessWidget {
                           Icon(Icons.access_time, color: Colors.orange, size: 20.sp),
                           SizedBox(width: 8.w),
                           Expanded(
-                            child: Text('في انتظار رد ${isDriver ? "العميل" : "الكابتن"} على عرضك (${data['negotiationPrice']} ج)', style: TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
+                            child: Text('في انتظار رد ${isDriver ? "العميل" : "السائق"} على عرضك (${data['negotiationPrice']} ج)', style: TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
                           ),
                         ],
                       ),
@@ -219,7 +219,7 @@ class ActiveTripCard extends StatelessWidget {
                           width: double.infinity,
                           padding: EdgeInsets.all(10.w),
                           decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8.r)),
-                          child: Text('عرض ${isDriver ? "العميل" : "الكابتن"}: ${data['negotiationPrice']} ج', style: TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                          child: Text('عرض ${isDriver ? "العميل" : "السائق"}: ${data['negotiationPrice']} ج', style: TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
                         ),
                         SizedBox(height: 12.h),
                         Row(

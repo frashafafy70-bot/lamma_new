@@ -7,11 +7,13 @@ class AppColors {
   static const Color primaryDark = Color(0xFF131E31); // الكحلي الفخم
   static const Color royalGreen = Color(0xFF1A3B2A); // الأخضر الملكي للرحلات
   static const Color accentGold = Color(0xFFF3C444); // الذهبي المميز
+  static const Color medicalTeal = Color(0xFF0D9488); // لون القسم الطبي
 
   // درجات فاتحة (شفافة) مفيدة جداً للخلفيات في الأيقونات وتأثيرات الرادار
   static final Color primaryDarkLight = const Color(0xFF131E31).withValues(alpha: 0.1);
   static final Color royalGreenLight = const Color(0xFF1A3B2A).withValues(alpha: 0.1);
   static final Color accentGoldLight = const Color(0xFFF3C444).withValues(alpha: 0.1);
+  static final Color medicalTealLight = const Color(0xFF0D9488).withValues(alpha: 0.1); 
 
   // ==========================================
   // ألوان الخلفيات والنصوص

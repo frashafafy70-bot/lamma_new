@@ -6,7 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class TripDialogsHelper {
   
-  // 1. حوار مسح الطلب من القائمة (مخصص للكابتن والعميل)
+  // 1. حوار مسح الطلب من القائمة (مخصص للسائق والعميل)
   static Future<void> showDeleteTripDialog({
     required BuildContext context,
     required String docId,
@@ -66,7 +66,7 @@ class TripDialogsHelper {
 
     if (confirm) {
       try {
-        // 🟢 من قام بالإلغاء؟ كابتن أم عميل؟
+        // 🟢 من قام بالإلغاء؟ سائق أم عميل؟
         await FirebaseFirestore.instance.collection('trips').doc(docId).update({
           'status': 'cancelled', 
           'cancelledBy': isDriver ? 'driver' : 'passenger' 

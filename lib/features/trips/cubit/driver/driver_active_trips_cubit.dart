@@ -23,10 +23,10 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint("🔔 [ActiveTripsCubit] إشعار لايف وصل: ${message.notification?.title}");
       
-      // إذا كان الإشعار يخص رسالة جديدة أو تحديث في رحلة الكابتن الحالية
+      // إذا كان الإشعار يخص رسالة جديدة أو تحديث في رحلة السائق الحالية
       if (message.data['type'] == 'chat' || message.data['type'] == 'active_trip') {
         // بما إن Firestore بيحدث نفسه، نقدر نستخدم دي لإصدار State فرعي
-        // مثلاً لو حابين نعرض SnackBar سريع للكابتن أو نشغل اهتزاز
+        // مثلاً لو حابين نعرض SnackBar سريع للسائق أو نشغل اهتزاز
         // emit(DriverActiveTripsNotificationReceived(message.notification?.title));
       }
     });
@@ -35,7 +35,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
 
   void startListeningToActiveTrips() {
     if (currentUserId.isEmpty) {
-      emit(DriverActiveTripsError('لم يتم العثور على حساب الكابتن، يرجى تسجيل الدخول مجدداً.'));
+      emit(DriverActiveTripsError('لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
       return;
     }
 
@@ -82,7 +82,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     });
   }
 
-  // 🟢 الوظيفة الإضافية للكابتن: تفعيل الرحلة النشطة
+  // 🟢 الوظيفة الإضافية للسائق: تفعيل الرحلة النشطة
   Future<void> activateDriverTripFunction(String tripId) async {
     try {
       await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
@@ -91,7 +91,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
         'startedAt': FieldValue.serverTimestamp(),
       });
       
-      // تحديث حالة الكابتن لـ "مشغول" عشان الرادار يوقف استقبال طلبات جديدة
+      // تحديث حالة السائق لـ "مشغول" عشان الرادار يوقف استقبال طلبات جديدة
       await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
         'isBusy': true,
       });

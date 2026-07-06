@@ -21,10 +21,9 @@ class _SearchViewState extends State<SearchView> {
   String _selectedCategory = 'الكل';
   final List<String> _categories = ['الكل', 'رحلات وتوصيل', 'استشارات قانونية', 'متاجر', 'خدمات طبية'];
 
-  // 🟢 قاعدة بيانات محلية ذكية للخدمات عشان البحث يشتغل طلقة بدون أخطاء فايربيز
   final List<Map<String, dynamic>> _allServices = [
-    {'title': 'طلب كابتن فوراً', 'category': 'رحلات وتوصيل', 'icon': Icons.local_taxi_rounded, 'color': const Color(0xFFF3C444), 'route': const TripsServicesPage()},
-    {'title': 'توصيل طلبات (دليفري)', 'category': 'رحلات وتوصيل', 'icon': Icons.delivery_dining_rounded, 'color': const Color(0xFFF3C444), 'route': const TripsServicesPage()},
+    {'title': 'طلب سائق فوراً', 'category': 'رحلات وتوصيل', 'icon': Icons.local_taxi_rounded, 'color': const Color(0xFFF3C444), 'route': TripsServicesPage()},
+    {'title': 'توصيل طلبات (دليفري)', 'category': 'رحلات وتوصيل', 'icon': Icons.delivery_dining_rounded, 'color': const Color(0xFFF3C444), 'route': TripsServicesPage()},
     {'title': 'استشارة محامي', 'category': 'استشارات قانونية', 'icon': Icons.gavel_rounded, 'color': const Color(0xFF0F172A), 'route': null},
     {'title': 'توكيل رسمي', 'category': 'استشارات قانونية', 'icon': Icons.description_rounded, 'color': const Color(0xFF0F172A), 'route': null},
     {'title': 'تسوق من الماركت', 'category': 'متاجر', 'icon': Icons.storefront_rounded, 'color': const Color(0xFF1B4332), 'route': null},
@@ -37,7 +36,7 @@ class _SearchViewState extends State<SearchView> {
   @override
   void initState() {
     super.initState();
-    _searchResults = []; // تبدأ فارغة لطلب كتابة شيء
+    _searchResults = []; 
   }
 
   void _performSearch(String query) {
@@ -62,11 +61,15 @@ class _SearchViewState extends State<SearchView> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Column(
         children: [
-          // 🟢 الهيدر الفخم مع شريط البحث
           Container(
             padding: EdgeInsets.only(top: 60.h, left: 20.w, right: 20.w, bottom: 20.h),
             decoration: BoxDecoration(
-              color: primaryNavy,
+              // 🟢 التدرج الكحلي في زيتي للهيدر الخاص بالبحث
+              gradient: LinearGradient(
+                colors: [primaryNavy, royalGreen],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
               borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30.r), bottomRight: Radius.circular(30.r)),
             ),
             child: Column(
@@ -85,7 +88,7 @@ class _SearchViewState extends State<SearchView> {
                     textDirection: TextDirection.rtl,
                     style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                     decoration: InputDecoration(
-                      hintText: 'عن ماذا تبحث؟ (كابتن، محامي، توصيل...)',
+                      hintText: 'عن ماذا تبحث؟ (سائق، محامي، توصيل...)',
                       hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                       prefixIcon: Icon(Icons.search_rounded, color: goldAccent),
                       suffixIcon: _searchController.text.isNotEmpty
@@ -109,7 +112,6 @@ class _SearchViewState extends State<SearchView> {
           
           SizedBox(height: 16.h),
 
-          // 🟢 الفلاتر (الكاتيجوري)
           SizedBox(
             height: 40.h,
             child: ListView.builder(
@@ -143,7 +145,6 @@ class _SearchViewState extends State<SearchView> {
 
           SizedBox(height: 20.h),
 
-          // 🟢 عرض النتائج أو الحالات الفارغة
           Expanded(
             child: _buildBodyContent(),
           ),

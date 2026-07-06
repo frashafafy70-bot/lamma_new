@@ -1,264 +1,401 @@
-import 'dart:io';
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-
-import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
-
-import 'service_form/ride_service_form.dart';
-import 'service_form/buy_orders_service_form.dart';
-import 'service_form/travel_service_form.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:lamma_new/core/theme/app_colors.dart'; 
 
 class TripForm extends StatefulWidget {
+  final String tripCategory;
+  final String vehicleType;
+  final bool isSubmittingTrip;
+  final TextEditingController errandDetailsController;
+  final TextEditingController errandEstimatedCostController;
+  final TextEditingController pickupController;
+  final TextEditingController destinationController;
+  final TextEditingController priceController;
+  final FocusNode priceFocusNode;
+  final Color primaryGreen; 
+  final Color accentGold;
+  final Function(String) onCategoryChanged;
+  final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
-  final LatLng? pickupLocation;
-  final LatLng? destinationLocation;
+  final VoidCallback onSubmit;
 
   const TripForm({
     super.key,
+    required this.tripCategory,
+    required this.vehicleType,
+    required this.isSubmittingTrip,
+    required this.errandDetailsController,
+    required this.errandEstimatedCostController,
+    required this.pickupController,
+    required this.destinationController,
+    required this.priceController,
+    required this.priceFocusNode,
+    required this.primaryGreen,
+    required this.accentGold,
+    required this.onCategoryChanged,
+    required this.onVehicleChanged,
     required this.onOpenMapSelection,
-    this.pickupLocation,
-    this.destinationLocation,
+    required this.onSubmit,
   });
 
   @override
-  State<TripForm> createState() => TripFormState();
+  State<TripForm> createState() => _TripFormState();
 }
 
-class TripFormState extends State<TripForm> {
-  String tripCategory = 'داخلي';
-  String vehicleType = 'سيارة';
-  
-  late TextEditingController pickupController;
-  late TextEditingController destinationController;
-  late TextEditingController priceController;
-  late TextEditingController errandDetailsController;
-  late TextEditingController errandEstimatedCostController;
-  late FocusNode priceFocusNode;
-  
-  File? orderAudioFile;
+class _TripFormState extends State<TripForm> {
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  // درجة كحلي أفتح وأكثر أناقة لكسر حدة الغمقان
+  final Color _lighterNavy = const Color(0xFF2C3E50);
 
   @override
   void initState() {
     super.initState();
-    pickupController = TextEditingController(text: 'موقعي الحالي');
-    destinationController = TextEditingController();
-    priceController = TextEditingController();
-    errandDetailsController = TextEditingController();
-    errandEstimatedCostController = TextEditingController();
-    priceFocusNode = FocusNode();
+    _speech = stt.SpeechToText();
   }
 
-  @override
-  void dispose() {
-    pickupController.dispose();
-    destinationController.dispose();
-    priceController.dispose();
-    errandDetailsController.dispose();
-    errandEstimatedCostController.dispose();
-    priceFocusNode.dispose();
-    super.dispose();
-  }
-
-  // 🟢 الدالة دي عشان شاشة الـ Tab تبعت للفورم العناوين بعد اختيارها من الخريطة
-  void updateLocationText(String mode, String address) {
-    setState(() {
-      if (mode == 'pickup') {
-        pickupController.text = address;
-      } else if (mode == 'destination') {
-        destinationController.text = address;
-      }
-    });
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)), 
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-      ),
-    );
-  }
-
-  // 🟢 نقلنا الـ Validation بالكامل هنا عشان الفورم يعتمد على نفسه
-  void _validateAndSubmit() {
-    bool isErrand = tripCategory == 'طلبات';
-    
-    if (destinationController.text.trim().isEmpty || priceController.text.trim().isEmpty || pickupController.text.trim().isEmpty) {
-      _showError('الرجاء إكمال جميع الحقول الأساسية!');
-      return;
-    }
-
-    double? suggestedPrice = double.tryParse(priceController.text.trim());
-    if (suggestedPrice == null || suggestedPrice <= 0) {
-      _showError('الرجاء إدخال سعر صحيح (أرقام فقط)!');
-      return;
-    }
-
-    if (isErrand) {
-      if (errandDetailsController.text.trim().isEmpty && orderAudioFile == null) {
-        _showError('الرجاء كتابة تفاصيل الطلبات أو تسجيلها صوتياً!');
-        return;
-      }
-      double? errandCost = double.tryParse(errandEstimatedCostController.text.trim());
-      if (errandCost == null || errandCost <= 0) {
-        _showError('الرجاء إدخال تكلفة تقريبية صحيحة (أرقام فقط)!');
-        return;
-      }
-    }
-    
-    // الإرسال للـ Cubit
-    context.read<PassengerRequestCubit>().submitTripRequest(
-      tripCategory: tripCategory,
-      vehicleType: vehicleType,
-      pickup: pickupController.text.trim(),
-      destination: destinationController.text.trim(),
-      price: priceController.text.trim(),
-      errandDetails: errandDetailsController.text.trim(),
-      errandCost: errandEstimatedCostController.text.trim(),
-      pickupLocation: widget.pickupLocation,
-      destinationLocation: widget.destinationLocation,
-      orderAudioFile: orderAudioFile,
-    );
-  }
-
-  Widget _buildTripCategorySelector() {
-    List<Map<String, dynamic>> categories = [
-      {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded},
-      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded},
-      {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
-    ];
-
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 6.w),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(30.r),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: categories.map((c) {
-          bool isSelected = tripCategory == c['id'];
-          return GestureDetector(
-            onTap: () {
-              setState(() => tripCategory = c['id']);
-              FocusScope.of(context).unfocus();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic, 
-              padding: EdgeInsets.symmetric(horizontal: isSelected ? 18.w : 12.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(25.r),
-                boxShadow: isSelected ? [
-                  BoxShadow(color: AppColors.accentGold.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3))
-                ] : [],
-                border: isSelected ? Border.all(color: AppColors.accentGold.withValues(alpha: 0.3), width: 1) : Border.all(color: Colors.transparent, width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedScale(
-                    scale: isSelected ? 1.2 : 1.0, 
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack,
-                    child: AnimatedRotation(
-                      turns: isSelected ? 0 : -0.02, 
-                      duration: const Duration(milliseconds: 300),
-                      child: Icon(c['icon'], color: isSelected ? AppColors.accentGold : Colors.grey.shade400, size: 22.sp),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: TextStyle(fontFamily: 'Cairo', fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600, fontSize: isSelected ? 14.sp : 13.sp, color: isSelected ? AppColors.royalGreen : Colors.grey.shade500),
-                    child: Text(c['name']),
-                  )
-                ]
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildSelectedForm(bool isSubmittingTrip) {
-    if (tripCategory == 'داخلي') {
-      return RideServiceForm(
-        vehicleType: vehicleType,
-        isSubmittingTrip: isSubmittingTrip,
-        pickupController: pickupController,
-        destinationController: destinationController,
-        priceController: priceController,
-        priceFocusNode: priceFocusNode,
-        onVehicleChanged: (v) => setState(() => vehicleType = v),
-        onOpenMapSelection: widget.onOpenMapSelection,
-        onSubmit: _validateAndSubmit,
-        primaryGreen: AppColors.royalGreen,
-        accentGold: AppColors.accentGold,
+  void _listenToSpeech() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => debugPrint('onStatus: $val'),
+        onError: (val) => debugPrint('onError: $val'),
       );
-    } else if (tripCategory == 'طلبات') {
-      return BuyOrdersServiceForm(
-        isSubmittingTrip: isSubmittingTrip,
-        errandDetailsController: errandDetailsController,
-        errandEstimatedCostController: errandEstimatedCostController,
-        pickupController: pickupController,
-        destinationController: destinationController,
-        priceController: priceController,
-        priceFocusNode: priceFocusNode,
-        onOpenMapSelection: widget.onOpenMapSelection,
-        onAudioRecorded: (file) => setState(() => orderAudioFile = file),
-        onSubmit: _validateAndSubmit,
-        primaryGreen: AppColors.royalGreen,
-        accentGold: AppColors.accentGold,
-      );
-    } else if (tripCategory == 'خارجي') { 
-      return TravelServiceForm(
-        vehicleType: vehicleType,
-        isSubmittingTrip: isSubmittingTrip,
-        pickupController: pickupController,
-        destinationController: destinationController,
-        priceController: priceController,
-        priceFocusNode: priceFocusNode,
-        onVehicleChanged: (v) => setState(() => vehicleType = v),
-        onOpenMapSelection: widget.onOpenMapSelection,
-        onSubmit: _validateAndSubmit,
-        primaryGreen: AppColors.royalGreen,
-        accentGold: AppColors.accentGold,
-      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            widget.errandDetailsController.text = val.recognizedWords;
+          }),
+          listenOptions: stt.SpeechListenOptions(
+            localeId: 'ar_EG',
+          ),
+        );
+      }
     } else {
-      return const SizedBox.shrink();
+      setState(() => _isListening = false);
+      _speech.stop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 الفورم بيراقب حالة الكيوبت بنفسه عشان يعرف إمتى يظهر الـ Loading
-    return BlocBuilder<PassengerRequestCubit, PassengerRequestState>(
-      builder: (context, state) {
-        bool isSubmitting = state is TripSubmitting;
-        
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 20.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTripCategorySelector(),
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+      child: SingleChildScrollView( 
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. التابات العلوية
+            Container(
+              padding: EdgeInsets.all(4.w),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(30.r),
+                border: Border.all(color: _lighterNavy.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  _buildCategoryChip('داخلي', 'توصيل', Icons.local_taxi_rounded),
+                  _buildCategoryChip('طلبات', 'شراء طلبات', Icons.shopping_bag_rounded),
+                  _buildCategoryChip('سفر', 'سفر', Icons.emoji_transportation_rounded), 
+                ],
+              ),
+            ),
+            SizedBox(height: 24.h),
+
+            // 2. اختيار نوع المركبة (تم عكس الترتيب لتكون السيارة على الشمال)
+            if (widget.tripCategory == 'داخلي') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildVehicleChip('توكتوك', 'assets/images/tuktuk.png'),
+                  SizedBox(width: 10.w),
+                  _buildVehicleChip('موتوسيكل', 'assets/images/motorcycle.png'),
+                  SizedBox(width: 10.w),
+                  _buildVehicleChip('سيارة', 'assets/images/car.png'),
+                ],
+              ),
+              SizedBox(height: 24.h),
+            ],
+
+            // 3. حقول قسم الطلبات (تم رفعها لتكون أول حاجة كما طلبت)
+            if (widget.tripCategory == 'طلبات') ...[
+              TextFormField(
+                controller: widget.errandDetailsController,
+                style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
+                minLines: 1,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'تفاصيل الطلبات (اكتب أو سجل صوتك)',
+                  labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600),
+                  prefixIcon: Icon(Icons.list_alt_rounded, color: _lighterNavy),
+                  suffixIcon: GestureDetector(
+                    onTap: _listenToSpeech,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isListening ? AppColors.error.withValues(alpha: 0.1) : Colors.transparent,
+                      ),
+                      child: Icon(
+                        _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                        color: _isListening ? AppColors.error : AppColors.accentGold,
+                        size: 26.sp,
+                      ),
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: AppColors.backgroundLight,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: _lighterNavy.withValues(alpha: 0.05))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: _lighterNavy.withValues(alpha: 0.05))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
+                ),
+              ),
+              SizedBox(height: 12.h),
+
+              _buildStandardInputField(
+                controller: widget.errandEstimatedCostController,
+                label: 'سعر الطلبات التقريبي (للشراء)',
+                icon: Icons.receipt_long_rounded,
+                iconColor: _lighterNavy,
+                keyboardType: TextInputType.number,
+              ),
               SizedBox(height: 16.h),
-              _buildSelectedForm(isSubmitting), 
+            ],
+
+            // 4. نقطة الانطلاق (تصميم جديد متطابق مع الصورة ويدعم الكتابة)
+            _buildLocationField(
+              controller: widget.pickupController,
+              prefixText: widget.tripCategory == 'سفر' ? 'تحرك :' : 'من :',
+              hintText: 'موقعي الحالي',
+              icon: Icons.my_location_rounded,
+              iconColor: AppColors.accentGold,
+              onMapTap: () => widget.onOpenMapSelection('pickup'),
+            ),
+            SizedBox(height: 12.h),
+
+            // 5. نقطة الوصول (تصميم جديد متطابق مع الصورة ويدعم الكتابة)
+            _buildLocationField(
+              controller: widget.destinationController,
+              prefixText: 'إلى :',
+              hintText: 'وجهة الوصول',
+              icon: Icons.location_on_rounded,
+              iconColor: widget.primaryGreen,
+              onMapTap: () => widget.onOpenMapSelection('destination'),
+            ),
+            SizedBox(height: 16.h),
+
+            // 6. سعر التوصيل (الأجرة)
+            _buildStandardInputField(
+              controller: widget.priceController,
+              focusNode: widget.priceFocusNode,
+              label: widget.tripCategory == 'سفر' ? 'سعرك المقترح للرحلة' : 'أجرة التوصيل للسائق',
+              icon: Icons.payments_rounded,
+              iconColor: AppColors.accentGold,
+              keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 24.h),
+
+            // 7. زر الإرسال (تم دمج الأخضر الملكي مع الكحلي الفاتح)
+            Container(
+              height: 55.h,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [widget.primaryGreen, _lighterNavy], // مزيج الأخضر والكحلي الفاتح
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                ),
+                borderRadius: BorderRadius.circular(16.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.primaryGreen.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent, // شفاف عشان الـ Gradient يظهر
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                ),
+                onPressed: widget.isSubmittingTrip ? null : widget.onSubmit,
+                child: widget.isSubmittingTrip
+                    ? SizedBox(width: 25.w, height: 25.w, child: const CircularProgressIndicator(color: AppColors.accentGold, strokeWidth: 3))
+                    : Text(
+                        widget.tripCategory == 'طلبات' 
+                            ? 'إرسال طلب المشتروات للسائق' 
+                            : (widget.tripCategory == 'سفر' ? 'إرسال طلب السفر للكباتن' : 'إرسال الطلب للسائق'),
+                        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: AppColors.accentGold),
+                      ),
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🔴 ودجت التابات العلوية
+  Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
+    bool isSelected = widget.tripCategory == logicTitle;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => widget.onCategoryChanged(logicTitle),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.accentGold.withValues(alpha: 0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(25.r),
+            border: Border.all(color: isSelected ? AppColors.accentGold : Colors.transparent, width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18.sp, color: isSelected ? _lighterNavy : Colors.grey.shade400),
+              SizedBox(width: 8.w),
+              Text(
+                displayTitle,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 14.sp,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? _lighterNavy : Colors.grey.shade400,
+                ),
+              ),
             ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  // 🔴 تصميم حقول الموقع المطابق للصورة (الكلمة ثابتة يمين، حقل كتابة في النص، زر الخريطة شمال)
+  Widget _buildLocationField({
+    required TextEditingController controller,
+    required String prefixText,
+    required String hintText,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onMapTap,
+  }) {
+    return Container(
+      padding: EdgeInsets.only(right: 16.w, left: 8.w, top: 4.h, bottom: 4.h),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(15.r),
+        border: Border.all(color: _lighterNavy.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          // الكلمة الثابتة (من: / إلى:)
+          Text(
+            prefixText,
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _lighterNavy),
+          ),
+          SizedBox(width: 8.w),
+          // حقل الإدخال (يدعم الكتابة)
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: AppColors.textDark),
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade400),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+          // زر فتح الخريطة على الشمال في دائرة بيضاء
+          GestureDetector(
+            onTap: onMapTap,
+            child: Container(
+              padding: EdgeInsets.all(10.w),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]
+              ),
+              child: Icon(icon, color: iconColor, size: 22.sp),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // 🔴 الحقول العادية (مثل الأجرة)
+  Widget _buildStandardInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    TextInputType keyboardType = TextInputType.text,
+    FocusNode? focusNode,
+  }) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: keyboardType,
+      style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.textDark),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+        prefixIcon: Icon(icon, color: iconColor),
+        filled: true,
+        fillColor: AppColors.backgroundLight,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: _lighterNavy.withValues(alpha: 0.05))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: _lighterNavy.withValues(alpha: 0.05))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
+      ),
+    );
+  }
+
+  // 🔴 ودجت السيارات
+  Widget _buildVehicleChip(String title, String imagePath) {
+    bool isSelected = widget.vehicleType == title;
+    return Expanded(
+      child: InkWell(
+        onTap: () => widget.onVehicleChanged(title),
+        borderRadius: BorderRadius.circular(15.r),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+          decoration: BoxDecoration(
+            color: isSelected ? _lighterNavy : Colors.transparent, // تم استخدام الكحلي الفاتح
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: isSelected ? AppColors.accentGold : Colors.grey.shade300),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                imagePath,
+                height: 45.h,
+                fit: BoxFit.contain,
+              ),
+              SizedBox(height: 6.h),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.sp,
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

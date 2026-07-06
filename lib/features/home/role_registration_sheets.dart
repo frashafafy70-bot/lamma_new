@@ -112,8 +112,8 @@ class RoleRegistrationSheets {
     }
   }
 
-  static void showCaptain(BuildContext pageContext, HomeCubit cubit, String fullName) {
-    Navigator.push(pageContext, MaterialPageRoute(builder: (context) => CaptainRegistrationPage(cubit: cubit, fullName: fullName)));
+  static void showDriver(BuildContext pageContext, HomeCubit cubit, String fullName) {
+    Navigator.push(pageContext, MaterialPageRoute(builder: (context) => DriverRegistrationPage(cubit: cubit, fullName: fullName)));
   }
 
   static void showLawyer(BuildContext pageContext, HomeCubit cubit, String fullName) {
@@ -177,13 +177,13 @@ class RoleRegistrationSheets {
 }
 
 // -----------------------------------------------------------------------------
-// 1. صفحة الكابتن
-class CaptainRegistrationPage extends StatefulWidget {
+// 1. صفحة السائق
+class DriverRegistrationPage extends StatefulWidget {
   final HomeCubit cubit; final String fullName;
-  const CaptainRegistrationPage({super.key, required this.cubit, required this.fullName});
-  @override State<CaptainRegistrationPage> createState() => _CaptainRegistrationPageState();
+  const DriverRegistrationPage({super.key, required this.cubit, required this.fullName});
+  @override State<DriverRegistrationPage> createState() => _DriverRegistrationPageState();
 }
-class _CaptainRegistrationPageState extends State<CaptainRegistrationPage> {
+class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
   final vehicleController = TextEditingController(); final plateController = TextEditingController();
   File? carLicenseFront, carLicenseBack, personalIdFront, personalIdBack; bool _isLoading = false;
 
@@ -195,13 +195,13 @@ class _CaptainRegistrationPageState extends State<CaptainRegistrationPage> {
     try {
       // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
       var uploads = await Future.wait<dynamic>([
-        widget.cubit.uploadDocument(role: 'captain', docName: 'car_license_front', file: carLicenseFront!),
-        widget.cubit.uploadDocument(role: 'captain', docName: 'car_license_back', file: carLicenseBack!),
-        widget.cubit.uploadDocument(role: 'captain', docName: 'personal_id_front', file: personalIdFront!),
-        widget.cubit.uploadDocument(role: 'captain', docName: 'personal_id_back', file: personalIdBack!),
+        widget.cubit.uploadDocument(role: 'driver', docName: 'car_license_front', file: carLicenseFront!),
+        widget.cubit.uploadDocument(role: 'driver', docName: 'car_license_back', file: carLicenseBack!),
+        widget.cubit.uploadDocument(role: 'driver', docName: 'personal_id_front', file: personalIdFront!),
+        widget.cubit.uploadDocument(role: 'driver', docName: 'personal_id_back', file: personalIdBack!),
       ]);
       Map<String, dynamic> data = {'displayName': 'كابتن ${widget.fullName.trim().split(' ').first}', 'vehicle': vehicleController.text, 'plate': plateController.text, 'isVerified': true, 'rating': 5.0, 'carLicenseFrontUrl': uploads[0], 'carLicenseBackUrl': uploads[1], 'personalIdFrontUrl': uploads[2], 'personalIdBackUrl': uploads[3]};
-      await widget.cubit.submitRoleRegistration(role: 'captain', profileData: data);
+      await widget.cubit.submitRoleRegistration(role: 'driver', profileData: data);
       if (mounted) Navigator.pop(context);
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'))); } finally { if (mounted) setState(() => _isLoading = false); }
   }
@@ -215,7 +215,7 @@ class _CaptainRegistrationPageState extends State<CaptainRegistrationPage> {
           backgroundColor: Colors.transparent, 
           elevation: 0, 
           leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
-          title: const Text('تفعيل حساب الكابتن 🚖', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+          title: const Text('تفعيل حساب كابتن 🚖', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
           centerTitle: true
         ),
         body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [

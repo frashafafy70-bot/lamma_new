@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
-import 'dart:math' as math; // 🟢 استيراد مكتبة الماث عشان الرادار
+import 'dart:math' as math;
 
 import '../../cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
@@ -38,8 +38,8 @@ class MyRequestTripCard extends StatelessWidget {
 
   String _getStatusLabel(String status) {
     switch (status) {
-      case 'pending': return 'في انتظار كابتن';
-      case 'available': return 'في انتظار كابتن'; 
+      case 'pending': return 'في انتظار سائق';
+      case 'available': return 'في انتظار سائق'; 
       case 'negotiating': return 'جاري التفاوض';
       case 'accepted': return 'تم القبول';
       case 'in_progress': return 'الرحلة جارية'; 
@@ -81,14 +81,17 @@ class MyRequestTripCard extends StatelessWidget {
     }
   }
 
-  void _showNegotiationDialog(BuildContext context) {
+  // 🟢 هنا التعديل: الدالة بتاخد currentType وبتباصيه
+  void _showNegotiationDialog(BuildContext context, String currentType) {
     TextEditingController offerCtrl = TextEditingController();
+    String typeLabel = currentType == 'full_car' ? 'السيارة كاملة' : 'المقعد الفردي';
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        title: Text('التفاوض مع الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp)), 
+        title: Text('التفاوض على سعر $typeLabel', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)), 
         content: TextField(
           controller: offerCtrl, 
           keyboardType: TextInputType.number,
@@ -107,7 +110,8 @@ class MyRequestTripCard extends StatelessWidget {
             onPressed: () async { 
               if (offerCtrl.text.trim().isEmpty) return;
               try {
-                await context.read<PassengerMyRequestsCubit>().negotiateTrip(docId, offerCtrl.text.trim());
+                // 🟢 هنا باصينا الـ currentType عشان الدالة متضربش إيرور (3 قيم)
+                await context.read<PassengerMyRequestsCubit>().negotiateTrip(docId, offerCtrl.text.trim(), currentType);
                 if (ctx.mounted) Navigator.pop(ctx); 
               } catch (e) {
                  debugPrint('خطأ أثناء إرسال العرض: $e');
@@ -121,7 +125,7 @@ class MyRequestTripCard extends StatelessWidget {
   }
 
   Widget _buildDriverInfoCard() {
-    String driverName = data['driverName'] ?? 'كابتن لَمّة';
+    String driverName = data['driverName'] ?? 'سائق لَمّة';
     String vehicleType = data['vehicleType'] ?? 'مركبة';
 
     return Container(
@@ -167,12 +171,11 @@ class MyRequestTripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     String status = data['status'] ?? 'pending';
     String category = data['tripCategory'] ?? 'داخلي';
+    String currentType = data['tripType'] ?? 'seat'; 
     bool isErrand = category == 'طلبات';
     bool isNegotiating = status == 'negotiating';
     
-    // 🟢 هل نحن في حالة انتظار لكابتن؟
-    bool isWaitingForCaptain = status == 'pending' || status == 'available' || status == 'searching';
-    
+    bool isWaitingForDriver = status == 'pending' || status == 'available' || status == 'searching';
     bool isAcceptedOrInProgress = status == 'accepted' || status == 'in_progress';
 
     String formattedDate = '';
@@ -290,7 +293,6 @@ class MyRequestTripCard extends StatelessWidget {
             ],
             SizedBox(height: 16.h),
 
-            // 🟢 جزء الخريطة مع الرادار
             if (mapCenter != null) ...[
               SizedBox(
                 height: 130.h,
@@ -300,7 +302,6 @@ class MyRequestTripCard extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // 1. الخريطة الأصلية
                       IgnorePointer( 
                         child: GoogleMap(
                           liteModeEnabled: true, 
@@ -315,15 +316,13 @@ class MyRequestTripCard extends StatelessWidget {
                           compassEnabled: false,
                         ),
                       ),
-                      
-                      // 2. الرادار (يظهر فقط أثناء الانتظار)
-                      if (isWaitingForCaptain)
+                      if (isWaitingForDriver)
                         IgnorePointer(
                           child: Container(
-                            color: Colors.white.withValues(alpha: 0.1), // تعتيم خفيف جدًا للخريطة عشان الرادار يبان
+                            color: Colors.white.withValues(alpha: 0.1),
                             child: _LammaPingPongRadar(
                               color: royalGreen,
-                              size: 100.sp, // حجم الموجات
+                              size: 100.sp,
                             ),
                           ),
                         ),
@@ -346,7 +345,7 @@ class MyRequestTripCard extends StatelessWidget {
                     children: [
                       Icon(Icons.access_time, color: Colors.orange, size: 18.sp),
                       SizedBox(width: 8.w),
-                      Expanded(child: Text('في انتظار رد الكابتن على عرضك (${data['negotiationPrice']} ج)', style: TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))),
+                      Expanded(child: Text('في انتظار رد السائق على عرضك (${data['negotiationPrice']} ج)', style: TextStyle(color: Colors.orange, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp))),
                     ],
                   ),
                 )
@@ -358,14 +357,14 @@ class MyRequestTripCard extends StatelessWidget {
                       width: double.infinity,
                       padding: EdgeInsets.all(10.w),
                       decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8.r)),
-                      child: Text('عرض من الكابتن ${data['driverName'] ?? ''}: ${data['negotiationPrice']} ج', style: TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                      child: Text('عرض من السائق ${data['driverName'] ?? ''}: ${data['negotiationPrice']} ج', style: TextStyle(color: Colors.blue, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
                     ),
                     SizedBox(height: 12.h),
                     Row(
                       children: [
                         Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () async => await context.read<PassengerMyRequestsCubit>().acceptOffer(docId, data['negotiationPrice'].toString()), child: Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
                         SizedBox(width: 8.w),
-                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () => _showNegotiationDialog(context), child: Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
+                        Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () => _showNegotiationDialog(context, currentType), child: Text('تفاوض', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp)))),
                         SizedBox(width: 8.w),
                         Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), onPressed: () async => await context.read<PassengerMyRequestsCubit>().rejectTrip(docId), child: Text('رفض', style: TextStyle(color: Colors.red, fontFamily: 'Cairo', fontSize: 13.sp)))),
                       ],
@@ -452,9 +451,6 @@ class MyRequestTripCard extends StatelessWidget {
   }
 }
 
-// =================================================================
-// 🟢 ويدجت الرادار البصري (Ping Pong / Ripple) الخاصة بالكارت
-// =================================================================
 class _LammaPingPongRadar extends StatefulWidget {
   final Color color;
   final double size;

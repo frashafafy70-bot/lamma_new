@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_chat_cubit.dart'; 
+import 'package:lamma_new/features/trips/domain/entities/chat_message_entity.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/message_bubble.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/chat_input_widget.dart';
 
@@ -24,7 +25,6 @@ class TripChatPage extends StatefulWidget {
 class _TripChatPageState extends State<TripChatPage> {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   
-  // متغيرات لحفظ بيانات الطرف الآخر (حية وديناميكية)
   String otherUserName = 'جاري التحميل...';
   String otherUserPhone = '';
   bool isLoadingInfo = true;
@@ -34,8 +34,11 @@ class _TripChatPageState extends State<TripChatPage> {
   @override
   void initState() {
     super.initState();
+    
+    // 🟢 1. جلب الرسائل من الكيوبت الجلوبال بمجرد فتح الشاشة
+    context.read<TripChatCubit>().loadChat(widget.tripId);
+    
     _scrollController.addListener(_onScroll);
-    // استدعاء دالة جلب بيانات الطرف الآخر فور فتح الشات
     _fetchOtherPartyInfo();
   }
 
@@ -45,17 +48,15 @@ class _TripChatPageState extends State<TripChatPage> {
     super.dispose();
   }
 
-  // اللوجيك الخاص برصد وصول المستخدم لآخر الرسايل المحملة
   void _onScroll() {
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 50) {
+      // 🟢 2. الآن الـ context سيتعرف على الكيوبت بدون مشاكل
       context.read<TripChatCubit>().loadMoreMessages(widget.tripId);
     }
   }
 
-  // 🟢 الدالة الـ Pro Max لجلب بيانات الطرف التاني
   Future<void> _fetchOtherPartyInfo() async {
     try {
-      // 1. جلب بيانات الرحلة
       var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).get();
       if (!tripDoc.exists) return;
       
@@ -63,18 +64,15 @@ class _TripChatPageState extends State<TripChatPage> {
       String passengerId = tripData['passengerId'] ?? '';
       String driverId = tripData['driverId'] ?? '';
       
-      // 2. تحديد من هو الطرف الآخر؟
       String otherUserId = (currentUserId == passengerId) ? driverId : passengerId;
 
-      // 3. جلب بيانات الطرف الآخر من كولكشن المستخدمين
       if (otherUserId.isNotEmpty) {
          var userDoc = await FirebaseFirestore.instance.collection('users').doc(otherUserId).get();
          if (userDoc.exists) {
             var userData = userDoc.data() as Map<String, dynamic>;
             if (mounted) {
               setState(() {
-                 // لو مفيش اسم، هنحط لقب افتراضي بناءً على دوره
-                 otherUserName = userData['name'] ?? (currentUserId == passengerId ? 'الكابتن' : 'العميل');
+                 otherUserName = userData['name'] ?? (currentUserId == passengerId ? 'السائق' : 'العميل');
                  otherUserPhone = userData['phone'] ?? '';
                  isLoadingInfo = false;
               });
@@ -117,38 +115,36 @@ class _TripChatPageState extends State<TripChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => TripChatCubit()..loadChat(widget.tripId),
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        resizeToAvoidBottomInset: true, 
-        appBar: _buildAppBar(context),
-        body: SafeArea(
-          bottom: true,
-          top: false,
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Column(
-              children: [
-                Expanded(
-                  child: BlocBuilder<TripChatCubit, TripChatState>(
-                    builder: (context, state) {
-                      if (state is TripChatLoading) {
-                        return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
-                      } 
-                      else if (state is TripChatError) {
-                        return _buildErrorState(context, state.error);
-                      } 
-                      else if (state is TripChatLoaded) {
-                        return _buildChatList(state.messages);
-                      }
-                      return const SizedBox();
-                    },
-                  ),
+    // 🟢 3. إزالة الـ BlocProvider من هنا والاعتماد على الـ Scaffold مباشرة
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      resizeToAvoidBottomInset: true, 
+      appBar: _buildAppBar(context),
+      body: SafeArea(
+        bottom: true,
+        top: false,
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Column(
+            children: [
+              Expanded(
+                child: BlocBuilder<TripChatCubit, TripChatState>(
+                  builder: (context, state) {
+                    if (state is TripChatLoading) {
+                      return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
+                    } 
+                    else if (state is TripChatError) {
+                      return _buildErrorState(context, state.error);
+                    } 
+                    else if (state is TripChatLoaded) {
+                      return _buildChatList(state.messages);
+                    }
+                    return const SizedBox();
+                  },
                 ),
-                ChatInputWidget(tripId: widget.tripId, currentUserId: currentUserId),
-              ],
-            ),
+              ),
+              ChatInputWidget(tripId: widget.tripId, currentUserId: currentUserId),
+            ],
           ),
         ),
       ),
@@ -232,7 +228,7 @@ class _TripChatPageState extends State<TripChatPage> {
     );
   }
 
-  Widget _buildChatList(List<dynamic> messages) {
+  Widget _buildChatList(List<ChatMessageEntity> messages) {
     return ListView.builder(
       controller: _scrollController, 
       reverse: true,
@@ -243,8 +239,13 @@ class _TripChatPageState extends State<TripChatPage> {
           return _buildEncryptionNotice();
         }
         var msg = messages[index];
-        bool isMe = msg['senderId'] == currentUserId;
-        return MessageBubble(msg: msg, isMe: isMe);
+        bool isMe = msg.senderId == currentUserId;
+        
+        return MessageBubble(
+          message: msg, 
+          isMe: isMe,
+          senderName: isMe ? null : otherUserName, 
+        );
       },
     );
   }
@@ -258,7 +259,7 @@ class _TripChatPageState extends State<TripChatPage> {
           decoration: BoxDecoration(
             color: const Color(0xFFFEEFCD), 
             borderRadius: BorderRadius.circular(8.r),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))]
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))]
           ),
           child: Text(
             '🔒 الرسائل مشفرة تماماً',

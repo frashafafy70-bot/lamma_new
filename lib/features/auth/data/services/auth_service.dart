@@ -1,125 +1,168 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  // ==========================================
-  // 1. دالة إنشاء حساب جديد
-  // ==========================================
-  Future<UserCredential> signUpUser({
-    required String email,
-    required String password,
-    required String name,
-    required String phone,
-  }) async {
-    try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  Future<UserCredential> signUpUser({required String email, required String password, required String name, required String phone}) async {
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    User? user = userCredential.user;
+    if (user != null) {
+      String? fcmToken = await _messaging.getToken();
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'roles': ['client'],
+        'activeRole': 'client',
+        'fcmToken': fcmToken,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    return userCredential;
+  }
 
-      User? user = userCredential.user;
+  Future<UserCredential> loginUser({required String email, required String password}) async {
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    User? user = userCredential.user;
+    if (user != null) {
+      String? fcmToken = await _messaging.getToken();
+      if (fcmToken != null) {
+        await _firestore.collection('users').doc(user.uid).update({'fcmToken': fcmToken});
+      }
+    }
+    return userCredential;
+  }
 
-      if (user != null) {
+  Future<void> signOutUser() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      await _firestore.collection('users').doc(user.uid).update({'fcmToken': FieldValue.delete()});
+    }
+    await _auth.signOut();
+  }
+
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) return doc.data() as Map<String, dynamic>;
+    return null;
+  }
+
+  Future<UserCredential> loginWithGoogle() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) throw Exception('تم إلغاء تسجيل الدخول');
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final OAuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    UserCredential userCredential = await _auth.signInWithCredential(credential);
+    User? user = userCredential.user;
+
+    if (user != null) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
         String? fcmToken = await _messaging.getToken();
-
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
-          'name': name,
-          'email': email,
-          'phone': phone,
-          'roles': ['customer'], 
-          'activeRole': 'customer', 
-          'fcmToken': fcmToken, 
+          'email': user.email ?? '',
+          'name': user.displayName ?? 'مستخدم جوجل',
+          'phone': user.phoneNumber ?? '',
+          'roles': ['client'],
+          'activeRole': 'client',
+          'status': 'approved',
+          'fcmToken': fcmToken ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        throw Exception('البريد الإلكتروني مستخدم بالفعل لحساب آخر.');
-      } else if (e.code == 'weak-password') {
-        throw Exception('كلمة المرور ضعيفة جداً.');
-      } else if (e.code == 'invalid-email') {
-        throw Exception('صيغة البريد الإلكتروني غير صحيحة.');
-      }
-      throw Exception('حدث خطأ أثناء التسجيل: ${e.message}');
-    } catch (e) {
-      throw Exception('خطأ غير متوقع: $e');
     }
+    return userCredential;
   }
 
-  // ==========================================
-  // 2. دالة تسجيل الدخول
-  // ==========================================
-  Future<UserCredential> loginUser({
-    required String email,
-    required String password,
+  Future<void> sendSignUpOtp({
+    required String phone,
+    required Function(String verificationId) onCodeSent,
+    required Function(String error) onError,
   }) async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+    String formattedPhone = phone.startsWith('+') ? phone : '+2$phone';
+    var phoneCheck = await _firestore.collection('users').where('phone', isEqualTo: phone).limit(1).get();
+    if (phoneCheck.docs.isNotEmpty) {
+      onError('رقم الهاتف هذا مسجل بالفعل ومربوط بحساب آخر ⚠️');
+      return;
+    }
 
-      User? user = userCredential.user;
+    await _auth.verifyPhoneNumber(
+      phoneNumber: formattedPhone,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (PhoneAuthCredential credential) {},
+      verificationFailed: (FirebaseAuthException e) {
+        onError('فشل إرسال كود التحقق للهاتف: ${e.message} ❌');
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        onCodeSent(verificationId);
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
 
-      if (user != null) {
-        String? fcmToken = await _messaging.getToken();
-        if (fcmToken != null) {
-          await _firestore.collection('users').doc(user.uid).update({
-            'fcmToken': fcmToken,
-          });
-        }
+  Future<String> verifyOtpAndCompleteSignUp({
+    required String verificationId, required String smsCode, required String email, required String password,
+    required String name, required String phone, required String role, String? nationalId,
+    File? idFrontImage, File? idBackImage, File? professionImage, File? carLicenseFrontImage, File? carLicenseBackImage,
+  }) async {
+    PhoneAuthCredential credential = PhoneAuthProvider.credential(verificationId: verificationId, smsCode: smsCode);
+    UserCredential phoneUserAuth = await _auth.signInWithCredential(credential);
+
+    if (phoneUserAuth.user != null) {
+      UserCredential userCredential = await signUpUser(email: email, password: password, name: name, phone: phone);
+      String uid = userCredential.user!.uid;
+      Map<String, String> uploadedUrls = {};
+      List<String> finalRoles = ['client'];
+      String initialActiveRole = 'client';
+
+      if (role != 'عميل' && role != 'client') {
+        finalRoles.add('driver');
+        initialActiveRole = 'driver';
+        if (idFrontImage != null) uploadedUrls['id_front'] = await _uploadFileToStorage('users/$uid/id_front.jpg', idFrontImage);
+        if (idBackImage != null) uploadedUrls['id_back'] = await _uploadFileToStorage('users/$uid/id_back.jpg', idBackImage);
+        if (carLicenseFrontImage != null) uploadedUrls['car_front'] = await _uploadFileToStorage('users/$uid/car_front.jpg', carLicenseFrontImage);
+        if (carLicenseBackImage != null) uploadedUrls['car_back'] = await _uploadFileToStorage('users/$uid/car_back.jpg', carLicenseBackImage);
+        if (professionImage != null) uploadedUrls['profession'] = await _uploadFileToStorage('users/$uid/profession.jpg', professionImage);
       }
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
-        throw Exception('لا يوجد حساب مسجل بهذا البريد.');
-      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        throw Exception('كلمة المرور غير صحيحة.');
-      }
-      throw Exception('بيانات الدخول غير صحيحة.');
-    } catch (e) {
-      throw Exception('حدث خطأ أثناء محاولة الدخول.');
+
+      String? fcmToken = await _messaging.getToken();
+      Map<String, dynamic> additionalData = {
+        'roles': finalRoles,
+        'activeRole': initialActiveRole,
+        'status': 'approved',
+        'documents': uploadedUrls,
+        'fcmToken': fcmToken ?? '',
+      };
+
+      if (role != 'عميل' && role != 'client') additionalData['nationalId'] = nationalId;
+
+      await _firestore.collection('users').doc(uid).set(additionalData, SetOptions(merge: true));
+      await phoneUserAuth.user!.delete();
+      return uid;
+    } else {
+      throw Exception('كود الـ OTP المدخل غير صحيح ❌');
     }
   }
 
-  // ==========================================
-  // 3. دالة تسجيل الخروج
-  // ==========================================
-  Future<void> signOutUser() async {
-    try {
-      User? user = _auth.currentUser;
-      if (user != null) {
-        // حذف التوكن قبل تسجيل الخروج
-        await _firestore.collection('users').doc(user.uid).update({
-          'fcmToken': FieldValue.delete(),
-        });
-      }
-      await _auth.signOut();
-    } catch (e) {
-      throw Exception('حدث خطأ أثناء تسجيل الخروج.');
-    }
-  }
-
-  // ==========================================
-  // 4. دالة جلب بيانات المستخدم (إضافة هامة للـ Cubit)
-  // ==========================================
-  Future<Map<String, dynamic>?> getUserData(String uid) async {
-    try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-      if (doc.exists) {
-        return doc.data() as Map<String, dynamic>;
-      }
-      return null;
-    } catch (e) {
-      throw Exception('حدث خطأ أثناء جلب بيانات المستخدم.');
-    }
+  Future<String> _uploadFileToStorage(String path, File file) async {
+    Reference ref = FirebaseStorage.instance.ref().child(path);
+    UploadTask uploadTask = ref.putFile(file);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
   }
 }

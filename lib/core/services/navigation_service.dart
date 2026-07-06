@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
-// تأكد من استدعاء صفحة الرحلة النشطة الخاصة بالكابتن هنا
+// تأكد من استدعاء صفحة الرحلة النشطة الخاصة بالسائق هنا
 // import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart'; 
 
 class NavigationService {
@@ -18,7 +18,7 @@ class NavigationService {
     }
   }
 
-  // دالة ذكية لتوجيه الكابتن لصفحة الرحلة النشطة (Driver Active Trip)
+  // دالة ذكية لتوجيه السائق لصفحة الرحلة النشطة (Driver Active Trip)
   static void navigateToDriverActiveTrip(String tripId) {
     if (navigatorKey.currentState != null) {
       // قم بتفعيل هذا الكود وتوجيهه للصفحة الصحيحة لديك
@@ -29,7 +29,7 @@ class NavigationService {
         ),
       );
       */
-      debugPrint("🚀 تم التوجيه إلى رحلة الكابتن النشطة: $tripId");
+      debugPrint("🚀 تم التوجيه إلى رحلة السائق النشطة: $tripId");
     }
   }
 

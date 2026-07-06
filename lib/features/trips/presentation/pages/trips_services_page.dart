@@ -1,13 +1,14 @@
-import 'package:rxdart/rxdart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart'; 
 import 'package:intl/intl.dart' hide TextDirection; 
+import 'package:rxdart/rxdart.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
+
 import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_request_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_my_requests_tab.dart'; 
 
@@ -34,7 +35,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
     super.dispose();
   }
 
-  // 🟢 الكود لضبط العداد (يجمع المشاوير النشطة الصافية + حجوزات السفر)
   Stream<int> getActiveRequestsCountStream() {
     Stream<QuerySnapshot> tripsStream = FirebaseFirestore.instance
         .collection('trips')
@@ -80,8 +80,17 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         backgroundColor: Colors.white,
         resizeToAvoidBottomInset: false, 
         appBar: AppBar(
-          backgroundColor: AppColors.royalGreen,
+          backgroundColor: Colors.transparent, 
           elevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primaryDark, AppColors.royalGreen],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+            ),
+          ),
           centerTitle: true,
           title: Text(
             'خدمات التوصيل', 
@@ -127,7 +136,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                   labelPadding: EdgeInsets.zero, 
                   tabs: [
                     const Tab(text: 'طلب مشوار'),
-                    // 🟢 التعديل هنا: إضافة الـ StreamBuilder لتابة رحلات السفر
                     Tab(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -140,7 +148,16 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                                 .where('status', isEqualTo: 'available')
                                 .snapshots(),
                             builder: (context, snapshot) {
-                              int availableTravelTrips = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                              int availableTravelTrips = 0;
+                              if (snapshot.hasData) {
+                                String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                availableTravelTrips = snapshot.data!.docs.where((doc) {
+                                  var data = doc.data() as Map<String, dynamic>? ?? {};
+                                  String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
+                                  return ownerId != currentUserId;
+                                }).length;
+                              }
+                              
                               if (availableTravelTrips > 0) {
                                 return Padding(
                                   padding: EdgeInsets.only(right: 6.w),
@@ -190,7 +207,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            PassengerRequestTab(tabController: _tabController),
+            PassengerRequestTab(tabController: _tabController), 
             PassengerTravelTripsTab(tabController: _tabController),
             BlocProvider(
               create: (context) => PassengerMyRequestsCubit(), 
@@ -223,7 +240,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
+            return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -235,7 +252,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                   SizedBox(height: 16.h),
                   Text('لا توجد رحلات سفر متاحة حالياً.', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
                   SizedBox(height: 8.h),
-                  Text('الكباتن لسه منزلوش رحلات، جرب تدخل وقت تاني.', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade500)),
+                  Text('السائقين لسه منزلوش رحلات، جرب تدخل وقت تاني.', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade500)),
                 ],
               ),
             );
@@ -263,7 +280,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
               
               bool isMyOwnTrip = tripData['driverId'] == currentUserId;
               bool isFullCar = tripData['tripType'] == 'full_car';
-              int availableSeats = tripData['availableSeats'] ?? 0;
+              int availableSeats = int.tryParse(tripData['availableSeats'].toString()) ?? 0;
 
               String travelTimeStr = 'غير محدد';
               if (tripData['travelDate'] != null) {
@@ -297,8 +314,8 @@ class PassengerTravelTripsTab extends StatelessWidget {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(tripData['driverName'] ?? 'كابتن لَمَّة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: primaryNavy)),
-                                  Text('كابتن موثوق', style: TextStyle(fontFamily: 'Cairo', fontSize: 11.sp, color: Colors.green)),
+                                  Text(tripData['driverName'] ?? 'سائق لَمَّة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: primaryNavy)),
+                                  Text('سائق موثوق', style: TextStyle(fontFamily: 'Cairo', fontSize: 11.sp, color: Colors.green)),
                                 ],
                               ),
                             ],
@@ -306,7 +323,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                             decoration: BoxDecoration(color: AppColors.royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20.r)),
-                            child: Text('${tripData['price']} ج.م', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.royalGreen)),
+                            child: Text('${tripData['price'] ?? tripData['seatPrice'] ?? '0'} ج.م', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.royalGreen)),
                           ),
                         ],
                       ),
@@ -327,9 +344,9 @@ class PassengerTravelTripsTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(tripData['pickupLocation'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(tripData['pickup'] ?? tripData['fromCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 SizedBox(height: 12.h),
-                                Text(tripData['dropoffLocation'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(tripData['destination'] ?? tripData['toCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ],
                             ),
                           ),
@@ -378,7 +395,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
                             ),
                             onPressed: () {
-                              _showBookingDialog(context, docId, tripData['driverId'], tripData['driverName'] ?? 'الكابتن', isFullCar, availableSeats);
+                              _showBookingDialog(context, docId, tripData['driverId'], tripData['driverName'] ?? 'السائق', isFullCar, availableSeats);
                             },
                             child: Text(isFullCar ? 'حجز الرحلة كاملة' : 'احجز مقعدك الآن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.accentGold)),
                           ),
@@ -409,7 +426,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('هل تريد تأكيد الحجز مع الكابتن $driverName؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+                  Text('هل تريد تأكيد الحجز مع السائق $driverName؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
                   SizedBox(height: 16.h),
                   
                   if (!isFullCar) ...[
@@ -459,8 +476,8 @@ class PassengerTravelTripsTab extends StatelessWidget {
                       });
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('تم إرسال طلب الحجز للكابتن بنجاح!', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                        const SnackBar(
+                          content: Text('تم إرسال طلب الحجز للسائق بنجاح!', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
                           backgroundColor: AppColors.royalGreen,
                           behavior: SnackBarBehavior.floating,
                         ),

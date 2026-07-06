@@ -10,7 +10,7 @@ function getCurrentTimeFormatted() {
     });
 }
 
-// 6. إشعار للكابتن عند حجز مقعد جديد 💺
+// 6. إشعار للسائق عند حجز مقعد جديد 💺
 exports.notifyDriverNewBooking = functions.firestore
     .document('trip_bookings/{bookingId}')
     .onCreate(async (snap, context) => {
@@ -43,7 +43,7 @@ exports.notifyDriverNewBooking = functions.firestore
                 data: { type: 'new_booking', bookingId: context.params.bookingId }
             };
             await admin.messaging().send(message);
-        } catch (error) { console.error('خطأ إشعار الكابتن:', error); }
+        } catch (error) { console.error('خطأ إشعار السائق:', error); }
     });
 
 // 7. إشعار للعميل عند قبول طلبه 🏁
@@ -61,7 +61,7 @@ exports.notifyPassengerBookingStatus = functions.firestore
                 token: passengerDoc.data().fcmToken,
                 notification: {
                     title: 'تم قبول طلبك! 🎉',
-                    body: 'الكابتن قبل طلب حجز مقاعدك، رحلة سعيدة!'
+                    body: 'السائق قبل طلب حجز مقاعدك، رحلة سعيدة!'
                 },
                 android: {
                     priority: "high",
@@ -77,4 +77,63 @@ exports.notifyPassengerBookingStatus = functions.firestore
         } catch (error) { console.error('خطأ إشعار العميل:', error); }
     });
 
-// [هنا ضع الدوال الخمس السابقة الخاصة بالمحادثات والرحلات كما هي في ملفك]
+// 8. إشعار المحادثات اللحظية (الشات) 💬
+exports.sendChatNotification = functions.firestore
+    .document('trips/{tripId}/messages/{messageId}')
+    .onCreate(async (snap, context) => {
+        const messageData = snap.data();
+        const tripId = context.params.tripId;
+        const senderId = messageData.senderId;
+
+        if (!senderId) return null;
+
+        try {
+            // 1. جلب بيانات الرحلة لمعرفة الطرف الآخر
+            const tripDoc = await admin.firestore().collection('trips').doc(tripId).get();
+            if (!tripDoc.exists) return null;
+
+            const tripData = tripDoc.data();
+            const driverId = tripData.driverId || '';
+            const passengerId = tripData.passengerId || '';
+
+            // 2. تحديد المستلم
+            const receiverId = senderId === driverId ? passengerId : driverId;
+            if (!receiverId) return null;
+
+            // 3. جلب بيانات المستلم (للحصول على التوكن) والمرسل (للحصول على الاسم)
+            const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
+            const senderDoc = await admin.firestore().collection('users').doc(senderId).get();
+            
+            if (!receiverDoc.exists || !receiverDoc.data().fcmToken) return null;
+            
+            const senderName = senderDoc.exists ? (senderDoc.data().name || 'مستخدم لمة') : 'مستخدم لمة';
+
+            // 4. تجهيز نص الرسالة
+            let bodyText = 'أرسل لك رسالة جديدة';
+            if (messageData.type === 'image') bodyText = 'أرسل لك صورة 📷';
+            if (messageData.type === 'audio') bodyText = 'أرسل لك مقطع صوتي 🎤';
+
+            // 5. تجهيز الإشعار بنفس إعدادات تطبيق لمة
+            const message = {
+                token: receiverDoc.data().fcmToken,
+                notification: {
+                    title: senderName,
+                    body: bodyText
+                },
+                android: {
+                    priority: "high",
+                    notification: {
+                        channelId: "lamma_final_sound",
+                        priority: "max",
+                        sound: "default"
+                    }
+                },
+                data: { 
+                    type: 'chat', 
+                    tripId: tripId 
+                }
+            };
+
+            await admin.messaging().send(message);
+        } catch (error) { console.error('خطأ إشعار الشات:', error); }
+    });

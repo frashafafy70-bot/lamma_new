@@ -15,11 +15,11 @@ class DriverLocationCubit extends Cubit<DriverLocationState> {
 
   void startLocationTracking() {
     if (currentUserId.isEmpty) {
-      emit(DriverLocationError('الكابتن غير مسجل الدخول.'));
+      emit(DriverLocationError('السائق غير مسجل الدخول.'));
       return;
     }
 
-    // الفلترة الأولى (المسافة): عدم إرسال أي داتا من المستشعر إلا لو تحرك الكابتن 20 متر
+    // الفلترة الأولى (المسافة): عدم إرسال أي داتا من المستشعر إلا لو تحرك السائق 20 متر
     LocationSettings locationSettings = const LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 20, 

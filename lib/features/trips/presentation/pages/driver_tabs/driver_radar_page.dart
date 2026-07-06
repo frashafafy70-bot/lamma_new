@@ -10,25 +10,25 @@ import 'driver_radar_tab.dart';
 import 'driver_active_trips_tab.dart';
 import 'driver_history_tab.dart';
 
-class CaptainRadarPage extends StatefulWidget {
-  const CaptainRadarPage({super.key});
+class DriverRadarPage extends StatefulWidget {
+  const DriverRadarPage({super.key});
 
   @override
-  State<CaptainRadarPage> createState() => _CaptainRadarPageState();
+  State<DriverRadarPage> createState() => _DriverRadarPageState();
 }
 
-class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerProviderStateMixin {
-  late TabController _captainTabController;
+class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProviderStateMixin {
+  late TabController _driverTabController;
 
   @override
   void initState() {
     super.initState();
-    _captainTabController = TabController(length: 3, vsync: this);
+    _driverTabController = TabController(length: 3, vsync: this);
   }
 
   @override
   void dispose() {
-    _captainTabController.dispose();
+    _driverTabController.dispose();
     super.dispose();
   }
 
@@ -40,12 +40,12 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
           textDirection: TextDirection.rtl,
           child: Scaffold(
             appBar: AppBar(
-              title: const Text('لوحة تحكم الكابتن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
+              title: const Text('لوحة تحكم السائق', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
               backgroundColor: const Color(0xFF0F172A),
               iconTheme: const IconThemeData(color: Colors.white),
               elevation: 0,
               bottom: TabBar(
-                controller: _captainTabController,
+                controller: _driverTabController,
                 indicatorColor: const Color(0xFFD4AF37),
                 labelColor: const Color(0xFFD4AF37),
                 unselectedLabelColor: Colors.white70,
@@ -80,9 +80,9 @@ class _CaptainRadarPageState extends State<CaptainRadarPage> with SingleTickerPr
               ),
             ),
             body: TabBarView(
-              controller: _captainTabController,
+              controller: _driverTabController,
               children: [
-                DriverRadarTab(tabController: _captainTabController),
+                DriverRadarTab(),
                 BlocProvider(create: (context) => DriverActiveTripsCubit(), child: const DriverActiveTripsTab()),
                 const DriverHistoryTab(),
               ],

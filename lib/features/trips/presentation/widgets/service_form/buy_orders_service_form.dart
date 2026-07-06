@@ -86,7 +86,7 @@ class BuyOrdersServiceForm extends StatelessWidget {
         _buildPremiumTextField(
           controller: priceController,
           focusNode: priceFocusNode,
-          label: 'أجرة التوصيل للكابتن',
+          label: 'أجرة التوصيل للسائق',
           suffixText: 'جنيه',
           icon: Icons.payments_outlined,
           iconColor: accentGold,

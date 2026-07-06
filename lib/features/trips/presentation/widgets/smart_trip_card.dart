@@ -300,7 +300,7 @@ class _SmartTripCardState extends State<SmartTripCard> {
                           if (isWaitingForOther) ...[
                             Center(
                               child: Text(
-                                'في انتظار رد ${widget.isDriver ? "العميل" : "الكابتن"}...',
+                                'في انتظار رد ${widget.isDriver ? "العميل" : "السائق"}...',
                                 style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade600, fontSize: 14.sp, fontWeight: FontWeight.bold),
                               ),
                             )

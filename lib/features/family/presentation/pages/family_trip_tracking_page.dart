@@ -37,7 +37,7 @@ class _FamilyTripTrackingPageState extends State<FamilyTripTrackingPage> {
               final position = LatLng(state.driverLat!, state.driverLng!);
               _updateDriverMarker(position);
               
-              // تحريك الكاميرا لموقع الكابتن بسلاسة
+              // تحريك الكاميرا لموقع السائق بسلاسة
               _mapController?.animateCamera(
                 CameraUpdate.newCameraPosition(
                   CameraPosition(target: position, zoom: 16.5),
@@ -129,14 +129,14 @@ class _FamilyTripTrackingPageState extends State<FamilyTripTrackingPage> {
                             ),
                             const Divider(height: 20),
                             
-                            // بيانات الكابتن والوقت
+                            // بيانات السائق والوقت
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('الكابتن: ${state.tripData['driverName'] ?? 'غير محدد'}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                    Text('السائق: ${state.tripData['driverName'] ?? 'غير محدد'}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                                     const SizedBox(height: 2),
                                     Text('السيارة: ${state.tripData['carModel'] ?? 'غير محدد'}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
                                   ],
@@ -204,7 +204,7 @@ class _FamilyTripTrackingPageState extends State<FamilyTripTrackingPage> {
           markerId: const MarkerId('driver_marker'),
           position: position,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(title: 'موقع الكابتن'),
+          infoWindow: const InfoWindow(title: 'موقع السائق'),
         ),
       };
     });
@@ -212,8 +212,8 @@ class _FamilyTripTrackingPageState extends State<FamilyTripTrackingPage> {
 
   String _getTripStatusArabic(String status) {
     switch (status) {
-      case 'accepted': return 'الكابتن في الطريق';
-      case 'arrived': return 'الكابتن بالخارج';
+      case 'accepted': return 'السائق في الطريق';
+      case 'arrived': return 'السائق بالخارج';
       case 'in_progress': return 'الرحلة جارية';
       default: return 'جاري المعالجة';
     }

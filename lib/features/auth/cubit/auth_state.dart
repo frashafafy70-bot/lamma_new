@@ -17,7 +17,6 @@ class AuthError extends AuthState {
 
 class AuthLoggedOut extends AuthState {} 
 
-// الحالة الجديدة الخاصة بـ OTP
 class AuthOtpSent extends AuthState {
   final String verificationId;
   AuthOtpSent(this.verificationId);

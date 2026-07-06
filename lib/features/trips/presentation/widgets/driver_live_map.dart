@@ -137,7 +137,7 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
         'lastLocationUpdate': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint("خطأ في تحديث موقع الكابتن: $e");
+      debugPrint("خطأ في تحديث موقع السائق: $e");
     }
   }
 

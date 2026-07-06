@@ -35,7 +35,8 @@ class AddressError extends PassengerRequestState {
 
 // 🟢 حالات البحث عن أماكن (Autocomplete)
 class PlacesSearchLoaded extends PassengerRequestState {
-  final List<dynamic> predictions;
+  // 👈 تم التعديل هنا ليعتمد على الـ Entity النظيف
+  final List<PlaceSearchEntity> predictions; 
   PlacesSearchLoaded(this.predictions);
 }
 

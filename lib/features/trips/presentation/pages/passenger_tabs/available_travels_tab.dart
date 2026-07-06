@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
+
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import '../../../cubit/passenger/available_travels_cubit.dart';
 import '../../../cubit/passenger/available_travels_state.dart';
@@ -47,7 +49,14 @@ class _AvailableTravelsView extends StatelessWidget {
 
         if (state is AvailableTravelsLoaded) {
           showOnlyNearby = state.showOnlyNearby;
-          trips = state.trips;
+          
+          String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+          
+          trips = state.trips.where((trip) {
+            var data = trip['data'] as Map<String, dynamic>? ?? {};
+            String tripOwnerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
+            return tripOwnerId != currentUserId;
+          }).toList();
         }
 
         return Column(
@@ -78,7 +87,7 @@ class _AvailableTravelsView extends StatelessWidget {
             ),
             
             if (isLoading)
-              LinearProgressIndicator(color: accentGold, backgroundColor: primaryBlack.withValues(alpha: 0.1), minHeight: 3.h),
+              LinearProgressIndicator(color: accentGold, backgroundColor: primaryBlack.withOpacity(0.1), minHeight: 3.h),
 
             Expanded(
               child: _buildTripsList(context, trips, isLoading, primaryBlack, accentGold),
@@ -101,7 +110,7 @@ class _AvailableTravelsView extends StatelessWidget {
           children: [
             Icon(Icons.location_off_rounded, size: 50.sp, color: Colors.grey.shade400),
             SizedBox(height: 10.h),
-            Text('لا توجد رحلات قريبة في نطاق مدينتك', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+            Text('لا توجد رحلات متاحة حالياً', style: TextStyle(color: Colors.grey, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
           ],
         ),
       );
@@ -116,10 +125,20 @@ class _AvailableTravelsView extends StatelessWidget {
         var data = trip['data'];
         
         double dist = (trip['distance'] as num).toDouble();
-        
         String distanceText = dist != double.infinity 
             ? 'يبعد عنك: ${(dist / 1000).toStringAsFixed(1)} كم'
             : '';
+
+        String driverName = (data['driverName']?.toString().trim().isNotEmpty ?? false) ? data['driverName'] : 'سائق موثوق';
+        String price = data['price']?.toString() ?? 'غير محدد';
+        String fromCity = (data['fromCity']?.toString().trim().isNotEmpty ?? false) ? data['fromCity'] : 'نقطة الانطلاق غير محددة';
+        String toCity = (data['toCity']?.toString().trim().isNotEmpty ?? false) ? data['toCity'] : 'نقطة الوصول غير محددة';
+        String vehicleType = (data['vehicleType']?.toString().trim().isNotEmpty ?? false) ? data['vehicleType'] : 'سيارة';
+        String availableSeats = data['availableSeats']?.toString() ?? '-';
+        String tripTime = (data['time']?.toString().trim().isNotEmpty ?? false) ? data['time'] : 'غير محدد';
+        
+        // 🟢 استخراج كود السائق بشكل آمن
+        String tripDriverId = data['driverId'] ?? data['userId'] ?? data['uid'] ?? '';
 
         return Card(
           elevation: 4, 
@@ -134,24 +153,24 @@ class _AvailableTravelsView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('الكابتن: ${data['driverName'] ?? 'كابتن لمة'}', style: TextStyle(fontWeight: FontWeight.bold, color: primaryBlack, fontFamily: 'Cairo', fontSize: 14.sp)),
+                    Text('السائق: $driverName', style: TextStyle(fontWeight: FontWeight.bold, color: primaryBlack, fontFamily: 'Cairo', fontSize: 14.sp)),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h), 
-                      decoration: BoxDecoration(color: accentGold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8.r)), 
-                      child: Text('سعر: ${data['price']} ج', style: TextStyle(color: primaryBlack, fontWeight: FontWeight.bold, fontSize: 13.sp))
+                      decoration: BoxDecoration(color: accentGold.withOpacity(0.15), borderRadius: BorderRadius.circular(8.r)), 
+                      child: Text('سعر: $price ج', style: TextStyle(color: primaryBlack, fontWeight: FontWeight.bold, fontSize: 13.sp))
                     ),
                   ],
                 ),
                 const Divider(),
-                Text('من: ${data['fromCity']} الى: ${data['toCity']}', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                Text('من: $fromCity الى: $toCity', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
                 SizedBox(height: 8.h),
-                Text('المركبة: ${data['vehicleType'] ?? 'سيارة'} | المقاعد المتاحة: ${data['availableSeats']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo', fontSize: 13.sp)),
+                Text('المركبة: $vehicleType | المقاعد المتاحة: $availableSeats', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo', fontSize: 13.sp)),
                 SizedBox(height: 4.h),
                 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('الموعد: ${data['time']}', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo', fontSize: 13.sp)),
+                    Text('الموعد: $tripTime', style: TextStyle(color: Colors.grey.shade700, fontFamily: 'Cairo', fontSize: 13.sp)),
                     if (distanceText.isNotEmpty)
                       Row(
                         children: [
@@ -172,7 +191,8 @@ class _AvailableTravelsView extends StatelessWidget {
                     ), 
                     onPressed: () async {
                       try {
-                        bool success = await context.read<AvailableTravelsCubit>().bookDriverPost(trip['docId']);
+                        // 🟢 إرسال رقم السائق مع كود الرحلة
+                        bool success = await context.read<AvailableTravelsCubit>().bookDriverPost(trip['docId'], tripDriverId);
                         if (success && context.mounted) {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: trip['docId'])));
                         }
@@ -181,7 +201,7 @@ class _AvailableTravelsView extends StatelessWidget {
                       }
                     }, 
                     icon: Icon(Icons.event_seat_rounded, size: 18.sp), 
-                    label: Text('حجز مقعد والتواصل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
+                    label: Text('حجز الرحلة كاملة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
                   )
                 )
               ],

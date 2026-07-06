@@ -1,43 +1,57 @@
 import 'dart:io';
-import 'dart:async'; 
-import 'package:flutter/foundation.dart'; 
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
-import 'package:firebase_messaging/firebase_messaging.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'home_state.dart'; 
+import 'home_state.dart';
 import 'package:lamma_new/core/constants/app_strings.dart';
 import 'package:lamma_new/core/constants/firebase_constants.dart';
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
-import 'package:lamma_new/features/trips/data/services/trip_service.dart';
+
+// 🟢 استيراد الـ Use Cases من طبقة الـ Domain
+import 'package:lamma_new/features/trips/domain/usecases/get_driver_active_orders_usecase.dart';
+import 'package:lamma_new/features/trips/domain/usecases/get_passenger_active_orders_usecase.dart';
+import 'package:lamma_new/features/trips/domain/usecases/add_travel_trip_usecase.dart';
 
 class HomeCubit extends Cubit<HomeState> {
-  // 🟢 استدعاء الـ Service عشان الـ Cubit ميكلمش الفايربيز مباشرة في الرحلات
-  final TripService _tripService;
+  final GetDriverActiveOrdersCountUseCase _getDriverActiveOrders;
+  final GetPassengerActiveOrdersCountUseCase _getPassengerActiveOrders;
+  final AddTravelTripUseCase _addTravelTripUseCase;
 
   StreamSubscription<RemoteMessage>? _notificationSubscription;
-  StreamSubscription<QuerySnapshot>? _unreadNotificationsSub; 
-  StreamSubscription<int>? _activeOrdersSub; // 🟢 ستريم واحد بس بدل 4!
+  StreamSubscription<QuerySnapshot>? _unreadNotificationsSub;
+  StreamSubscription<int>? _activeOrdersSub;
 
-  // هنسيب دول مؤقتاً لحد ما نفصل شغل الـ Auth والـ User Profile في Services لوحدهم
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const String _cachedRoleKey = 'CACHED_ACTIVE_ROLE';
 
-  // 🟢 Dependency Injection: لو مكتبة get_it مش موجودة، هيعمل نسخة لنفسه عشان التطبيق ميضربش
-  HomeCubit({TripService? tripService}) 
-      : _tripService = tripService ?? TripService(), 
+  HomeCubit({
+    required GetDriverActiveOrdersCountUseCase getDriverActiveOrders,
+    required GetPassengerActiveOrdersCountUseCase getPassengerActiveOrders,
+    required AddTravelTripUseCase addTravelTripUseCase,
+  })  : _getDriverActiveOrders = getDriverActiveOrders,
+        _getPassengerActiveOrders = getPassengerActiveOrders,
+        _addTravelTripUseCase = addTravelTripUseCase,
         super(HomeState()) {
-    _listenToForegroundNotifications(); 
+    _listenToForegroundNotifications();
+  }
+
+  String _normalizeRole(String role) {
+    final cleanRole = role.trim().toLowerCase();
+    if (cleanRole == 'customer' || cleanRole == 'client') return 'client';
+    if (cleanRole == 'captain' || cleanRole == 'driver') return 'driver';
+    return cleanRole;
   }
 
   void _listenToForegroundNotifications() {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("🔔 [HomeCubit] إشعار لايف وصل: ${message.notification?.title}");
       if (message.data['type'] == 'new_trip' || message.data['channel_id'] == 'lamma_final_sound') {
         emit(state.copyWith(hasNewNotification: true));
       }
@@ -57,21 +71,22 @@ class HomeCubit extends Cubit<HomeState> {
     });
   }
 
-  // 🟢 شوف النضافة! الكيوبت بقى بيسمع للنتيجة النهائية من السيرفيس بس
   void _listenToActiveOrders(String uid, String role) {
-    _activeOrdersSub?.cancel(); // نقفل أي استماع قديم عشان الـ Memory Leak
+    _activeOrdersSub?.cancel();
 
-    if (role == 'captain') {
-      _activeOrdersSub = _tripService.getCaptainActiveOrdersCountStream(uid).listen((count) {
+    final normalizedRole = _normalizeRole(role);
+
+    if (normalizedRole == 'driver') {
+      _activeOrdersSub = _getDriverActiveOrders(uid).listen((count) {
         emit(state.copyWith(activeOrdersCount: count));
       }, onError: (e) {
-        debugPrint("❌ خطأ في الاستماع لطلبات الكابتن: $e");
+        debugPrint("❌ خطأ: $e");
       });
     } else {
-      _activeOrdersSub = _tripService.getPassengerActiveOrdersCountStream(uid).listen((count) {
+      _activeOrdersSub = _getPassengerActiveOrders(uid).listen((count) {
         emit(state.copyWith(activeOrdersCount: count));
       }, onError: (e) {
-        debugPrint("❌ خطأ في الاستماع لطلبات العميل: $e");
+        debugPrint("❌ خطأ: $e");
       });
     }
   }
@@ -79,7 +94,7 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> markAllNotificationsAsRead() async {
     User? user = _auth.currentUser;
     if (user == null) return;
-    
+
     var unreadDocs = await _firestore
         .collection('users')
         .doc(user.uid)
@@ -94,7 +109,7 @@ class HomeCubit extends Cubit<HomeState> {
       batch.update(doc.reference, {'isRead': true});
     }
     await batch.commit();
-    
+
     emit(state.copyWith(hasNewNotification: false, unreadNotificationsCount: 0));
   }
 
@@ -102,52 +117,62 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> close() {
     _notificationSubscription?.cancel();
     _unreadNotificationsSub?.cancel();
-    _activeOrdersSub?.cancel(); // 🟢 قفلنا الستريم الجديد
+    _activeOrdersSub?.cancel();
     return super.close();
   }
 
   void changeTab(int index) {
     emit(state.copyWith(
       bottomNavIndex: index,
-      hasNewNotification: false, 
+      hasNewNotification: false,
     ));
   }
 
   Future<void> loadUserProfile() async {
     User? user = _auth.currentUser;
-    if (user != null) {
-      emit(state.copyWith(status: HomeStatus.loading, userEmail: user.email ?? ''));
-      _listenToUnreadNotifications(user.uid); 
+    if (user == null) return;
 
-      final prefs = await SharedPreferences.getInstance();
-      final cachedRole = prefs.getString(_cachedRoleKey);
-      if (cachedRole != null) {
-        emit(state.copyWith(activeRole: cachedRole, status: HomeStatus.loaded));
-        _listenToActiveOrders(user.uid, cachedRole); 
+    emit(state.copyWith(status: HomeStatus.loading, userEmail: user.email ?? ''));
+    _listenToUnreadNotifications(user.uid);
+
+    final prefs = await SharedPreferences.getInstance();
+    final cachedRole = prefs.getString(_cachedRoleKey);
+
+    if (cachedRole != null) {
+      final normalizedCachedRole = _normalizeRole(cachedRole);
+      await prefs.setString(_cachedRoleKey, normalizedCachedRole);
+
+      emit(state.copyWith(activeRole: normalizedCachedRole, status: HomeStatus.loaded));
+      _listenToActiveOrders(user.uid, normalizedCachedRole);
+    }
+
+    try {
+      DocumentSnapshot doc = await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server)) 
+          .timeout(const Duration(seconds: 10));
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+
+        String fetchedRole = _normalizeRole((data['activeRole'] ?? 'client').toString());
+
+        await prefs.setString(_cachedRoleKey, fetchedRole);
+        _listenToActiveOrders(user.uid, fetchedRole);
+
+        emit(state.copyWith(
+          userName: data['name'] ?? 'مستخدم لَمَّة',
+          profileImageUrl: data['profileImage'] ?? '',
+          activeRole: fetchedRole,
+          status: HomeStatus.loaded,
+        ));
+      } else {
+        emit(state.copyWith(status: HomeStatus.loaded));
       }
-
-      try {
-        DocumentSnapshot doc = await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).get().timeout(const Duration(seconds: 10));
-        if (doc.exists) {
-          var data = doc.data() as Map<String, dynamic>;
-          String fetchedRole = (data[FirebaseConstants.activeRoleField] ?? FirebaseConstants.roleCustomer).toString().trim().toLowerCase();
-          
-          await prefs.setString(_cachedRoleKey, fetchedRole);
-          _listenToActiveOrders(user.uid, fetchedRole); 
-
-          emit(state.copyWith(
-            userName: data['name'] ?? 'مستخدم لَمَّة',
-            profileImageUrl: data['profileImage'] ?? '',
-            activeRole: fetchedRole,
-            status: HomeStatus.loaded,
-          ));
-        } else {
-          emit(state.copyWith(status: HomeStatus.loaded));
-        }
-      } catch (e) {
-        if (cachedRole == null) {
-          emit(state.copyWith(status: HomeStatus.error, errorMessage: AppStrings.networkError));
-        }
+    } catch (e) {
+      if (cachedRole == null) {
+        emit(state.copyWith(status: HomeStatus.error, errorMessage: AppStrings.networkError));
       }
     }
   }
@@ -155,41 +180,34 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> switchUserRole(String newRole) async {
     User? user = _auth.currentUser;
     if (user == null) return;
-    if (newRole.trim().toLowerCase() == state.activeRole.trim().toLowerCase()) return;
+
+    final normalizedRole = _normalizeRole(newRole);
+    final currentNormalizedRole = _normalizeRole(state.activeRole);
+
+    if (normalizedRole == currentNormalizedRole) return;
 
     emit(state.copyWith(actionStatus: HomeActionStatus.loading));
-    
+
     try {
-      DocumentSnapshot userDoc = await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).get().timeout(const Duration(seconds: 5));
-      var userData = userDoc.data() as Map<String, dynamic>? ?? {};
-      
-      Map<String, dynamic> profiles = {};
-      if (userData.containsKey(FirebaseConstants.profilesField) && userData[FirebaseConstants.profilesField] != null) {
-        profiles = Map<String, dynamic>.from(userData[FirebaseConstants.profilesField] as Map);
-      }
-      bool hasProfile = profiles.containsKey(newRole);
-
-      if (!hasProfile && newRole != FirebaseConstants.roleCustomer) {
-        emit(state.copyWith(
-          actionStatus: HomeActionStatus.registrationRequired,
-          pendingRegistrationRole: newRole,
-        ));
-        return; 
-      }
-
-      await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).set({
-        FirebaseConstants.activeRoleField: newRole
-      }, SetOptions(merge: true)).timeout(const Duration(seconds: 3));
+      // 🚀 الحل النووي: تحديث السيرفر فوراً وإضافة الصلاحية للمصفوفة لتخطي شاشة التفعيل
+      await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid)
+          .set({
+            'activeRole': normalizedRole,
+            'roles': FieldValue.arrayUnion(['client', normalizedRole]) 
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 5));
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_cachedRoleKey, newRole);
+      await prefs.setString(_cachedRoleKey, normalizedRole);
 
-      _listenToActiveOrders(user.uid, newRole); 
+      _listenToActiveOrders(user.uid, normalizedRole);
 
       emit(state.copyWith(
-        activeRole: newRole,
+        activeRole: normalizedRole,
         actionStatus: HomeActionStatus.success,
-        successMessage: AppStrings.switchSuccess,
+        successMessage: 'تم تبديل الحساب بنجاح 🔄',
       ));
     } catch (e) {
       emit(state.copyWith(actionStatus: HomeActionStatus.error, errorMessage: AppStrings.networkError));
@@ -204,7 +222,7 @@ class HomeCubit extends Cubit<HomeState> {
         await _auth.sendPasswordResetEmail(email: user.email!).timeout(const Duration(seconds: 10));
         emit(state.copyWith(
           actionStatus: HomeActionStatus.success,
-          successMessage: 'تم إرسال رابط تغيير كلمة المرور 📧', 
+          successMessage: 'تم إرسال رابط تغيير كلمة المرور 📧',
         ));
       } catch (e) {
         emit(state.copyWith(actionStatus: HomeActionStatus.error, errorMessage: AppStrings.networkError));
@@ -212,40 +230,60 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  Future<void> submitRoleRegistration({required String role, required Map<String, dynamic> profileData}) async {
+  Future<void> submitRoleRegistration({
+    required String role,
+    required Map<String, dynamic> profileData,
+  }) async {
     User? user = _auth.currentUser;
     if (user == null) return;
 
+    final normalizedRole = _normalizeRole(role);
+
     emit(state.copyWith(actionStatus: HomeActionStatus.loading));
+
     try {
       await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).set({
-        FirebaseConstants.activeRoleField: role,
-        FirebaseConstants.rolesField: FieldValue.arrayUnion([role]),
-        FirebaseConstants.profilesField: {role: profileData}
+        'activeRole': normalizedRole,
+        'roles': FieldValue.arrayUnion([normalizedRole]), 
+        'documents': {normalizedRole: profileData} 
       }, SetOptions(merge: true)).timeout(const Duration(seconds: 5));
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_cachedRoleKey, role);
+      await prefs.setString(_cachedRoleKey, normalizedRole);
 
-      _listenToActiveOrders(user.uid, role); 
+      _listenToActiveOrders(user.uid, normalizedRole);
 
       emit(state.copyWith(
-        activeRole: role,
+        activeRole: normalizedRole,
         actionStatus: HomeActionStatus.success,
-        successMessage: 'تم تفعيل الحساب بنجاح 🎉', 
+        successMessage: 'تم تفعيل الحساب بنجاح 🎉',
       ));
     } catch (e) {
       emit(state.copyWith(actionStatus: HomeActionStatus.error, errorMessage: AppStrings.networkError));
     }
   }
 
-  Future<String?> uploadDocument({required String role, required String docName, required File file}) async {
+  Future<String?> uploadDocument({
+    required String role,
+    required String docName,
+    required File file,
+  }) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) return null;
-      Reference ref = FirebaseStorage.instance.ref().child(FirebaseConstants.usersCollection).child(user.uid).child('documents').child(role).child('$docName.jpg');
+
+      final normalizedRole = _normalizeRole(role);
+
+      Reference ref = FirebaseStorage.instance
+          .ref()
+          .child(FirebaseConstants.usersCollection)
+          .child(user.uid)
+          .child('documents')
+          .child(normalizedRole)
+          .child('$docName.jpg');
+
       UploadTask uploadTask = ref.putFile(file);
-      
+
       TaskSnapshot snapshot = await uploadTask.timeout(const Duration(seconds: 30));
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -257,11 +295,10 @@ class HomeCubit extends Cubit<HomeState> {
     emit(state.copyWith(actionStatus: HomeActionStatus.idle, pendingRegistrationRole: null));
   }
 
-  // 🟢 بص الدالة هنا بقت سطرين بس، بتبعت الداتا للـ Service وهو يتصرف
   Future<void> addTravelTrip({required TripModel trip}) async {
     emit(state.copyWith(actionStatus: HomeActionStatus.loading));
     try {
-      await _tripService.addTravelTrip(trip);
+      await _addTravelTripUseCase(trip);
       emit(state.copyWith(
         actionStatus: HomeActionStatus.success,
         successMessage: 'تم نشر رحلة السفر بنجاح! 🚌',

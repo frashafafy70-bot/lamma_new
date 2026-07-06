@@ -148,7 +148,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
             position: _currentDriverPosition!,
             rotation: _markerRotation, 
             anchor: const Offset(0.5, 0.5), 
-            infoWindow: const InfoWindow(title: 'الكابتن'),
+            infoWindow: const InfoWindow(title: 'السائق'),
             icon: MapService().carMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), 
           ),
         );

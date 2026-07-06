@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../domain/entities/chat_message_entity.dart';
+
 class MessageBubble extends StatefulWidget {
-  final Map<String, dynamic> msg;
+  final ChatMessageEntity message; 
   final bool isMe;
+  final String? senderName; // 🟢 إضافة متغير اسم المرسل
 
   const MessageBubble({
     super.key,
-    required this.msg,
+    required this.message,
     required this.isMe,
+    this.senderName, // 🟢 استقبال الاسم
   });
 
   @override
@@ -28,7 +31,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   void initState() {
     super.initState();
-    if (widget.msg['type'] == 'audio' && widget.msg['audioUrl'] != null) {
+    if (widget.message.type == MessageType.audio && widget.message.audioUrl != null) {
       _audioPlayer.onPlayerStateChanged.listen((state) {
         if (mounted) {
           setState(() {
@@ -61,13 +64,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     super.dispose();
   }
 
-  String _formatTime(dynamic timestamp) {
+  String _formatTime(DateTime? timestamp) {
     if (timestamp == null) return 'الآن';
-    DateTime date = (timestamp as Timestamp).toDate();
-    return DateFormat('hh:mm a', 'ar').format(date);
+    return DateFormat('hh:mm a', 'ar').format(timestamp);
   }
 
-  // 🟢 دالة فرمتة وقت الصوت
   String _formatAudioDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -77,10 +78,10 @@ class _MessageBubbleState extends State<MessageBubble> {
   Widget _buildMessageStatus() {
     if (!widget.isMe) return const SizedBox.shrink();
 
-    if (widget.msg['timestamp'] == null) {
+    if (widget.message.timestamp == null) {
       return Icon(Icons.access_time, size: 12.sp, color: Colors.grey.shade400);
     }
-    if (widget.msg['isRead'] == true) {
+    if (widget.message.isRead) {
       return Icon(Icons.done_all, size: 16.sp, color: Colors.blueAccent);
     }
     return Icon(Icons.check, size: 14.sp, color: Colors.grey.shade500);
@@ -112,14 +113,29 @@ class _MessageBubbleState extends State<MessageBubble> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🟢 إظهار اسم المرسل إذا لم تكن الرسالة تخصني (أي تخص الطرف الآخر) وكان الاسم متوفراً
+            if (!widget.isMe && widget.senderName != null && widget.senderName!.isNotEmpty) ...[
+              Text(
+                widget.senderName!,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accentGold, // لون مميز للاسم ليفصله عن نص الرسالة
+                ),
+              ),
+              SizedBox(height: 4.h),
+            ],
+            
             _buildContent(),
+            
             SizedBox(height: 4.h),
             Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  _formatTime(widget.msg['timestamp']),
+                  _formatTime(widget.message.timestamp),
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 10.sp,
@@ -139,13 +155,13 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _buildContent() {
-    String type = widget.msg['type'] ?? 'text';
+    final type = widget.message.type;
 
-    if (type == 'image') {
+    if (type == MessageType.image) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.r),
         child: Image.network(
-          widget.msg['imageUrl'] ?? '',
+          widget.message.imageUrl ?? '',
           width: 200.w,
           fit: BoxFit.cover,
           loadingBuilder: (ctx, child, progress) {
@@ -159,12 +175,12 @@ class _MessageBubbleState extends State<MessageBubble> {
           errorBuilder: (ctx, err, stack) => Icon(Icons.broken_image, size: 50.sp, color: Colors.grey),
         ),
       );
-    } else if (type == 'audio') {
+    } else if (type == MessageType.audio) {
       return _buildAudioPlayer();
     }
 
     return Text(
-      widget.msg['text'] ?? '',
+      widget.message.text,
       style: TextStyle(
         fontFamily: 'Cairo',
         fontSize: 14.sp,
@@ -174,7 +190,6 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  // 🟢 ويدجت الصوت المحدثة بالمدة الزمنية
   Widget _buildAudioPlayer() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -185,7 +200,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             if (isPlaying) {
               await _audioPlayer.pause();
             } else {
-              String? url = widget.msg['audioUrl']; 
+              String? url = widget.message.audioUrl; 
               if (url != null && url.isNotEmpty) {
                 await _audioPlayer.play(UrlSource(url));
               }

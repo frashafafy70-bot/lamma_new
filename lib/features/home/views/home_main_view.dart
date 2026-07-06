@@ -1,26 +1,29 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:io'; // لو محتاجها للـ File
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
-// Cubits
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart'; 
 
-// Models & Services
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
+import 'account_switch_widget.dart'; 
 
-// Widgets & Pages
-import 'package:lamma_new/features/trips/presentation/widgets/live_animated_card.dart';
+import 'package:lamma_new/core/theme/app_colors.dart'; 
+import 'package:lamma_new/features/trips/presentation/widgets/modern_service_card.dart'; 
+import 'package:lamma_new/features/trips/presentation/widgets/wide_service_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/travel_service_card.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; // ده الملف اللي انت عامله
-import 'account_switch_widget.dart';
+import 'package:lamma_new/features/home/views/widgets/add_travel_bottom_sheet.dart'; 
+import 'package:lamma_new/features/trips/presentation/widgets/fade_slide_animator.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/driver_radar_card.dart'; 
+
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; 
 
 class HomeMainView extends StatefulWidget {
   final String activeRole;
@@ -45,15 +48,11 @@ class HomeMainView extends StatefulWidget {
 }
 
 class _HomeMainViewState extends State<HomeMainView> {
-  
-  final Color royalGreen = const Color(0xFF1B4332);
-  final Color primaryNavy = const Color(0xFF0F172A);
-  final Color goldAccent = const Color(0xFFD4AF37);
 
   String _getRoleArabicName(String role) {
     switch (role) {
-      case 'customer': return 'عميل';
-      case 'captain': return 'كابتن';
+      case 'client': return 'عميل'; 
+      case 'driver': return 'كابتن'; 
       case 'lawyer': return 'محامي';
       case 'doctor': return 'طبيب';
       case 'nurse': return 'تمريض';
@@ -75,294 +74,77 @@ class _HomeMainViewState extends State<HomeMainView> {
   }
 
   void _showAddTravelBottomSheet(BuildContext context) {
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-    final TextEditingController fromCtrl = TextEditingController();
-    final TextEditingController toCtrl = TextEditingController();
-    final TextEditingController priceCtrl = TextEditingController();
-    DateTime? selectedDate;
-    
-    bool isFullCar = false;
-    int availableSeats = 4;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, 
       useSafeArea: true, 
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext bottomSheetContext, StateSetter setState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Container(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
-                padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 16.h, bottom: 20.h),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(child: Container(width: 40.w, height: 5.h, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)))),
-                        SizedBox(height: 20.h),
-                        Row(
-                          children: [
-                            Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
-                            SizedBox(width: 10.w),
-                            Text('نشر رحلة سفر جديدة', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
-                          ],
-                        ),
-                        SizedBox(height: 20.h),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => isFullCar = false),
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                                  decoration: BoxDecoration(
-                                    color: !isFullCar ? royalGreen : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(10.r),
-                                    border: Border.all(color: !isFullCar ? royalGreen : Colors.grey.shade300)
-                                  ),
-                                  child: Center(child: Text('مقاعد فردية', style: TextStyle(color: !isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => isFullCar = true),
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                                  decoration: BoxDecoration(
-                                    color: isFullCar ? royalGreen : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(10.r),
-                                    border: Border.all(color: isFullCar ? royalGreen : Colors.grey.shade300)
-                                  ),
-                                  child: Center(child: Text('سيارة كاملة', style: TextStyle(color: isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16.h),
-
-                        if (!isFullCar) ...[
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                            decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10.r)),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('عدد المقاعد المتاحة:', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
-                                      onPressed: () {
-                                        if (availableSeats > 1) setState(() => availableSeats--);
-                                      },
-                                    ),
-                                    Text('$availableSeats', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold)),
-                                    IconButton(
-                                      icon: const Icon(Icons.add_circle, color: Colors.green),
-                                      onPressed: () {
-                                        if (availableSeats < 14) setState(() => availableSeats++);
-                                      },
-                                    ),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 16.h),
-                        ],
-
-                        TextFormField(
-                          controller: fromCtrl,
-                          validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال نقطة التحرك' : null,
-                          decoration: InputDecoration(
-                            labelText: 'نقطة التحرك (من)',
-                            prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-
-                        TextFormField(
-                          controller: toCtrl,
-                          validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال وجهة السفر' : null,
-                          decoration: InputDecoration(
-                            labelText: 'وجهة السفر (إلى)',
-                            prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-
-                        InkWell(
-                          onTap: () async {
-                            DateTime? pickedDate = await showDatePicker(
-                              context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 30)),
-                            );
-                            if (pickedDate != null) {
-                              TimeOfDay? pickedTime = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                              if (pickedTime != null) {
-                                setState(() {
-                                  selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-                                });
-                              }
-                            }
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(15.r)),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_month_rounded, color: Colors.orange),
-                                SizedBox(width: 10.w),
-                                Text(
-                                  selectedDate == null ? 'تاريخ ووقت التحرك' : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
-                                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-
-                        TextFormField(
-                          controller: priceCtrl,
-                          keyboardType: TextInputType.number,
-                          validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال السعر' : null,
-                          decoration: InputDecoration(
-                            labelText: isFullCar ? 'سعر الرحلة بالكامل (ج.م)' : 'سعر المقعد الواحد (ج.م)',
-                            prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                          ),
-                        ),
-                        SizedBox(height: 24.h),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50.h,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r))),
-                            onPressed: () {
-                              if (!formKey.currentState!.validate()) {
-                                return; 
-                              }
-                              
-                              if (selectedDate == null) {
-                                ScaffoldMessenger.of(bottomSheetContext).showSnackBar(const SnackBar(content: Text('برجاء تحديد تاريخ ووقت الرحلة', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
-                                return;
-                              }
-                              
-                              Navigator.pop(ctx); 
-                              
-                              final newTrip = TripModel(
-                                isDriverPost: true,
-                                driverId: FirebaseAuth.instance.currentUser?.uid,
-                                driverName: widget.userName,
-                                pickup: fromCtrl.text.trim(),
-                                destination: toCtrl.text.trim(),
-                                travelDate: selectedDate!,
-                                price: priceCtrl.text.trim(),
-                                tripCategory: 'سفر',
-                                tripType: isFullCar ? 'full_car' : 'seats',
-                                availableSeats: isFullCar ? '1' : availableSeats.toString(),
-                                status: 'available',
-                              );
-
-                              context.read<HomeCubit>().addTravelTrip(trip: newTrip);
-                            },
-                            child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-        );
-      }
+      builder: (ctx) => AddTravelBottomSheet(userName: widget.userName),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDriver = widget.activeRole == 'driver';
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Colors.transparent, 
+        backgroundColor: AppColors.backgroundLight, 
+        
         appBar: AppBar(
-          backgroundColor: primaryNavy,
+          backgroundColor: Colors.transparent, 
           elevation: 0,
           automaticallyImplyLeading: false,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primaryDark, AppColors.royalGreen], 
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+            ),
+          ),
           title: Row(
             children: [
               CircleAvatar(
                 radius: 18.r,
-                backgroundColor: goldAccent, 
+                backgroundColor: AppColors.accentGold, 
                 backgroundImage: widget.profileImageUrl.isNotEmpty ? NetworkImage(widget.profileImageUrl) : null,
-                child: widget.profileImageUrl.isEmpty ? Icon(Icons.person, color: primaryNavy, size: 20.sp) : null,
+                child: widget.profileImageUrl.isEmpty ? Icon(Icons.person, color: AppColors.primaryDark, size: 20.sp) : null,
               ),
               SizedBox(width: 10.w),
               Expanded(child: Text('مرحباً، ${widget.userName}', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
             ],
           ),
           actions: [
-            if (widget.activeRole == 'captain')
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
-                builder: (context, snapshot) {
-                  int radarCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                  int totalTopAlerts = widget.unreadCount + radarCount;
-                  return IconButton(
-                    icon: Badge(
-                      isLabelVisible: totalTopAlerts > 0, 
-                      label: Text(totalTopAlerts.toString(), style: const TextStyle(fontFamily: 'Cairo')),
-                      backgroundColor: Colors.redAccent,
-                      child: const Icon(Icons.notifications_none, color: Colors.white),
-                    ),
-                    onPressed: widget.onOpenNotifications,
-                  );
-                }
-              )
-            else
-              IconButton(
-                icon: Badge(
-                  isLabelVisible: widget.unreadCount > 0, 
-                  label: Text(widget.unreadCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
-                  backgroundColor: Colors.redAccent,
-                  child: const Icon(Icons.notifications_none, color: Colors.white),
-                ),
-                onPressed: widget.onOpenNotifications,
+            // 🟢 تم توحيد جرس الإشعارات هنا ليعرض unreadCount فقط لجميع المستخدمين
+            IconButton(
+              icon: Badge(
+                isLabelVisible: widget.unreadCount > 0, 
+                label: Text(widget.unreadCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
+                backgroundColor: AppColors.error,
+                child: const Icon(Icons.notifications_none, color: Colors.white),
               ),
+              onPressed: widget.onOpenNotifications,
+            ),
           ],
         ),
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 130.h), 
+          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 10.h, bottom: 100.h), 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(20.w),
+                padding: EdgeInsets.all(16.w), 
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [primaryNavy, royalGreen], begin: Alignment.topRight, end: Alignment.bottomLeft),
+                  gradient: LinearGradient(colors: [AppColors.primaryDark, AppColors.royalGreen], begin: Alignment.topRight, end: Alignment.bottomLeft),
                   borderRadius: BorderRadius.circular(20.r),
-                  boxShadow: [BoxShadow(color: royalGreen.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))]
+                  border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.w),
+                  boxShadow: [BoxShadow(color: AppColors.royalGreenLight, blurRadius: 20, offset: const Offset(0, 10))]
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -370,176 +152,148 @@ class _HomeMainViewState extends State<HomeMainView> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('وضع الحساب الحالي', style: TextStyle(color: Colors.white70, fontSize: 13.sp, fontFamily: 'Cairo')),
-                        SizedBox(height: 4.h),
-                        Text(_getRoleArabicName(widget.activeRole), style: TextStyle(color: goldAccent, fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                        Text('وضع الحساب الحالي', style: TextStyle(color: Colors.white70, fontSize: 12.sp, fontFamily: 'Cairo')),
+                        SizedBox(height: 2.h),
+                        Text(_getRoleArabicName(widget.activeRole), style: TextStyle(color: AppColors.accentGold, fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                       ],
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: goldAccent, 
-                        foregroundColor: primaryNavy,
+                        backgroundColor: AppColors.accentGold, 
+                        foregroundColor: AppColors.primaryDark,
                         elevation: 0,
+                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
                       ),
                       onPressed: () => _openAccountSwitchPage(context),
-                      icon: Icon(Icons.swap_horiz_rounded, size: 20.sp),
-                      label: Text('تبديل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                      icon: Icon(Icons.swap_horiz_rounded, size: 18.sp),
+                      label: Text('تبديل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
                     ),
                   ],
                 ),
               ),
               
-              SizedBox(height: 16.h),
+              SizedBox(height: 18.h), 
               
-              if (widget.activeRole == 'captain') ...[
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(20.w),
-                  decoration: BoxDecoration(
-                    color: primaryNavy,
-                    borderRadius: BorderRadius.circular(20.r),
-                    boxShadow: [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 5))],
-                    border: Border.all(color: goldAccent.withValues(alpha: 0.3), width: 1.w),
+              if (isDriver) ...[ 
+                FadeSlideAnimator(
+                  delayMs: 100,
+                  child: DriverRadarCard(
+                    activeOrdersCount: widget.activeOrdersCount,
+                    onRadarTap: () {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(
+                          builder: (newContext) => BlocProvider.value(
+                            value: context.read<HomeCubit>(),
+                            child: const DriverRadarPage(),
+                          )
+                        )
+                      );
+                    },
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(width: 12.w, height: 12.w, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.greenAccent, blurRadius: 8)])),
-                              SizedBox(width: 8.w),
-                              Text('متصل وجاهز للطلبات', style: TextStyle(fontFamily: 'Cairo', color: Colors.greenAccent, fontSize: 14.sp, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          Icon(Icons.directions_car_rounded, color: goldAccent, size: 28.sp),
-                        ],
-                      ),
-                      SizedBox(height: 20.h),
-                      Text('جاهز لاستقبال مشاوير جديدة؟', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 6.h),
-                      Text('ادخل على الرادار لمتابعة الطلبات المتاحة في محيطك الآن.', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade400, fontSize: 13.sp)),
-                      SizedBox(height: 20.h),
-                      
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
-                        builder: (context, snapshot) {
-                          int radarCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                          int totalButtonAlerts = widget.activeOrdersCount + radarCount;
-                          return Badge(
-                            isLabelVisible: totalButtonAlerts > 0,
-                            label: Text(
-                              totalButtonAlerts.toString(), 
-                              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold)
-                            ),
-                            backgroundColor: Colors.redAccent,
-                            alignment: Alignment.topLeft,
-                            offset: const Offset(-5, -10),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 50.h,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: goldAccent, 
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
-                                ),
-                                onPressed: () {
-                                  final homeCubit = context.read<HomeCubit>();
-                                  Navigator.push(
-                                    context, 
-                                    MaterialPageRoute(
-                                      builder: (context) => BlocProvider.value(
-                                        value: homeCubit,
-                                        child: const CaptainRadarPage(),
-                                      )
-                                    )
-                                  );
-                                },
-                                child: Text('افتح الرادار الآن 📡', style: TextStyle(fontFamily: 'Cairo', color: primaryNavy, fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          );
+                ),
+                SizedBox(height: 18.h), 
+                FadeSlideAnimator(
+                  delayMs: 300,
+                  child: TravelServiceCard(onAddTravelTap: () => _showAddTravelBottomSheet(context)),
+                ),
+
+              ] else if (widget.activeRole == 'lawyer') ...[
+                FadeSlideAnimator(
+                  delayMs: 100,
+                  child: ModernServiceCard(
+                    title: 'لوحة التحكم', 
+                    subtitle: 'الاستشارات والتوكيلات', 
+                    imagePath: 'assets/images/law_3d.png', 
+                    fallbackIcon: Icons.gavel_rounded, 
+                    fallbackColor: AppColors.primaryDark, 
+                    onTap: () {}
+                  ),
+                ),
+              
+              ] else ...[
+                FadeSlideAnimator(
+                  delayMs: 100,
+                  // 🟢 الـ StreamBuilder الخاص بالعميل تُرك كما هو لأنه يعرض الـ Badge على كارت الرحلات نفسه وده منطقي جداً
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: true).where('status', isEqualTo: 'available').snapshots(),
+                    builder: (context, snapshot) {
+                      int availableTravels = 0;
+                      if (snapshot.hasData) {
+                        String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                        availableTravels = snapshot.data!.docs.where((doc) {
+                          var data = doc.data() as Map<String, dynamic>? ?? {};
+                          String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
+                          return ownerId != currentUserId;
+                        }).length;
+                      }
+                      int totalAlerts = widget.activeOrdersCount + availableTravels;
+
+                      return WideServiceCard(
+                        title: 'توصيل ورحلات', 
+                        subtitle: 'اطلب كابتن فوراً لرحلتك', 
+                        imagePath: 'assets/images/taxi_3d.png', 
+                        fallbackIcon: Icons.local_taxi_rounded, 
+                        fallbackColor: AppColors.accentGold,
+                        badgeCount: totalAlerts,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
                         }
+                      );
+                    }
+                  ),
+                ),
+                
+                SizedBox(height: 18.h), 
+
+                FadeSlideAnimator(
+                  delayMs: 300,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ModernServiceCard(
+                          title: 'خدمات طبية', 
+                          subtitle: 'أطباء وعيادات', 
+                          imagePath: 'assets/images/medical_3d.png', 
+                          fallbackIcon: Icons.health_and_safety_rounded, 
+                          fallbackColor: AppColors.medicalTeal, 
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('سيتم تفعيل القسم الطبي قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.medicalTeal));
+                          }
+                        ),
+                      ),
+                      SizedBox(width: 16.w), 
+                      Expanded(
+                        child: ModernServiceCard(
+                          title: 'خدمات قانونية', 
+                          subtitle: 'استشارات وتوكيلات', 
+                          imagePath: 'assets/images/law_3d.png', 
+                          fallbackIcon: Icons.gavel_rounded, 
+                          fallbackColor: AppColors.primaryDark, 
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.primaryDark));
+                          }
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
-                SizedBox(height: 16.h), 
-                TravelServiceCard(onAddTravelTap: () => _showAddTravelBottomSheet(context)),
 
-              ] else if (widget.activeRole == 'lawyer') ...[
-                GridView.count(
-                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 16.w, mainAxisSpacing: 16.h, childAspectRatio: 0.95,
-                  children: [
-                    LiveAnimatedCard(
-                      title: 'لوحة التحكم', 
-                      subtitle: 'الاستشارات والتوكيلات', 
-                      fallbackIcon: Icons.gavel_rounded, 
-                      lottiePath: 'assets/animations/law.json', 
-                      iconColor: primaryNavy, 
-                      onTap: () {}
-                    ),
-                  ],
-                ),
-              ] else ...[
-                GridView.count(
-                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 16.w, mainAxisSpacing: 16.h, childAspectRatio: 0.95,
-                  children: [
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('trips')
-                          .where('isDriverPost', isEqualTo: true)
-                          .where('status', isEqualTo: 'available')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        int availableTravels = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        int totalAlerts = widget.activeOrdersCount + availableTravels;
+                SizedBox(height: 18.h), 
 
-                        return Badge(
-                          isLabelVisible: totalAlerts > 0,
-                          label: Text(totalAlerts.toString(), style: const TextStyle(fontFamily: 'Cairo', color: Colors.white)),
-                          backgroundColor: Colors.redAccent,
-                          alignment: Alignment.topLeft,
-                          offset: const Offset(-5, -5),
-                          child: LiveAnimatedCard(
-                            title: 'توصيل ورحلات', 
-                            subtitle: 'اطلب كابتن فوراً', 
-                            fallbackIcon: Icons.local_taxi_rounded, 
-                            lottiePath: 'assets/animations/taxi.json', 
-                            iconColor: goldAccent, 
-                            hasNotification: totalAlerts > 0,
-                            onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
-                            }
-                          ),
-                        );
-                      }
-                    ),
-                    LiveAnimatedCard(
-                      title: 'خدمات قانونية', 
-                      subtitle: 'استشارات وتوكيلات', 
-                      fallbackIcon: Icons.gavel_rounded, 
-                      lottiePath: 'assets/animations/law.json', 
-                      iconColor: primaryNavy, 
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: primaryNavy));
-                      }
-                    ),
-                    LiveAnimatedCard(
-                      title: 'شوب ومتاجر', 
-                      subtitle: 'تسوق منتجاتك', 
-                      fallbackIcon: Icons.storefront_rounded, 
-                      lottiePath: 'assets/animations/shop.json', 
-                      iconColor: royalGreen, 
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: royalGreen));
-                      }
-                    ),
-                  ],
+                FadeSlideAnimator(
+                  delayMs: 500,
+                  child: WideServiceCard(
+                    title: 'شوب ومتاجر', 
+                    subtitle: 'تسوق أفضل المنتجات بسهولة', 
+                    imagePath: 'assets/images/shop_3d.png', 
+                    fallbackIcon: Icons.storefront_rounded, 
+                    fallbackColor: AppColors.royalGreen,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.royalGreen));
+                    }
+                  ),
                 ),
               ],
             ],

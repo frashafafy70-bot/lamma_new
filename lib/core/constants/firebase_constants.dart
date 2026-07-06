@@ -11,7 +11,7 @@ class FirebaseConstants {
 
   // Roles Keys
   static const String roleCustomer = 'customer';
-  static const String roleCaptain = 'captain';
+  static const String roleDriver = 'driver';
   static const String roleLawyer = 'lawyer';
   static const String roleDoctor = 'doctor';
   static const String roleNurse = 'nurse';

@@ -56,7 +56,7 @@ class PassengerTravelBookingsList extends StatelessWidget {
                     trailing: isAccepted 
                       ? IconButton(
                           icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.royalGreen),
-                          tooltip: 'تواصل مع الكابتن',
+                          tooltip: 'تواصل مع السائق',
                           onPressed: () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: data['tripId'])));
                           },

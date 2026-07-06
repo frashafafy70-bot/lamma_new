@@ -1,41 +1,59 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/repositories/driver_radar_repository.dart';
+import '../../data/models/trip_model.dart';
 import 'driver_radar_state.dart';
-import 'package:lamma_new/features/trips/data/services/driver_radar_service.dart';
 
 class DriverRadarCubit extends Cubit<DriverRadarState> {
-  final DriverRadarService _service;
-  
-  DriverRadarCubit(this._service) : super(DriverRadarInitial());
+  final DriverRadarRepository _repository;
+  StreamSubscription? _radarSubscription;
 
-  void startListeningToRadar() {
+  DriverRadarCubit(this._repository) : super(DriverRadarInitial());
+
+  void listenToRadarTrips() {
     emit(DriverRadarLoading());
-    _service.getRadarTripsStream().listen((snapshot) {
-      emit(DriverRadarLoaded(snapshot.docs));
-    }).onError((error) {
-      emit(DriverRadarError(error.toString()));
-    });
+    
+    _radarSubscription?.cancel();
+    _radarSubscription = _repository.getRadarTripsStream().listen(
+      (trips) {
+        final List<TripModel> models = (trips as List<dynamic>).cast<TripModel>();
+        emit(DriverRadarLoaded(models));
+      },
+      onError: (error) {
+        emit(DriverRadarError(error.toString()));
+      },
+    );
   }
 
   Future<void> acceptTrip(String tripId, {String? negotiatedPrice}) async {
+    emit(DriverRadarActionLoading());
     try {
-      await _service.acceptTripSecurely(tripId, negotiatedPrice);
-      emit(DriverRadarAcceptSuccess());
+      await _repository.acceptTripSecurely(tripId, negotiatedPrice);
+      emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
     } catch (e) {
-      if (e.toString().contains('TRIP_ALREADY_TAKEN')) {
-        emit(DriverRadarAcceptFailed('عفواً.. قام كابتن آخر بقبول الرحلة أسرع منك! 🏃‍♂️'));
-      } else if (e.toString().contains('TRIP_NOT_FOUND')) {
-        emit(DriverRadarAcceptFailed('عفواً، تم إلغاء هذه الرحلة من قبل العميل.'));
-      } else {
-        emit(DriverRadarAcceptFailed('حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.'));
+      String errorMessage = 'حدث خطأ غير متوقع';
+      if (e.toString().contains('TRIP_NOT_FOUND')) {
+        errorMessage = 'عذراً، هذه الرحلة لم تعد متوفرة';
+      } else if (e.toString().contains('TRIP_ALREADY_TAKEN')) {
+        errorMessage = 'عذراً، تم التقاط هذه الرحلة بواسطة سائق آخر';
       }
+      emit(DriverRadarActionError(errorMessage));
     }
   }
 
   Future<void> negotiateTrip(String tripId, String offer) async {
+    emit(DriverRadarActionLoading());
     try {
-      await _service.negotiateTrip(tripId, offer);
+      await _repository.negotiateTrip(tripId, offer);
+      emit(DriverRadarActionSuccess('تم إرسال عرض السعر بنجاح'));
     } catch (e) {
-      emit(DriverRadarError('حدث خطأ أثناء التفاوض: $e'));
+      emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: ${e.toString()}'));
     }
+  }
+
+  @override
+  Future<void> close() {
+    _radarSubscription?.cancel();
+    return super.close();
   }
 }

@@ -25,6 +25,9 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
+  // متغير جديد لحفظ مرجع للـ Controller الداخلي الخاص بـ Autocomplete
+  TextEditingController? _autoCompleteController;
+  
   bool _isPasswordObscured = true;
   bool _rememberMe = false; 
 
@@ -50,6 +53,11 @@ class _LoginPageState extends State<LoginPage> {
         _identifierController.text = savedList.first;
         _rememberMe = true; 
       });
+      
+      // التحديث الآمن: لو واجهة Autocomplete اتبنت، حدث النص فيها فوراً
+      if (_autoCompleteController != null) {
+        _autoCompleteController!.text = savedList.first;
+      }
     }
   }
 
@@ -183,13 +191,23 @@ class _LoginPageState extends State<LoginPage> {
                                       _identifierController.text = selection;
                                     },
                                     fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                                      if (_identifierController.text.isNotEmpty && fieldTextEditingController.text.isEmpty) {
-                                        fieldTextEditingController.text = _identifierController.text;
+                                      
+                                      // الحل النموذجي: ربط الـ Controller الداخلي مرة واحدة لتجنب الأخطاء
+                                      if (_autoCompleteController != fieldTextEditingController) {
+                                        _autoCompleteController = fieldTextEditingController;
+                                        
+                                        // تأجيل تعيين القيمة حتى تنتهي فلاتر من بناء الشاشة لتجنب Crash
+                                        if (_identifierController.text.isNotEmpty && _autoCompleteController!.text.isEmpty) {
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            _autoCompleteController!.text = _identifierController.text;
+                                          });
+                                        }
+
+                                        // إضافة المستمع مرة واحدة فقط وتحديث المتحكم الرئيسي
+                                        _autoCompleteController!.addListener(() {
+                                          _identifierController.text = _autoCompleteController!.text;
+                                        });
                                       }
-                                      _identifierController.text = fieldTextEditingController.text;
-                                      fieldTextEditingController.addListener(() {
-                                        _identifierController.text = fieldTextEditingController.text;
-                                      });
 
                                       return TextFormField(
                                         controller: fieldTextEditingController,
@@ -326,7 +344,6 @@ class _LoginPageState extends State<LoginPage> {
 
                                   SizedBox(height: 16.h),
 
-                                  // الفاصل لإضافة زر الدخول بجوجل
                                   Row(
                                     children: [
                                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
@@ -340,7 +357,6 @@ class _LoginPageState extends State<LoginPage> {
                                   
                                   SizedBox(height: 16.h),
 
-                                  // زر تسجيل الدخول باستخدام جوجل
                                   ElevatedButton(
                                     onPressed: isLoading ? null : () {
                                       context.read<AuthCubit>().loginWithGoogle();

@@ -115,7 +115,7 @@ class OrdersView extends StatelessWidget {
     switch (status) {
       case 'accepted': statusText = 'تم القبول'; statusColor = Colors.blue; break;
       case 'negotiating': statusText = 'جاري التفاوض'; statusColor = Colors.purple; break;
-      case 'arrived': statusText = 'الكابتن بالخارج'; statusColor = Colors.green; break;
+      case 'arrived': statusText = 'السائق بالخارج'; statusColor = Colors.green; break;
       case 'in_progress': statusText = 'الرحلة مستمرة'; statusColor = const Color(0xFFD4AF37); break;
     }
 

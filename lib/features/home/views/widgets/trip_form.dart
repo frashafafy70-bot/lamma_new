@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:lamma_new/core/theme/app_colors.dart'; 
 
 class TripForm extends StatefulWidget {
   final String tripCategory;
@@ -14,7 +15,7 @@ class TripForm extends StatefulWidget {
   final TextEditingController destinationController;
   final TextEditingController priceController;
   final FocusNode priceFocusNode;
-  final Color primaryGreen;
+  final Color primaryGreen; 
   final Color accentGold;
   final Function(String) onCategoryChanged;
   final Function(String) onVehicleChanged;
@@ -54,7 +55,6 @@ class _TripFormState extends State<TripForm> {
     _speech = stt.SpeechToText();
   }
 
-  // 🟢 دالة الاستماع للصوت وتحويله لنص بالتحديث الأخير للمكتبة
   void _listenToSpeech() async {
     if (!_isListening) {
       bool available = await _speech.initialize(
@@ -67,7 +67,6 @@ class _TripFormState extends State<TripForm> {
           onResult: (val) => setState(() {
             widget.errandDetailsController.text = val.recognizedWords;
           }),
-          // 🟢 الحل للتحذير: استخدام SpeechListenOptions بدلاً من localeId المباشر
           listenOptions: stt.SpeechListenOptions(
             localeId: 'ar_EG',
           ),
@@ -87,30 +86,36 @@ class _TripFormState extends State<TripForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. اختيار نوع الرحلة (داخلي / طلبات)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildCategoryChip('داخلي', Icons.local_taxi_rounded),
-                SizedBox(width: 15.w),
-                _buildCategoryChip('طلبات', Icons.shopping_bag_rounded),
-              ],
+            // 1. التابات العلوية الفخمة (Premium Tabs)
+            Container(
+              padding: EdgeInsets.all(4.w),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(30.r),
+                border: Border.all(color: AppColors.primaryDark.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  _buildCategoryChip('داخلي', 'توصيل', Icons.local_taxi_rounded),
+                  _buildCategoryChip('طلبات', 'شراء طلبات', Icons.shopping_bag_rounded),
+                ],
+              ),
             ),
-            SizedBox(height: 15.h),
+            SizedBox(height: 24.h),
 
-            // 2. اختيار نوع المركبة (يظهر فقط في الداخلي)
+            // 2. اختيار نوع المركبة (يظهر فقط في الداخلي) - 🟢 تم التعديل لاستخدام الصور الحقيقية
             if (widget.tripCategory == 'داخلي') ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildVehicleChip('سيارة', Icons.directions_car_rounded),
+                  _buildVehicleChip('سيارة', 'assets/images/car.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('موتوسيكل', Icons.motorcycle_rounded),
+                  _buildVehicleChip('موتوسيكل', 'assets/images/motorcycle.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('توكتوك', Icons.electric_rickshaw_rounded),
+                  _buildVehicleChip('توكتوك', 'assets/images/tuktuk.png'),
                 ],
               ),
-              SizedBox(height: 15.h),
+              SizedBox(height: 24.h),
             ],
 
             // 3. نقطة الانطلاق
@@ -118,7 +123,7 @@ class _TripFormState extends State<TripForm> {
               controller: widget.pickupController,
               label: 'موقعك الحالي / مكان الاستلام',
               icon: Icons.my_location_rounded,
-              iconColor: widget.accentGold,
+              iconColor: AppColors.accentGold,
               readOnly: true,
               onTap: () => widget.onOpenMapSelection('pickup'),
             ),
@@ -129,7 +134,7 @@ class _TripFormState extends State<TripForm> {
               controller: widget.destinationController,
               label: 'مكان الوصول / تسليم الطلب',
               icon: Icons.location_on_rounded,
-              iconColor: widget.primaryGreen,
+              iconColor: AppColors.primaryDark,
               readOnly: true,
               onTap: () => widget.onOpenMapSelection('destination'),
             ),
@@ -137,7 +142,6 @@ class _TripFormState extends State<TripForm> {
 
             // 5. حقول خاصة بقسم "طلبات" (مع المايكروفون الذكي)
             if (widget.tripCategory == 'طلبات') ...[
-              // حقل التفاصيل بالصوت
               TextFormField(
                 controller: widget.errandDetailsController,
                 style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
@@ -146,7 +150,7 @@ class _TripFormState extends State<TripForm> {
                 decoration: InputDecoration(
                   labelText: 'تفاصيل الطلبات (اكتب أو سجل صوتك)',
                   labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600),
-                  prefixIcon: Icon(Icons.list_alt_rounded, color: widget.primaryGreen),
+                  prefixIcon: const Icon(Icons.list_alt_rounded, color: AppColors.primaryDark),
                   suffixIcon: GestureDetector(
                     onTap: _listenToSpeech,
                     child: AnimatedContainer(
@@ -154,19 +158,20 @@ class _TripFormState extends State<TripForm> {
                       margin: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _isListening ? Colors.red.withValues(alpha: 0.1) : Colors.transparent,
+                        color: _isListening ? AppColors.error.withValues(alpha: 0.1) : Colors.transparent,
                       ),
                       child: Icon(
                         _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                        color: _isListening ? Colors.red : widget.accentGold,
+                        color: _isListening ? AppColors.error : AppColors.accentGold,
                         size: 26.sp,
                       ),
                     ),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: widget.accentGold, width: 2)),
+                  fillColor: AppColors.backgroundLight,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -176,7 +181,7 @@ class _TripFormState extends State<TripForm> {
                 controller: widget.errandEstimatedCostController,
                 label: 'سعر الطلبات التقريبي (للشراء)',
                 icon: Icons.receipt_long_rounded,
-                iconColor: widget.primaryGreen,
+                iconColor: AppColors.primaryDark,
                 keyboardType: TextInputType.number,
               ),
               SizedBox(height: 12.h),
@@ -186,33 +191,33 @@ class _TripFormState extends State<TripForm> {
             _buildInputField(
               controller: widget.priceController,
               focusNode: widget.priceFocusNode,
-              label: 'أجرة التوصيل للكابتن',
+              label: 'أجرة التوصيل للسائق',
               icon: Icons.payments_rounded,
-              iconColor: widget.accentGold,
+              iconColor: AppColors.accentGold,
               keyboardType: TextInputType.number,
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 24.h),
 
-            // 7. زر الإرسال
+            // 7. زر الإرسال الفخم
             SizedBox(
               height: 55.h,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.primaryGreen,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                  backgroundColor: AppColors.primaryDark,
+                  foregroundColor: AppColors.accentGold,
+                  elevation: 6,
+                  shadowColor: AppColors.primaryDarkLight,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                 ),
                 onPressed: widget.isSubmittingTrip ? null : widget.onSubmit,
                 child: widget.isSubmittingTrip
-                    ? SizedBox(width: 25.w, height: 25.w, child: CircularProgressIndicator(color: widget.accentGold, strokeWidth: 3))
+                    ? SizedBox(width: 25.w, height: 25.w, child: const CircularProgressIndicator(color: AppColors.accentGold, strokeWidth: 3))
                     : Text(
-                        widget.tripCategory == 'طلبات' ? 'إرسال طلب المشتروات للكابتن' : 'إرسال الطلب للكابتن',
-                        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                        widget.tripCategory == 'طلبات' ? 'إرسال طلب المشتروات للسائق' : 'إرسال الطلب للسائق',
+                        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: AppColors.accentGold),
                       ),
               ),
             ),
-            // مسافة أمان للكيبورد
             SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 0),
           ],
         ),
@@ -220,7 +225,41 @@ class _TripFormState extends State<TripForm> {
     );
   }
 
-  // 🟢 ودجت مساعدة لشكل حقول الإدخال
+  // 🔴 ودجت التابات العلوية
+  Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
+    bool isSelected = widget.tripCategory == logicTitle;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => widget.onCategoryChanged(logicTitle),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(25.r),
+            boxShadow: isSelected ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18.sp, color: isSelected ? AppColors.accentGold : Colors.grey),
+              SizedBox(width: 8.w),
+              Text(
+                displayTitle,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 14.sp,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? AppColors.primaryDark : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔴 ودجت حقول الإدخال
   Widget _buildInputField({
     required TextEditingController controller,
     required String label,
@@ -237,78 +276,55 @@ class _TripFormState extends State<TripForm> {
       onTap: onTap,
       focusNode: focusNode,
       keyboardType: keyboardType,
-      style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold),
+      style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.textDark),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600, fontWeight: FontWeight.normal),
+        labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
         prefixIcon: Icon(icon, color: iconColor),
         filled: true,
-        fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: widget.accentGold, width: 2)),
+        fillColor: AppColors.backgroundLight,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
       ),
     );
   }
 
-  // 🟢 ودجت مساعدة لشكل اختيار نوع الرحلة
-  Widget _buildCategoryChip(String title, IconData icon) {
-    bool isSelected = widget.tripCategory == title;
-    return InkWell(
-      onTap: () => widget.onCategoryChanged(title),
-      borderRadius: BorderRadius.circular(20.r),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: isSelected ? widget.primaryGreen : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: isSelected ? widget.primaryGreen : Colors.grey.shade300),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20.sp, color: isSelected ? widget.accentGold : Colors.grey.shade600),
-            SizedBox(width: 8.w),
-            Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
-                fontSize: 14.sp,
-                color: isSelected ? Colors.white : Colors.grey.shade700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 🟢 ودجت مساعدة لشكل اختيار نوع المركبة
-  Widget _buildVehicleChip(String title, IconData icon) {
+  // 🔴 ودجت السيارات الفرعي (تم التعديل لاستقبال مسار الصورة بدل الأيقونة)
+  Widget _buildVehicleChip(String title, String imagePath) {
     bool isSelected = widget.vehicleType == title;
-    return InkWell(
-      onTap: () => widget.onVehicleChanged(title),
-      borderRadius: BorderRadius.circular(15.r),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: isSelected ? widget.accentGold.withValues(alpha: 0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(15.r),
-          border: Border.all(color: isSelected ? widget.accentGold : Colors.grey.shade300),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16.sp, color: isSelected ? widget.primaryGreen : Colors.grey.shade500),
-            SizedBox(width: 6.w),
-            Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
-                fontSize: 12.sp,
-                color: isSelected ? widget.primaryGreen : Colors.grey.shade600,
+    return Expanded(
+      child: InkWell(
+        onTap: () => widget.onVehicleChanged(title),
+        borderRadius: BorderRadius.circular(15.r),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primaryDark : Colors.transparent,
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: isSelected ? AppColors.accentGold : Colors.grey.shade300),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // عرض الصورة من الـ assets
+              Image.asset(
+                imagePath,
+                height: 45.h,
+                fit: BoxFit.contain,
               ),
-            ),
-          ],
+              SizedBox(height: 6.h),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.sp,
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

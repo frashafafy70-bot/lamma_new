@@ -91,7 +91,7 @@ class FCMService {
   // دوال إضافية خاصة بتطبيق لمة
   // ==========================================
 
-  // استدعاء هذه الدالة عندما يسجل المستخدم كـ "كابتن" أو يفتح التطبيق وهو كابتن
+  // استدعاء هذه الدالة عندما يسجل المستخدم كـ "سائق" أو يفتح التطبيق وهو سائق
   static Future<void> subscribeToDriversRadar() async {
     try {
       await _messaging.subscribeToTopic('drivers_radar');
@@ -101,7 +101,7 @@ class FCMService {
     }
   }
 
-  // استدعاء هذه الدالة إذا قام الكابتن بتسجيل الخروج أو إيقاف استقبال الطلبات
+  // استدعاء هذه الدالة إذا قام السائق بتسجيل الخروج أو إيقاف استقبال الطلبات
   static Future<void> unsubscribeFromDriversRadar() async {
     try {
       await _messaging.unsubscribeFromTopic('drivers_radar');

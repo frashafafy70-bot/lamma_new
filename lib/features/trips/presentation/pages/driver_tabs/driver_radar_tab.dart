@@ -2,43 +2,41 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
 import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/features/trips/data/services/driver_radar_service.dart'; 
+import 'package:lamma_new/features/trips/data/repositories/driver_radar_repository_impl.dart'; 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
-// 🟢 تم استدعاء الموديل هنا
 import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
 
 import '../../../cubit/driver/driver_radar_cubit.dart';
 import '../../../cubit/driver/driver_radar_state.dart';
 
+// 🟢 استيراد الـ HomeCubit عشان نقدر ننقل الكابتن لتاب الرحلات النشطة
+import 'package:lamma_new/features/home/cubit/home_cubit.dart';
+
 class DriverRadarTab extends StatelessWidget {
-  final TabController tabController;
-  
-  const DriverRadarTab({super.key, required this.tabController});
+  // 🟢 تم إزالة الـ tabController نهائياً من هنا
+  const DriverRadarTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-
     return BlocProvider(
-      create: (context) => DriverRadarCubit(DriverRadarService())..startListeningToRadar(),
+      create: (context) => DriverRadarCubit(DriverRadarRepositoryImpl())..listenToRadarTrips(),
       child: BlocConsumer<DriverRadarCubit, DriverRadarState>(
         listener: (context, state) {
-          if (state is DriverRadarAcceptSuccess) {
+          if (state is DriverRadarActionSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('تم قبول الرحلة بنجاح! 🚗', style: TextStyle(fontFamily: 'Cairo')), 
                 backgroundColor: AppColors.success,
               )
             );
-            tabController.animateTo(1); 
+            // 🟢 استخدام الـ HomeCubit لنقل الكابتن لتاب الرحلات النشطة (رقم 2)
+            context.read<HomeCubit>().changeTab(2); 
           } 
-          else if (state is DriverRadarAcceptFailed) {
+          else if (state is DriverRadarActionError) {
              ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), 
@@ -58,15 +56,7 @@ class DriverRadarTab extends StatelessWidget {
           }
 
           if (state is DriverRadarLoaded) {
-            var activeTrips = state.trips.where((doc) {
-              var data = (doc.data() as Map<String, dynamic>?) ?? {};
-              
-              if (data['isDeletedForDriver'] == true) return false;
-              if (data['status'] == 'pending') return true;
-              if (data['status'] == 'negotiating' && data['driverId'] != currentUserId) return true;
-
-              return false;
-            }).toList();
+            final activeTrips = state.radarTrips;
 
             if (activeTrips.isEmpty) {
               return Center(
@@ -90,26 +80,20 @@ class DriverRadarTab extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               itemCount: activeTrips.length,
               itemBuilder: (context, index) {
-                var doc = activeTrips[index];
-                var data = (doc.data() as Map<String, dynamic>?) ?? {};
-                
-                // 🟢 10/10 Clean Architecture: تحويل البيانات لـ TripModel
-                TripModel trip = TripModel.fromMap(data, doc.id);
+                TripModel trip = activeTrips[index];
                 
                 String timeStr = 'الآن';
                 if (trip.createdAt != null) {
                   timeStr = DateFormat('hh:mm a').format(trip.createdAt!);
                 }
 
-                // 🟢 استخدام بيانات الموديل بدلاً من الـ Maps
                 String displayPrice = trip.status == 'negotiating' && trip.negotiationPrice != null 
                     ? trip.negotiationPrice!
                     : trip.price ?? '0';
 
-                // تأمين جلب اسم العميل أو العنوان لو المسميات مختلفة في الداتابيز
-                String clientName = trip.passengerName ?? data['clientName'] ?? 'عميل';
-                String pickupPoint = trip.pickup ?? data['pickupAddress'] ?? 'موقع الانطلاق';
-                String dropoffPoint = trip.destination ?? data['dropoffAddress'] ?? 'وجهة الوصول';
+                String clientName = trip.passengerName ?? 'عميل';
+                String pickupPoint = trip.pickup ?? 'موقع الانطلاق';
+                String dropoffPoint = trip.destination ?? 'وجهة الوصول';
 
                 return Card(
                   elevation: 4,

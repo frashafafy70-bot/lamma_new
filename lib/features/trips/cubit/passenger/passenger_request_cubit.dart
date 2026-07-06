@@ -6,60 +6,44 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:geolocator/geolocator.dart'; // 👈 استيراد Geolocator
 
-import '../../data/services/map_service.dart';
-import '../../data/services/trip_service.dart';
+// 🟢 استيراد الـ Repositories والـ Entities بدلاً من الـ Services القديمة
+import '../../domain/repositories/map_repository.dart';
+import '../../domain/repositories/trip_repository.dart';
+import '../../domain/entities/place_search_entity.dart';
 
 part 'passenger_request_state.dart';
 
 class PassengerRequestCubit extends Cubit<PassengerRequestState> {
-  final MapService mapService;
-  final TripService tripService;
-  
-  // حفظ الـ Subscription لو احتجنا نوقفه أو نشغله
-  StreamSubscription<Position>? _positionStreamSubscription;
+  final MapRepository mapRepository;
+  final TripRepository tripRepository;
 
-  PassengerRequestCubit({required this.mapService, required this.tripService})
+  PassengerRequestCubit({required this.mapRepository, required this.tripRepository})
       : super(PassengerRequestInitial());
 
-  // 📍 جلب الموقع الحالي وصلاحيات الـ Geolocator
+  // 📍 جلب الموقع الحالي بالاعتماد على الـ Repository
   Future<void> getUserLocation() async {
     emit(LocationLoading());
     
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        emit(LocationError('خدمة الموقع مقفولة، يرجى تفعيلها من إعدادات الهاتف.'));
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          emit(LocationError('تم رفض صلاحية الموقع.'));
-          return;
-        }
-      }
-      
-      if (permission == LocationPermission.deniedForever) {
-        // الـ UI المفروض يظهر الـ Dialog الخاص بفتح الإعدادات بناءً على الحالة دي
-        emit(LocationPermissionDenied());
-        return;
-      }
-
-      Position initialPosition = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation)
-      );
-      
-      emit(LocationLoaded(LatLng(initialPosition.latitude, initialPosition.longitude)));
-
-      // 🔴 ملاحظة: لو محتاج تفعل الـ Stream للتتبع المباشر للعميل، ممكن تعمله هنا
-      // بس الأفضل في شاشة الطلب نكتفي بالموقع الحالي عشان نقلل استهلاك البطارية والـ Re-builds
+      // 🟢 الـ Repository يتكفل بكل شيء (فحص الصلاحيات، تفعيل الـ GPS، وتحديد الموقع)
+      final position = await mapRepository.getUserCurrentLocation();
+      emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
 
     } catch (e) {
-      emit(LocationError('حدث خطأ أثناء جلب الموقع.'));
+      String errorMessage = 'حدث خطأ أثناء جلب الموقع.';
+      
+      // التعامل مع الأخطاء التي تم تمريرها من طبقة الـ Data
+      if (e.toString().contains('GPS_DISABLED')) {
+        errorMessage = 'خدمة الموقع مقفولة، يرجى تفعيلها من إعدادات الهاتف.';
+      } else if (e.toString().contains('PERMISSION_DENIED_FOREVER')) {
+        emit(LocationPermissionDenied());
+        return;
+      } else if (e.toString().contains('PERMISSION_DENIED')) {
+        errorMessage = 'تم رفض صلاحية الموقع.';
+      }
+      
+      emit(LocationError(errorMessage));
     }
   }
 
@@ -67,7 +51,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   Future<void> getAddressFromLatLng(LatLng latLng) async {
     emit(AddressLoading());
     try {
-      String address = await mapService.performReverseGeocoding(latLng);
+      String address = await mapRepository.getAddressFromCoordinates(latLng);
       emit(AddressLoaded(address));
     } catch (e) {
       emit(AddressError("حدث خطأ أثناء جلب العنوان"));
@@ -81,7 +65,8 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
       return;
     }
     try {
-      List<dynamic> results = await mapService.searchPlaces(input);
+      // 🟢 الآن نحن نستقبل قائمة من الكيان النظيف PlaceSearchEntity بدلاً من dynamic
+      List<PlaceSearchEntity> results = await mapRepository.searchPlaces(input);
       emit(PlacesSearchLoaded(results));
     } catch (e) {
       emit(PlacesSearchLoaded([]));
@@ -91,7 +76,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   // 📍 جلب تفاصيل المكان المحدد
   Future<void> fetchPlaceDetails(String placeId, String description) async {
     try {
-      LatLng? location = await mapService.getPlaceDetails(placeId);
+      LatLng? location = await mapRepository.getPlaceCoordinates(placeId);
       if (location != null) {
         emit(PlaceDetailsLoaded(location, description));
       }
@@ -150,7 +135,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      await tripService.createNewTripRequest(tripData);
+      await tripRepository.createNewTripRequest(tripData);
       
       emit(TripSubmitSuccess());
     } catch (e) {
@@ -161,8 +146,6 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
 
   @override
   Future<void> close() {
-    // التأكد من إغلاق الـ Stream لو تم تشغيله عشان ميعملش Memory Leak
-    _positionStreamSubscription?.cancel();
     return super.close();
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// 🟢 استدعاء ملفات الثوابت
 import 'package:lamma_new/core/constants/app_strings.dart';
 import 'package:lamma_new/core/constants/firebase_constants.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
@@ -14,17 +13,21 @@ class AccountSwitchWidget extends StatelessWidget {
     required this.currentRole,
   });
 
+  // 🟢 توحيد المسمى في الواجهة ليكون (driver) برمجياً و(كابتن) للمستخدم
   List<Map<String, dynamic>> get _roles => [
-    {'key': FirebaseConstants.roleCustomer, 'name': AppStrings.customerName, 'icon': Icons.person_rounded},
-    {'key': FirebaseConstants.roleCaptain, 'name': AppStrings.captainName, 'icon': Icons.local_taxi_rounded},
-    {'key': FirebaseConstants.roleLawyer, 'name': AppStrings.lawyerName, 'icon': Icons.gavel_rounded},
-    {'key': FirebaseConstants.roleDoctor, 'name': AppStrings.doctorName, 'icon': Icons.medical_services_rounded},
-    {'key': FirebaseConstants.roleNurse, 'name': AppStrings.nurseName, 'icon': Icons.healing_rounded},
+    {'key': 'client', 'name': 'عميل', 'icon': Icons.person_rounded},
+    {'key': 'driver', 'name': 'كابتن', 'icon': Icons.local_taxi_rounded}, 
+    {'key': 'lawyer', 'name': 'محامي', 'icon': Icons.gavel_rounded},
+    {'key': 'doctor', 'name': 'طبيب', 'icon': Icons.medical_services_rounded},
+    {'key': 'nurse', 'name': 'تمريض', 'icon': Icons.healing_rounded},
   ];
 
   @override
   Widget build(BuildContext context) {
-    final String safeCurrentRole = currentRole.trim().toLowerCase();
+    // 🟢 معالجة الاسم اللي جاي عشان يتطابق صح ويظلل الكارت المضبوط
+    String safeCurrentRole = currentRole.trim().toLowerCase();
+    if (safeCurrentRole == 'customer') safeCurrentRole = 'client';
+    if (safeCurrentRole == 'captain') safeCurrentRole = 'driver';
 
     final currentRoleData = _roles.firstWhere(
       (role) => role['key'] == safeCurrentRole,
@@ -71,7 +74,6 @@ class AccountSwitchWidget extends StatelessWidget {
               ),
               SizedBox(height: 12.h),
               
-              // كارت الحساب الحالي مع التدرج اللوني الفخم
               _buildCurrentRoleCard(
                 roleName: currentRoleData['name'],
                 icon: currentRoleData['icon'],
@@ -90,12 +92,11 @@ class AccountSwitchWidget extends StatelessWidget {
               ),
               SizedBox(height: 12.h),
 
-              // أنيميشن متدرج لظهور الكروت
               ...List.generate(otherRoles.length, (index) {
                 final role = otherRoles[index];
                 return TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 400 + (index * 150)), // تأخير متدرج لكل كارت
+                  duration: Duration(milliseconds: 400 + (index * 150)), 
                   curve: Curves.easeOutQuart,
                   builder: (context, value, child) {
                     return Transform.translate(
@@ -123,9 +124,8 @@ class AccountSwitchWidget extends StatelessWidget {
 
   Widget _buildCurrentRoleCard({required String roleName, required IconData icon}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h), // مساحة أكبر شوية للفخامة
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h), 
       decoration: BoxDecoration(
-        // استخدام Gradient بدل اللون المصمت
         gradient: LinearGradient(
           colors: [
             AppColors.accentGold.withValues(alpha: 0.15),
@@ -193,7 +193,6 @@ class AccountSwitchWidget extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // أيقونة توثيق مع Glow
           Icon(
             Icons.verified_rounded,
             color: AppColors.accentGold,
@@ -216,12 +215,7 @@ class AccountSwitchWidget extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // هنقفل الشاشة ونرجع الرول الجديد
             Navigator.pop(context, roleKey);
-            
-            // ⭐️ استدعاء إشعار "ليفل الوحش" هنا ⭐️
-            // في المكان اللي بتستقبل فيه الـ Navigator.pop 
-            // هتنادي على: PremiumToast.show(context, 'تم التبديل بنجاح');
           },
           borderRadius: BorderRadius.circular(16.r),
           splashColor: AppColors.accentGold.withValues(alpha: 0.15),
@@ -246,7 +240,7 @@ class AccountSwitchWidget extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.white, // خليت اللون أوضح
+                    color: Colors.white, 
                     size: 22.sp,
                   ),
                 ),
@@ -269,7 +263,7 @@ class AccountSwitchWidget extends StatelessWidget {
                   ),
                   child: Icon(
                     Icons.arrow_forward_ios_rounded,
-                    color: AppColors.accentGold.withValues(alpha: 0.8), // لمسة دهبي خفيفة للسهم
+                    color: AppColors.accentGold.withValues(alpha: 0.8), 
                     size: 14.sp,
                   ),
                 ),

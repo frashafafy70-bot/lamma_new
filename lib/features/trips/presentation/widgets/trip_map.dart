@@ -9,10 +9,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/core/constants/app_constants.dart'; // 👈 استدعاء الثوابت
-import 'package:lamma_new/features/trips/data/services/map_service.dart';
-// استيراد الخريطة الموحدة
+import 'package:lamma_new/core/constants/app_constants.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
+
+// 🟢 استيراد الـ Repository بدلاً من الـ Service المحذوف
+import 'package:lamma_new/features/trips/data/repositories/map_repository_impl.dart';
 
 class TripMap extends StatefulWidget {
   final LatLng? pickupPoint;
@@ -33,7 +34,6 @@ class TripMap extends StatefulWidget {
 class _TripMapState extends State<TripMap> {
   GoogleMapController? _mapController;
   
-  // 👈 التعديل هنا لربطها بملف الثوابت
   LatLng _centerPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
   String _currentAddress = 'جاري تحديد الموقع...';
   bool _isLoadingAddress = true;
@@ -94,8 +94,9 @@ class _TripMapState extends State<TripMap> {
       }
     });
 
-    final mapService = MapService(); 
-    List<LatLng> routePoints = await mapService.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
+    // 🟢 استخدام الـ Repository بدلاً من Service
+    final mapRepository = MapRepositoryImpl(); 
+    List<LatLng> routePoints = await mapRepository.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
 
     if (routePoints.isNotEmpty && mounted) {
       setState(() {

@@ -1,7 +1,7 @@
 class AppStrings {
   // أسماء الأوضاع (Roles)
   static const String customerName = 'عميل';
-  static const String captainName = 'كابتن';
+  static const String driverName = 'كابتن';
   static const String lawyerName = 'محامي';
   static const String doctorName = 'طبيب';
   static const String nurseName = 'تمريض';
@@ -19,7 +19,7 @@ class AppStrings {
   static const String tripStatusCancelled = 'ملغي';
   static const String finalPrice = 'السعر النهائي:';
   static const String proposedPrice = 'السعر المطروح:';
-  
+
   // رسائل النجاح والخطأ
   static const String switchSuccess = 'تم التبديل بنجاح ✅';
   static const String networkError = 'فشل التحويل، تأكد من جودة الإنترنت.';

@@ -122,7 +122,7 @@ class _HomePageState extends State<HomePage> {
             final cubit = context.read<HomeCubit>();
             cubit.clearActionStatus(); 
 
-            if (role == 'captain') RoleRegistrationSheets.showCaptain(context, cubit, fullName);
+            if (role == 'driver') RoleRegistrationSheets.showDriver(context, cubit, fullName);
             else if (role == 'lawyer') RoleRegistrationSheets.showLawyer(context, cubit, fullName);
             else if (role == 'doctor') RoleRegistrationSheets.showDoctor(context, cubit, fullName);
             else if (role == 'nurse') RoleRegistrationSheets.showNurse(context, cubit, fullName);
@@ -222,7 +222,7 @@ class _HomePageState extends State<HomePage> {
                                   padding: const EdgeInsets.only(bottom: 4), 
                                   child: Badge(
                                     // 🟢 التعديل هنا: شيلنا شرط (state.activeRole == 'customer')
-                                    // عشان اللمبة الحمرا تظهر للكابتن والعميل مع بعض
+                                    // عشان اللمبة الحمرا تظهر للسائق والعميل مع بعض
                                     isLabelVisible: state.activeOrdersCount > 0 || state.hasNewNotification, 
                                     label: state.activeOrdersCount > 0 ? Text(state.activeOrdersCount.toString(), style: const TextStyle(fontFamily: 'Cairo')) : null,
                                     backgroundColor: Colors.red,

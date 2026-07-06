@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
+import 'dart:io'; // 🟢 تم إضافة استدعاء دارت للتعامل مع الـ File
 import 'package:http/http.dart' as http; 
 
 import 'package:flutter/material.dart';
@@ -10,16 +11,19 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart'; 
 import 'dart:math' as math; 
 
-import 'package:lamma_new/features/trips/data/services/map_service.dart';
-import 'package:lamma_new/features/trips/data/services/trip_service.dart';
-import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
+import 'package:lamma_new/features/trips/data/repositories/map_repository_impl.dart';
+import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
 
-import '../../widgets/map_selection_overlay.dart';
-import '../../widgets/trip_form.dart'; 
-import '../../widgets/lamma_google_map.dart'; 
+import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/map_selection_overlay.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/trip_form.dart'; 
+import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
 
 import 'package:lamma_new/core/constants/app_constants.dart'; 
 import 'package:lamma_new/core/theme/app_colors.dart';
+
+// 🟢 استيراد الكيان بشكل صريح ومباشر لمنع أي تضارب
+import 'package:lamma_new/features/trips/domain/entities/place_search_entity.dart';
 
 class PassengerRequestTab extends StatefulWidget {
   final TabController tabController;
@@ -31,7 +35,18 @@ class PassengerRequestTab extends StatefulWidget {
 
 class _PassengerRequestTabState extends State<PassengerRequestTab> {
   late PassengerRequestCubit _requestCubit;
-  final GlobalKey<TripFormState> _formKey = GlobalKey<TripFormState>();
+  
+  // 🟢 تعريف الـ Controllers والمتغيرات الخاصة بالفورم هنا بدلاً من الـ GlobalKey
+  final TextEditingController _pickupController = TextEditingController();
+  final TextEditingController _destinationController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _errandDetailsController = TextEditingController();
+  final TextEditingController _errandEstimatedCostController = TextEditingController();
+  final FocusNode _priceFocusNode = FocusNode();
+  
+  String _tripCategory = 'داخلي';
+  String _vehicleType = 'سيارة';
+  File? _orderAudioFile;
 
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {}; 
@@ -48,14 +63,17 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   bool _isReverseGeocoding = false;
 
   final TextEditingController _mapSearchController = TextEditingController();
-  List<dynamic> _placePredictions = [];
+  List<PlaceSearchEntity> _placePredictions = []; 
 
   final double _closeZoom = 16.5; 
 
   @override
   void initState() {
     super.initState();
-    _requestCubit = PassengerRequestCubit(mapService: MapService(), tripService: TripService());
+    _requestCubit = PassengerRequestCubit(
+      mapRepository: MapRepositoryImpl(), 
+      tripRepository: TripRepositoryImpl(),
+    );
     _requestCubit.getUserLocation();
   }
 
@@ -64,6 +82,15 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     _mapSearchController.dispose();
     _requestCubit.close(); 
     _mapController?.dispose();
+    
+    // 🟢 التخلص من الـ Controllers لعدم استهلاك الذاكرة
+    _pickupController.dispose();
+    _destinationController.dispose();
+    _priceController.dispose();
+    _errandDetailsController.dispose();
+    _errandEstimatedCostController.dispose();
+    _priceFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -162,7 +189,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           Polyline(
             polylineId: const PolylineId('trip_route_temp'),
             points: [_pickupLocation!, _destinationLocation!],
-            // 🟢 التعديل هنا
             color: AppColors.royalGreen.withValues(alpha: 0.5), 
             width: 4, 
             patterns: [PatternItem.dash(15), PatternItem.gap(10)], 
@@ -284,6 +310,8 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
           infoWindow: const InfoWindow(title: 'نقطة الانطلاق')
         )); 
+        // 🟢 تحديث الـ Controller مباشرة
+        _pickupController.text = locationText;
       } else if (_mapSelectionMode == 'destination') { 
         _destinationLocation = finalLoc; 
         _markers.removeWhere((m) => m.markerId.value == 'destination'); 
@@ -293,10 +321,11 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), 
           infoWindow: const InfoWindow(title: 'وجهة الوصول')
         )); 
+        // 🟢 تحديث الـ Controller مباشرة
+        _destinationController.text = locationText;
       } 
       
       _updateRoutePolyline(); 
-      _formKey.currentState?.updateLocationText(_mapSelectionMode, locationText);
       _mapSelectionMode = 'none'; 
       _isMapFullscreen = false; 
     });
@@ -361,7 +390,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             setState(() { _isReverseGeocoding = false; _mapSearchController.text = state.message; });
           } 
           else if (state is PlacesSearchLoaded) {
-            setState(() => _placePredictions = state.predictions);
+            setState(() => _placePredictions = List<PlaceSearchEntity>.from(state.predictions));
           } else if (state is PlaceDetailsLoaded) {
             setState(() { _tempMapCenter = state.location; _mapSearchController.text = state.description; _placePredictions = []; });
             _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: state.location, zoom: _closeZoom)));
@@ -371,11 +400,14 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             _showLoadingDialog(); 
           } else if (state is TripSubmitSuccess) {
             Navigator.of(context, rootNavigator: true).pop(); 
-            _formKey.currentState?.destinationController.clear();
-            _formKey.currentState?.priceController.clear();
-            _formKey.currentState?.errandDetailsController.clear();
-            _formKey.currentState?.errandEstimatedCostController.clear();
-            _formKey.currentState?.orderAudioFile = null;
+            
+            // 🟢 تصفير المتغيرات هنا مباشرة
+            _destinationController.clear();
+            _priceController.clear();
+            _errandDetailsController.clear();
+            _errandEstimatedCostController.clear();
+            _orderAudioFile = null;
+            
             _showSnackBar('تم إرسال طلبك بنجاح! 🚀', isError: false);
             widget.tabController.animateTo(2); 
           } else if (state is TripSubmitError) {
@@ -428,7 +460,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   if (isPickingMap)
                     MapSelectionOverlay(
                       mapSearchController: _mapSearchController,
-                      placePredictions: _placePredictions,
+                      placePredictions: _placePredictions.cast<dynamic>(), 
                       isReverseGeocoding: _isReverseGeocoding,
                       primaryGreen: AppColors.royalGreen, 
                       accentGold: AppColors.accentGold,
@@ -449,7 +481,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.royalGreen, 
                           foregroundColor: AppColors.accentGold,
-                          // 🟢 التعديل هنا
                           shadowColor: AppColors.royalGreen.withValues(alpha: 0.4),
                           elevation: 10,
                           padding: EdgeInsets.symmetric(vertical: 14.h),
@@ -474,16 +505,34 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                       decoration: BoxDecoration(
                         color: Colors.white, 
                         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
-                        // 🟢 التعديل هنا
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))]
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
                         child: TripForm(
-                          key: _formKey, 
-                          pickupLocation: _pickupLocation,
-                          destinationLocation: _destinationLocation,
+                          // 🟢 تم تمرير جميع المتغيرات هنا لـ TripForm بالصيغة الجديدة
+                          tripCategory: _tripCategory,
+                          vehicleType: _vehicleType,
+                          isSubmittingTrip: state is TripSubmitting,
+                          errandDetailsController: _errandDetailsController,
+                          errandEstimatedCostController: _errandEstimatedCostController,
+                          pickupController: _pickupController,
+                          destinationController: _destinationController,
+                          priceController: _priceController,
+                          priceFocusNode: _priceFocusNode,
+                          primaryGreen: AppColors.royalGreen,
+                          accentGold: AppColors.accentGold,
+                          onCategoryChanged: (cat) {
+                            setState(() => _tripCategory = cat);
+                          },
+                          onVehicleChanged: (veh) {
+                            setState(() => _vehicleType = veh);
+                          },
                           onOpenMapSelection: _openMapSelection,
+                          onSubmit: () {
+                            // يمكنك إضافة منطق الإرسال الخاص بك هنا لاحقاً
+                            debugPrint("Submitting Trip...");
+                          },
                         ),
                       ),
                     ),
