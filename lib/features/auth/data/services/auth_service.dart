@@ -1,14 +1,28 @@
 import 'dart:io';
+import 'package:flutter/material.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🟢 إضافة SharedPreferences
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
+  // 🟢 دالة مساعدة لحفظ الـ Role محلياً
+  Future<void> _cacheUserRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cached_active_role', role);
+  }
+
+  // 🟢 دالة مساعدة لمسح الكاش عند تسجيل الخروج
+  Future<void> _clearUserCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cached_active_role');
+  }
 
   Future<UserCredential> signUpUser({required String email, required String password, required String name, required String phone}) async {
     UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
@@ -23,8 +37,10 @@ class AuthService {
         'roles': ['client'],
         'activeRole': 'client',
         'fcmToken': fcmToken,
+        'status': 'approved',
         'createdAt': FieldValue.serverTimestamp(),
       });
+      await _cacheUserRole('client'); // 🟢 حفظ الكاش
     }
     return userCredential;
   }
@@ -37,6 +53,14 @@ class AuthService {
       if (fcmToken != null) {
         await _firestore.collection('users').doc(user.uid).update({'fcmToken': fcmToken});
       }
+      
+      // 🟢 جلب الـ Role من الداتابيز وحفظه في الكاش
+      DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        String activeRole = data['activeRole'] ?? 'client';
+        await _cacheUserRole(activeRole);
+      }
     }
     return userCredential;
   }
@@ -46,12 +70,28 @@ class AuthService {
     if (user != null) {
       await _firestore.collection('users').doc(user.uid).update({'fcmToken': FieldValue.delete()});
     }
+    await _clearUserCache(); // 🟢 مسح الكاش
     await _auth.signOut();
   }
 
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } catch (e) {
+      debugPrint("💥 الخطأ الحقيقي في استرجاع الباسورد: $e");
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>?> getUserData(String uid) async {
+    // 🟢 الأفضلية دايماً للكاش، بس بما إن الدالة دي بتجيب كل الداتا بنجيبها من السيرفر
+    // بس ممكن نقرا الـ Role من الكاش لو حابين نعرض حاجة سريعة
     DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) return doc.data() as Map<String, dynamic>;
+    if (doc.exists) {
+       var data = doc.data() as Map<String, dynamic>;
+       await _cacheUserRole(data['activeRole'] ?? 'client'); // تحديث الكاش بالمرة
+       return data;
+    }
     return null;
   }
 
@@ -84,6 +124,10 @@ class AuthService {
           'fcmToken': fcmToken ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
+        await _cacheUserRole('client'); // 🟢 حفظ الكاش
+      } else {
+         var data = userDoc.data() as Map<String, dynamic>;
+         await _cacheUserRole(data['activeRole'] ?? 'client'); // 🟢 حفظ الكاش للمستخدم القديم
       }
     }
     return userCredential;
@@ -94,8 +138,10 @@ class AuthService {
     required Function(String verificationId) onCodeSent,
     required Function(String error) onError,
   }) async {
-    String formattedPhone = phone.startsWith('+') ? phone : '+2$phone';
-    var phoneCheck = await _firestore.collection('users').where('phone', isEqualTo: phone).limit(1).get();
+    String cleanPhone = phone.startsWith('0') ? phone.substring(1) : phone;
+    String formattedPhone = cleanPhone.startsWith('+20') ? cleanPhone : '+20$cleanPhone';
+
+    var phoneCheck = await _firestore.collection('users').where('phone', isEqualTo: formattedPhone).limit(1).get();
     if (phoneCheck.docs.isNotEmpty) {
       onError('رقم الهاتف هذا مسجل بالفعل ومربوط بحساب آخر ⚠️');
       return;
@@ -124,8 +170,9 @@ class AuthService {
     UserCredential phoneUserAuth = await _auth.signInWithCredential(credential);
 
     if (phoneUserAuth.user != null) {
-      UserCredential userCredential = await signUpUser(email: email, password: password, name: name, phone: phone);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       String uid = userCredential.user!.uid;
+
       Map<String, String> uploadedUrls = {};
       List<String> finalRoles = ['client'];
       String initialActiveRole = 'client';
@@ -141,18 +188,31 @@ class AuthService {
       }
 
       String? fcmToken = await _messaging.getToken();
-      Map<String, dynamic> additionalData = {
+      Map<String, dynamic> userData = {
+        'uid': uid,
+        'name': name,
+        'email': email,
+        'phone': phone,
         'roles': finalRoles,
         'activeRole': initialActiveRole,
         'status': 'approved',
         'documents': uploadedUrls,
         'fcmToken': fcmToken ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
-      if (role != 'عميل' && role != 'client') additionalData['nationalId'] = nationalId;
+      if (role != 'عميل' && role != 'client') userData['nationalId'] = nationalId;
 
-      await _firestore.collection('users').doc(uid).set(additionalData, SetOptions(merge: true));
-      await phoneUserAuth.user!.delete();
+      await _firestore.collection('users').doc(uid).set(userData);
+      
+      await _cacheUserRole(initialActiveRole); // 🟢 حفظ الكاش
+      
+      try {
+        await phoneUserAuth.user!.delete();
+      } catch (e) {
+        debugPrint("Ignore delete error: $e");
+      }
+      
       return uid;
     } else {
       throw Exception('كود الـ OTP المدخل غير صحيح ❌');

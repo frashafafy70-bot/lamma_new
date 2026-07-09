@@ -9,18 +9,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
+
+import 'package:lamma_new/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:lamma_new/features/profile/presentation/cubit/profile_state.dart';
+import 'package:lamma_new/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:lamma_new/features/auth/cubit/auth_cubit.dart'; 
+import 'package:lamma_new/features/auth/cubit/auth_state.dart'; 
+
 import 'package:lamma_new/features/auth/presentation/pages/login_page.dart'; 
 import 'package:lamma_new/features/profile/edit_profile_page.dart'; 
+import 'package:lamma_new/features/auth/presentation/pages/reset_password_otp_page.dart'; 
 
 import 'package:lamma_new/features/home/views/home_main_view.dart';
 import 'package:lamma_new/features/home/views/search_view.dart';
 import 'package:lamma_new/features/home/views/orders_view.dart';
 import 'package:lamma_new/features/home/views/profile_view.dart';
-import 'package:lamma_new/features/home/role_registration_sheets.dart'; 
 
 import 'package:lamma_new/core/shared_widgets/premium_toast.dart';
 
-// 🟢 استيرادات شاشات الكابتن الحقيقية
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
@@ -44,11 +51,8 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _homeCubit = context.read<HomeCubit>();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
+    // 🟢 تم إزالة _homeCubit.changeTab(0); لمنع إعادة تصفير التاب عند عمل ريفريش للشاشة
+    context.read<ProfileCubit>().loadUserProfile();
   }
 
   void _openNotifications(BuildContext context) {
@@ -62,7 +66,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    _homeCubit.markAllNotificationsAsRead();
+    context.read<NotificationCubit>().markAllNotificationsAsRead();
 
     showModalBottomSheet(
       context: context, 
@@ -120,141 +124,161 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _homeCubit,
-      child: BlocListener<HomeCubit, HomeState>(
-        listenWhen: (previous, current) => previous.actionStatus != current.actionStatus,
+      child: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) {
-          if (state.actionStatus == HomeActionStatus.success && state.successMessage != null) {
-            PremiumToast.show(context, state.successMessage!); 
-            _homeCubit.clearActionStatus(); 
-          }
-          else if (state.actionStatus == HomeActionStatus.error && state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.errorMessage!, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
-            _homeCubit.clearActionStatus(); 
-          }
-          else if (state.actionStatus == HomeActionStatus.registrationRequired) {
-            final role = state.pendingRegistrationRole;
-            final fullName = state.userName;
-            final cubit = BlocProvider.of<HomeCubit>(context);
-            cubit.clearActionStatus(); 
-
-            if (role == 'driver') RoleRegistrationSheets.showDriver(context, cubit, fullName);
-            else if (role == 'lawyer') RoleRegistrationSheets.showLawyer(context, cubit, fullName);
-            else if (role == 'doctor') RoleRegistrationSheets.showDoctor(context, cubit, fullName);
-            else if (role == 'nurse') RoleRegistrationSheets.showNurse(context, cubit, fullName);
+          if (state is AuthOtpSent) {
+            String phone = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ResetPasswordOtpPage(
+                  verificationId: state.verificationId,
+                  phone: phone,
+                ),
+              ),
+            );
+          } 
+          else if (state is AuthSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message ?? 'تمت العملية بنجاح', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+              )
+            );
+          } 
+          else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message ?? 'حدث خطأ', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                backgroundColor: Colors.red.shade800,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+              )
+            );
           }
         },
         child: BlocBuilder<HomeCubit, HomeState>(
-          builder: (context, state) {
-            Widget bodyContent;
-            
-            final bool isDriver = state.activeRole == 'driver';
+          builder: (context, homeState) {
+            return BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, profileState) {
+                return BlocBuilder<NotificationCubit, NotificationState>(
+                  builder: (context, notifState) {
+                    
+                    Widget bodyContent;
+                    final bool isDriver = profileState.activeRole == 'driver';
 
-            if (isDriver) {
-              switch (state.bottomNavIndex) {
-                case 0: 
-                  bodyContent = HomeMainView(userName: state.userName, activeRole: state.activeRole, profileImageUrl: state.profileImageUrl, unreadCount: state.unreadNotificationsCount, activeOrdersCount: state.activeOrdersCount, onOpenNotifications: () => _openNotifications(context)); 
-                  break;
-                case 1: 
-                  // 🟢 تم ربط الرادار
-                  bodyContent = const DriverRadarTab(); 
-                  break;
-                case 2: 
-                  // 🟢 تم ربط الرحلات النشطة
-                  bodyContent = const DriverActiveTripsTab(); 
-                  break;
-                case 3: 
-                  // 🟢 تم ربط السجل
-                  bodyContent = const DriverHistoryTab(); 
-                  break;
-                default: 
-                  bodyContent = HomeMainView(userName: state.userName, activeRole: state.activeRole, profileImageUrl: state.profileImageUrl, unreadCount: state.unreadNotificationsCount, activeOrdersCount: state.activeOrdersCount, onOpenNotifications: () => _openNotifications(context));
-              }
-            } else {
-              switch (state.bottomNavIndex) {
-                case 0: 
-                  bodyContent = HomeMainView(userName: state.userName, activeRole: state.activeRole, profileImageUrl: state.profileImageUrl, unreadCount: state.unreadNotificationsCount, activeOrdersCount: state.activeOrdersCount, onOpenNotifications: () => _openNotifications(context)); 
-                  break;
-                case 1: bodyContent = SearchView(activeRole: state.activeRole); break;
-                case 2: bodyContent = OrdersView(activeRole: state.activeRole); break;
-                case 3: 
-                  bodyContent = ProfileView(
-                    activeRole: state.activeRole,
-                    isLoadingProfile: state.status == HomeStatus.loading,
-                    profileImageUrl: state.profileImageUrl,
-                    userName: state.userName,
-                    userEmail: state.userEmail,
-                    onEditProfile: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfilePage())),
-                    onPasswordReset: () => _confirmPasswordReset(context),
-                    onSupport: () => _showSupportDialog(context, state.userName, state.userEmail),
-                    onLogout: () async {
-                      await FirebaseAuth.instance.signOut();
-                      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
-                    },
-                  ); 
-                  break;
-                default: 
-                  bodyContent = HomeMainView(userName: state.userName, activeRole: state.activeRole, profileImageUrl: state.profileImageUrl, unreadCount: state.unreadNotificationsCount, activeOrdersCount: state.activeOrdersCount, onOpenNotifications: () => _openNotifications(context));
-              }
-            }
+                    // 🟢 قمنا بتعريف الشاشة الرئيسية مرة واحدة لتمريرها بمرونة
+                    final homeMainView = HomeMainView(
+                      userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...', 
+                      activeRole: profileState.activeRole, 
+                      profileImageUrl: profileState.profileImageUrl, 
+                      unreadCount: notifState.unreadNotificationsCount, 
+                      activeOrdersCount: homeState.activeOrders.length, 
+                      onOpenNotifications: () => _openNotifications(context)
+                    );
 
-            return PopScope(
-              canPop: state.bottomNavIndex == 0,
-              onPopInvokedWithResult: (didPop, result) {
-                if (didPop) return;
-                _homeCubit.changeTab(0);
-              },
-              child: Scaffold(
-                key: _scaffoldKey,
-                backgroundColor: const Color(0xFFF8FAFC), 
-                resizeToAvoidBottomInset: true, 
-                extendBody: true, 
-
-                body: Directionality(
-                  textDirection: TextDirection.rtl, 
-                  child: bodyContent
-                ),
-                
-                bottomNavigationBar: SafeArea(
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 16.h),
-                    child: Container(
-                      height: 65.h,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(35.r), 
-                        gradient: LinearGradient(
-                          colors: [primaryNavy, royalGreen],
-                          begin: Alignment.topRight,
-                          end: Alignment.bottomLeft,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          )
+                    // 🟢 التعديل الجذري: استخدام IndexedStack بدلاً من الـ Switch
+                    // ده بيضمن إن شاشة الرادار والشاشات التانية تفضل محتفظة بحالتها بدون تهنيج أو إعادة تحميل
+                    if (isDriver) {
+                      bodyContent = IndexedStack(
+                        index: homeState.bottomNavIndex,
+                        children: [
+                          homeMainView,
+                          const DriverRadarTab(),
+                          const DriverActiveTripsTab(),
+                          const DriverHistoryTab(),
                         ],
+                      );
+                    } else {
+                      bodyContent = IndexedStack(
+                        index: homeState.bottomNavIndex,
+                        children: [
+                          homeMainView,
+                          SearchView(activeRole: profileState.activeRole),
+                          OrdersView(activeRole: profileState.activeRole),
+                          ProfileView(
+                            activeRole: profileState.activeRole,
+                            isLoadingProfile: profileState.status == ProfileStatus.loading,
+                            profileImageUrl: profileState.profileImageUrl,
+                            userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...',
+                            userEmail: profileState.userEmail,
+                            onEditProfile: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfilePage())),
+                            onPasswordReset: () {
+                              String phone = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+                              String email = FirebaseAuth.instance.currentUser?.email ?? profileState.userEmail;
+                              _confirmPasswordReset(context, phone, email);
+                            },
+                            onSupport: () => _showSupportDialog(context, profileState.userName, profileState.userEmail),
+                            onLogout: () async {
+                              await FirebaseAuth.instance.signOut();
+                              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
+                            },
+                          ),
+                        ],
+                      );
+                    }
+
+                    return PopScope(
+                      canPop: homeState.bottomNavIndex == 0,
+                      onPopInvokedWithResult: (didPop, result) {
+                        if (didPop) return;
+                        _homeCubit.changeTab(0);
+                      },
+                      child: Scaffold(
+                        key: _scaffoldKey,
+                        backgroundColor: const Color(0xFFF8FAFC), 
+                        resizeToAvoidBottomInset: true, 
+                        extendBody: true, 
+
+                        body: Directionality(
+                          textDirection: TextDirection.rtl, 
+                          child: bodyContent
+                        ),
+                        
+                        bottomNavigationBar: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 16.h),
+                            child: Container(
+                              height: 65.h,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(35.r), 
+                                gradient: LinearGradient(
+                                  colors: [primaryNavy, royalGreen],
+                                  begin: Alignment.topRight,
+                                  end: Alignment.bottomLeft,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: isDriver
+                                  ? [
+                                      _buildNavItem(0, Icons.home_rounded, 'الرئيسية', homeState),
+                                      _buildBadgedNavItem(1, Icons.radar_rounded, 'الرادار', homeState, profileState, notifState),
+                                      _buildBadgedNavItem(2, Icons.play_circle_fill_rounded, 'النشطة', homeState, profileState, notifState),
+                                      _buildNavItem(3, Icons.history_rounded, 'السجل', homeState),
+                                    ]
+                                  : [
+                                      _buildNavItem(0, Icons.home_rounded, 'الرئيسية', homeState),
+                                      _buildNavItem(1, Icons.search_rounded, 'البحث', homeState),
+                                      _buildBadgedNavItem(2, Icons.receipt_long_rounded, 'الطلبات', homeState, profileState, notifState), 
+                                      _buildNavItem(3, Icons.person_rounded, 'الحساب', homeState),
+                                    ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: isDriver
-                          ? [
-                              _buildNavItem(0, Icons.home_rounded, 'الرئيسية', state),
-                              _buildBadgedNavItem(1, Icons.radar_rounded, 'الرادار', state),
-                              _buildNavItem(2, Icons.play_circle_fill_rounded, 'النشطة', state),
-                              _buildNavItem(3, Icons.history_rounded, 'السجل', state),
-                            ]
-                          : [
-                              _buildNavItem(0, Icons.home_rounded, 'الرئيسية', state),
-                              _buildNavItem(1, Icons.search_rounded, 'البحث', state),
-                              _buildBadgedNavItem(2, Icons.receipt_long_rounded, 'الطلبات', state), 
-                              _buildNavItem(3, Icons.person_rounded, 'الحساب', state),
-                            ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+                    );
+                  },
+                );
+              },
             );
           },
         ),
@@ -264,6 +288,80 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildNavItem(int index, IconData icon, String label, HomeState state) {
     bool isSelected = state.bottomNavIndex == index;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact(); 
+        _homeCubit.changeTab(index); 
+      },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 65.w, 
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutBack,
+              transform: Matrix4.translationValues(0, isSelected ? -2.h : 0, 0),
+              padding: EdgeInsets.all(6.w), 
+              decoration: BoxDecoration(color: isSelected ? goldAccent : Colors.transparent, shape: BoxShape.circle),
+              child: Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
+            ),
+            SizedBox(height: 2.h),
+            Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold, color: isSelected ? goldAccent : Colors.white.withOpacity(0.6)), maxLines: 1),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState homeState, ProfileState profileState, NotificationState notifState) {
+    bool isSelected = homeState.bottomNavIndex == index;
+    
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    Stream<QuerySnapshot>? badgeStream;
+    int Function(QuerySnapshot) calculateCount = (snap) => 0;
+
+    if (label == 'الرادار') {
+      badgeStream = FirebaseFirestore.instance.collection('trips')
+          .where('isDriverPost', isEqualTo: false)
+          .snapshots();
+          
+      calculateCount = (snap) => snap.docs.where((doc) {
+        var d = doc.data() as Map<String, dynamic>? ?? {};
+        if (d['isDeletedForDriver'] == true) return false;
+        
+        String status = d['status'] ?? '';
+        String driverId = d['driverId'] ?? '';
+        String ownerId = d['userId'] ?? d['passengerId'] ?? '';
+        
+        bool isPending = status == 'pending';
+        bool isNegotiatingWithAnother = status == 'negotiating' && driverId != currentUserId;
+        
+        return (isPending || isNegotiatingWithAnother) && ownerId != currentUserId;
+      }).length;
+    } 
+    else if (label == 'النشطة') {
+      badgeStream = FirebaseFirestore.instance.collection('trip_bookings')
+          .where('driverId', isEqualTo: currentUserId)
+          .snapshots();
+          
+      calculateCount = (snap) => snap.docs.where((doc) {
+        var d = doc.data() as Map<String, dynamic>? ?? {};
+        return d['status'] == 'pending';
+      }).length;
+    } 
+    else if (label == 'الطلبات') {
+      badgeStream = FirebaseFirestore.instance.collection('trips')
+          .where('isDriverPost', isEqualTo: true)
+          .snapshots();
+          
+      calculateCount = (snap) => snap.docs.where((doc) {
+        var d = doc.data() as Map<String, dynamic>? ?? {};
+        return d['status'] == 'available' && (d['driverId'] ?? '') != currentUserId;
+      }).length;
+    }
 
     return GestureDetector(
       onTap: () {
@@ -282,133 +380,38 @@ class _HomePageState extends State<HomePage> {
               curve: Curves.easeOutBack,
               transform: Matrix4.translationValues(0, isSelected ? -2.h : 0, 0),
               padding: EdgeInsets.all(6.w), 
-              decoration: BoxDecoration(
-                color: isSelected ? goldAccent : Colors.transparent, 
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), 
-                size: 22.sp,
-              ),
+              decoration: BoxDecoration(color: isSelected ? goldAccent : Colors.transparent, shape: BoxShape.circle),
+              child: badgeStream != null
+                ? StreamBuilder<QuerySnapshot>(
+                    stream: badgeStream,
+                    builder: (context, snapshot) {
+                      int count = 0;
+                      if (snapshot.hasData && !snapshot.hasError) {
+                        count = calculateCount(snapshot.data!);
+                      }
+                      if (label == 'الطلبات') count += homeState.activeOrders.length;
+                      
+                      bool showBadge = count > 0 || (label != 'الرادار' && notifState.hasNewNotification);
+
+                      return Badge(
+                        isLabelVisible: showBadge, 
+                        label: count > 0 ? Text(count.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
+                        backgroundColor: Colors.redAccent,
+                        child: Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
+                      );
+                    }
+                  )
+                : Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
             ),
             SizedBox(height: 2.h),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 10.sp,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? goldAccent : Colors.white.withOpacity(0.6),
-              ),
-              maxLines: 1,
-            ),
+            Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold, color: isSelected ? goldAccent : Colors.white.withOpacity(0.6)), maxLines: 1),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState state) {
-    bool isSelected = state.bottomNavIndex == index;
-
-    Widget iconWidget = Icon(
-      icon,
-      color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6),
-      size: 22.sp,
-    );
-
-    Widget badgedIcon = state.activeRole == 'driver'
-        ? StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return iconWidget;
-              
-              int radarCount = 0;
-              if (snapshot.hasData) {
-                String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                radarCount = snapshot.data!.docs.where((doc) {
-                  var data = doc.data() as Map<String, dynamic>? ?? {};
-                  String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
-                  return ownerId != currentUserId;
-                }).length;
-              }
-              
-              int totalDriverAlerts = state.activeOrdersCount + radarCount;
-              return Badge(
-                isLabelVisible: totalDriverAlerts > 0 || state.hasNewNotification, 
-                label: totalDriverAlerts > 0 ? Text(totalDriverAlerts.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
-                backgroundColor: Colors.redAccent,
-                child: iconWidget,
-              );
-            }
-          )
-        : StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('trips').where('isDriverPost', isEqualTo: true).where('status', isEqualTo: 'available').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return iconWidget;
-              
-              int availableTravels = 0;
-              if (snapshot.hasData) {
-                String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                availableTravels = snapshot.data!.docs.where((doc) {
-                  var data = doc.data() as Map<String, dynamic>? ?? {};
-                  String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
-                  return ownerId != currentUserId;
-                }).length;
-              }
-
-              int totalCustomerAlerts = state.activeOrdersCount + availableTravels;
-              return Badge(
-                isLabelVisible: totalCustomerAlerts > 0 || state.hasNewNotification, 
-                label: totalCustomerAlerts > 0 ? Text(totalCustomerAlerts.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
-                backgroundColor: Colors.redAccent,
-                child: iconWidget,
-              );
-            }
-          );
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact(); 
-        _homeCubit.changeTab(index); 
-      },
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 65.w,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutBack,
-              transform: Matrix4.translationValues(0, isSelected ? -2.h : 0, 0),
-              padding: EdgeInsets.all(6.w), 
-              decoration: BoxDecoration(
-                color: isSelected ? goldAccent : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: badgedIcon, 
-            ),
-            SizedBox(height: 2.h),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 10.sp,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? goldAccent : Colors.white.withOpacity(0.6),
-              ),
-              maxLines: 1,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmPasswordReset(BuildContext pageContext) {
+  void _confirmPasswordReset(BuildContext pageContext, String phone, String email) {
     showDialog(
       context: pageContext, 
       builder: (ctx) => AlertDialog(
@@ -418,27 +421,65 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Icons.lock_reset_rounded, color: primaryNavy), 
             SizedBox(width: 8.w), 
-            const Text('تغيير كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))
+            const Text('تغيير كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18))
           ]
         ), 
-        content: const Text(
-          'هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني؟', 
-          style: TextStyle(fontFamily: 'Cairo', fontSize: 14), 
-          textDirection: TextDirection.rtl
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'اختر طريقة الاستعادة لإعادة تعيين كلمة المرور:', 
+              style: TextStyle(fontFamily: 'Cairo', fontSize: 14), 
+              textDirection: TextDirection.rtl
+            ),
+            SizedBox(height: 16.h),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: primaryNavy,
+                side: BorderSide(color: primaryNavy),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                padding: EdgeInsets.symmetric(vertical: 10.h)
+              ),
+              icon: const Icon(Icons.email_outlined),
+              label: const Text('إرسال رابط للبريد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (email.isNotEmpty) {
+                  pageContext.read<AuthCubit>().sendPasswordResetEmail(email: email);
+                } else {
+                  ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('البريد الإلكتروني غير متوفر، يرجى استكمال بياناتك.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                }
+              },
+            ),
+            SizedBox(height: 12.h),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: royalGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                padding: EdgeInsets.symmetric(vertical: 10.h)
+              ),
+              icon: const Icon(Icons.phone_android_rounded),
+              label: const Text('إرسال كود للهاتف', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (phone.isNotEmpty) {
+                  String fullPhone = phone.startsWith('+20') ? phone : '+20${phone.replaceFirst(RegExp(r'^0+'), '')}';
+                  pageContext.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
+                } else {
+                  ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('رقم الهاتف غير متوفر، يرجى استكمال بياناتك.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                }
+              },
+            ),
+          ],
         ), 
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx), 
             child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))
           ), 
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), 
-            onPressed: () { 
-              Navigator.pop(ctx); 
-              _homeCubit.sendPasswordResetEmail(); 
-            }, 
-            child: const Text('إرسال الرابط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold))
-          ),
         ],
       )
     );
@@ -470,10 +511,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ), 
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx), 
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))
-          ), 
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), 
             onPressed: () async { 

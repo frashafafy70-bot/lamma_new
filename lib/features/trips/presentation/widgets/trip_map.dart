@@ -12,19 +12,20 @@ import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/constants/app_constants.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
 
-// 🟢 استيراد الـ Repository بدلاً من الـ Service المحذوف
 import 'package:lamma_new/features/trips/data/repositories/map_repository_impl.dart';
 
 class TripMap extends StatefulWidget {
   final LatLng? pickupPoint;
   final LatLng? dropoffPoint;
-  final bool isTrackingMode; 
+  final bool isTrackingMode;
+  final bool isAddressSelectionMode; // 🟢 تمت الإضافة
 
   const TripMap({
     super.key, 
     this.pickupPoint, 
     this.dropoffPoint, 
-    this.isTrackingMode = false, 
+    this.isTrackingMode = false,
+    this.isAddressSelectionMode = false, // 🟢 تمت الإضافة بافتراضي false
   });
 
   @override
@@ -94,7 +95,6 @@ class _TripMapState extends State<TripMap> {
       }
     });
 
-    // 🟢 استخدام الـ Repository بدلاً من Service
     final mapRepository = MapRepositoryImpl(); 
     List<LatLng> routePoints = await mapRepository.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
 
@@ -341,14 +341,17 @@ class _TripMapState extends State<TripMap> {
                       ),
                       SizedBox(height: 20.h),
                       
-                      Row(
-                        children: [
-                          _buildServiceTypeCard('رحلة عادية', Icons.directions_car_rounded, true), 
-                          SizedBox(width: 12.w),
-                          _buildServiceTypeCard('سفر للمحافظات', Icons.emoji_transportation_rounded, false),
-                        ],
-                      ),
-                      SizedBox(height: 20.h),
+                      // 🟢 إخفاء كروت نوع الرحلة في حالة اختيار العنوان
+                      if (!widget.isTrackingMode && !widget.isAddressSelectionMode) ...[
+                        Row(
+                          children: [
+                            _buildServiceTypeCard('رحلة عادية', Icons.directions_car_rounded, true), 
+                            SizedBox(width: 12.w),
+                            _buildServiceTypeCard('سفر للمحافظات', Icons.emoji_transportation_rounded, false),
+                          ],
+                        ),
+                        SizedBox(height: 20.h),
+                      ],
 
                       SizedBox(
                         width: double.infinity,
@@ -366,7 +369,8 @@ class _TripMapState extends State<TripMap> {
                             });
                           },
                           child: Text(
-                            'تأكيد الانطلاق من هنا',
+                            // 🟢 تغيير النص بناءً على الحالة
+                            widget.isAddressSelectionMode ? 'تأكيد هذا العنوان' : 'تأكيد الانطلاق من هنا',
                             style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
                           ),
                         ),

@@ -9,7 +9,8 @@ import '../../domain/entities/place_search_entity.dart';
 import '../../domain/repositories/map_repository.dart';
 
 class MapRepositoryImpl implements MapRepository {
-  late String _googleApiKey;
+  // 🟢 شلنا late وحطينا قيمة افتراضية لمنع الكراش
+  String _googleApiKey = ''; 
   BitmapDescriptor? _carMarker;
   BitmapDescriptor? _bikeMarker;
   BitmapDescriptor? _tuktokMarker;
@@ -96,7 +97,8 @@ class MapRepositoryImpl implements MapRepository {
   @override
   Future<List<PlaceSearchEntity>> searchPlaces(String input) async {
     if (input.isEmpty) return [];
-    String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_googleApiKey&language=ar&components=country:eg";
+    // 🟢 تم إضافة دعم الكويت (kw) ومصر (eg) في البحث
+    String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_googleApiKey&language=ar&components=country:kw|country:eg";
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -163,7 +165,6 @@ class MapRepositoryImpl implements MapRepository {
     return [];
   }
 
-  // دالة مساعدة لفك تشفير مسار الخريطة (Polyline) تم الحفاظ عليها بالكامل
   List<LatLng> _decodePolyline(String encoded) {
     List<LatLng> polyline = [];
     int index = 0, len = encoded.length;

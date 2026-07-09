@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:audioplayers/audioplayers.dart'; // 🟢 مكتبة الصوت
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_chat_cubit.dart'; 
@@ -30,41 +31,64 @@ class _TripChatPageState extends State<TripChatPage> {
   bool isLoadingInfo = true;
   
   final ScrollController _scrollController = ScrollController();
+  final AudioPlayer _audioPlayer = AudioPlayer(); // 🟢 مشغل صوت الـ Pop
+  
+  bool _isLoadingMore = false;
+  int _previousMessageCount = 0; // 🟢 لمراقبة نزول رسائل جديدة
 
   @override
   void initState() {
     super.initState();
-    
-    // 🟢 1. جلب الرسائل من الكيوبت الجلوبال بمجرد فتح الشاشة
     context.read<TripChatCubit>().loadChat(widget.tripId);
-    
     _scrollController.addListener(_onScroll);
     _fetchOtherPartyInfo();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _audioPlayer.dispose(); // 🟢 تنظيف الذاكرة
     super.dispose();
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 50) {
-      // 🟢 2. الآن الـ context سيتعرف على الكيوبت بدون مشاكل
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 50 && !_isLoadingMore) {
+      _isLoadingMore = true;
       context.read<TripChatCubit>().loadMoreMessages(widget.tripId);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _isLoadingMore = false;
+      });
     }
   }
 
   Future<void> _fetchOtherPartyInfo() async {
     try {
       var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).get();
-      if (!tripDoc.exists) return;
-      
-      var tripData = tripDoc.data() as Map<String, dynamic>;
-      String passengerId = tripData['passengerId'] ?? '';
-      String driverId = tripData['driverId'] ?? '';
-      
-      String otherUserId = (currentUserId == passengerId) ? driverId : passengerId;
+      String otherUserId = '';
+
+      if (tripDoc.exists) {
+        var tripData = tripDoc.data() as Map<String, dynamic>;
+        String driverId = tripData['driverId'] ?? '';
+        String passengerId = tripData['passengerId'] ?? tripData['userId'] ?? '';
+
+        if (currentUserId == driverId) {
+          if (passengerId.isNotEmpty) {
+            otherUserId = passengerId;
+          } else {
+            var bookings = await FirebaseFirestore.instance.collection('trip_bookings')
+                .where('tripId', isEqualTo: widget.tripId)
+                .where('driverId', isEqualTo: currentUserId)
+                .limit(1)
+                .get();
+            if (bookings.docs.isNotEmpty) {
+              otherUserId = bookings.docs.first.data()['passengerId'] ?? '';
+            }
+          }
+        } else {
+          otherUserId = driverId;
+        }
+      }
 
       if (otherUserId.isNotEmpty) {
          var userDoc = await FirebaseFirestore.instance.collection('users').doc(otherUserId).get();
@@ -72,17 +96,20 @@ class _TripChatPageState extends State<TripChatPage> {
             var userData = userDoc.data() as Map<String, dynamic>;
             if (mounted) {
               setState(() {
-                 otherUserName = userData['name'] ?? (currentUserId == passengerId ? 'السائق' : 'العميل');
-                 otherUserPhone = userData['phone'] ?? '';
-                 isLoadingInfo = false;
+                 otherUserName = userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر';
+                 otherUserPhone = userData['phone'] ?? userData['phoneNumber'] ?? '';
               });
             }
+         } else {
+           if (mounted) setState(() => otherUserName = 'مستخدم غير متوفر');
          }
       } else {
-        if (mounted) setState(() => isLoadingInfo = false);
+        if (mounted) setState(() => otherUserName = 'مستخدم لَمَّة');
       }
     } catch (e) {
       debugPrint("خطأ في جلب بيانات الطرف الآخر: $e");
+      if (mounted) setState(() => otherUserName = 'غير معروف');
+    } finally {
       if (mounted) setState(() => isLoadingInfo = false);
     }
   }
@@ -115,7 +142,6 @@ class _TripChatPageState extends State<TripChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 3. إزالة الـ BlocProvider من هنا والاعتماد على الـ Scaffold مباشرة
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       resizeToAvoidBottomInset: true, 
@@ -128,7 +154,22 @@ class _TripChatPageState extends State<TripChatPage> {
           child: Column(
             children: [
               Expanded(
-                child: BlocBuilder<TripChatCubit, TripChatState>(
+                // 🟢 تم التحويل لـ BlocConsumer عشان نسمع التغيير ونشغل الصوت
+                child: BlocConsumer<TripChatCubit, TripChatState>(
+                  listener: (context, state) {
+                    if (state is TripChatLoaded) {
+                      // لو عدد الرسائل زاد وأحدث رسالة مش أنا اللي باعتها -> شغل صوت الـ Pop
+                      if (state.messages.length > _previousMessageCount) {
+                        if (state.messages.isNotEmpty && state.messages.first.senderId != currentUserId) {
+                          _audioPlayer.play(AssetSource('sounds/pop.mp3'), mode: PlayerMode.lowLatency);
+                        }
+                      }
+                      _previousMessageCount = state.messages.length;
+                    }
+                  },
+                  buildWhen: (previous, current) {
+                    return current is TripChatLoaded || current is TripChatError || current is TripChatLoading;
+                  },
                   builder: (context, state) {
                     if (state is TripChatLoading) {
                       return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
@@ -232,11 +273,12 @@ class _TripChatPageState extends State<TripChatPage> {
     return ListView.builder(
       controller: _scrollController, 
       reverse: true,
+      physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
       itemCount: messages.length + 1, 
       itemBuilder: (context, index) {
         if (index == messages.length) {
-          return _buildEncryptionNotice();
+          return const _EncryptionNotice(); 
         }
         var msg = messages[index];
         bool isMe = msg.senderId == currentUserId;
@@ -249,8 +291,13 @@ class _TripChatPageState extends State<TripChatPage> {
       },
     );
   }
+}
 
-  Widget _buildEncryptionNotice() {
+class _EncryptionNotice extends StatelessWidget {
+  const _EncryptionNotice();
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: 16.h, top: 8.h),
       child: Center(
@@ -259,7 +306,9 @@ class _TripChatPageState extends State<TripChatPage> {
           decoration: BoxDecoration(
             color: const Color(0xFFFEEFCD), 
             borderRadius: BorderRadius.circular(8.r),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))]
+            boxShadow: const [ 
+              BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1))
+            ]
           ),
           child: Text(
             '🔒 الرسائل مشفرة تماماً',

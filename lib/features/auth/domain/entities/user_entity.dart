@@ -1,5 +1,3 @@
-// مسار الملف: lib/features/auth/domain/entities/user_entity.dart
-
 class UserEntity {
   final String uid;
   final String name;
@@ -7,6 +5,9 @@ class UserEntity {
   final String phone;
   final List<String> roles;
   final String activeRole;
+
+  // 🟢 ضفنا الـ Getter ده عشان الـ AuthCubit يقدر يقرأ الاختصاص مباشرة باسم role
+  String get role => activeRole;
 
   UserEntity({
     required this.uid,

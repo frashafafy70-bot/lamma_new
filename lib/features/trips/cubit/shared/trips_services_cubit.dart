@@ -21,11 +21,11 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
           ? collection.where('passengerId', isEqualTo: currentUserId)
           : collection.where('driverId', isEqualTo: currentUserId);
 
-      // ترتيب حسب الأحدث لضمان ظهور التحديثات فوراً
       query = query.orderBy('createdAt', descending: true);
 
       _tripsSubscription = query.snapshots().listen(
         (snapshot) {
+          if (isClosed) return; // 🟢 حماية المستمع
           List<TripModel> trips = snapshot.docs.map((doc) {
             return TripModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
           }).toList();
@@ -33,11 +33,13 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
           emit(TripsServicesSuccess(trips: trips));
         }, 
         onError: (error) {
+          if (isClosed) return;
           emit(TripsServicesError(error.toString()));
         }
       );
 
     } catch (e) {
+      if (isClosed) return;
       emit(TripsServicesError(e.toString()));
     }
   }
@@ -54,12 +56,11 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
     File? orderAudioFile, 
   }) async {
     
-    emit(TripsServicesLoading()); // 🟢 إظهار التحميل وقت رفع الطلب
+    emit(TripsServicesLoading());
 
     try {
       String? audioUrl;
 
-      // 🟢 لو العميل سجل صوت، نرفعه الأول على Firebase Storage
       if (orderAudioFile != null) {
         final String fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         final Reference storageRef = FirebaseStorage.instance.ref().child('trip_audios').child(fileName);
@@ -86,14 +87,16 @@ class TripsServicesCubit extends Cubit<TripsServicesState> {
 
       Map<String, dynamic> tripData = newTrip.toMap();
       if (audioUrl != null) {
-        tripData['audioUrl'] = audioUrl; // 🟢 رفع رابط الصوت
+        tripData['audioUrl'] = audioUrl; 
       }
 
       await FirebaseFirestore.instance.collection('trips').add(tripData);
       
-      emit(TripRequestSuccess()); // 🟢 إرسال حالة النجاح
+      if (isClosed) return; // 🟢 حماية بعد الانتهاء من الرفع
+      emit(TripRequestSuccess()); 
       
     } catch (e) {
+      if (isClosed) return;
       emit(TripsServicesError(e.toString()));
     }
   }

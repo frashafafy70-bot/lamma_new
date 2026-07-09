@@ -8,7 +8,7 @@ import '../../cubit/auth_cubit.dart';
 import '../../cubit/auth_state.dart'; 
 import '../../../home/home_page.dart'; 
 import 'email_sign_up_page.dart'; 
-import 'otp_page.dart'; // 🟢 استدعاء صفحة الـ OTP
+import 'otp_page.dart'; 
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -19,7 +19,10 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController(); // 🟢 حقل الإيميل الجديد
   final TextEditingController _phoneController = TextEditingController();
+  
+  String _selectedRole = 'passenger';
   
   final Color primaryNavy = const Color(0xFF0F172A); 
   final Color accentGold = const Color(0xFFD4AF37); 
@@ -27,6 +30,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -49,10 +53,16 @@ class _SignUpPageState extends State<SignUpPage> {
     FocusScope.of(context).unfocus(); 
     
     String name = _nameController.text.trim();
+    String email = _emailController.text.trim();
     String phone = _phoneController.text.trim();
 
     if (name.isEmpty) {
       _showFloatingSnackBar('برجاء كتابة الاسم بالكامل', Colors.red);
+      return;
+    }
+
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      _showFloatingSnackBar('برجاء إدخال بريد إلكتروني صحيح', Colors.red);
       return;
     }
 
@@ -75,24 +85,34 @@ class _SignUpPageState extends State<SignUpPage> {
               _showFloatingSnackBar(state.message, Colors.red);
             } else if (state is AuthOtpSent) {
               _showFloatingSnackBar('تم إرسال كود التحقق بنجاح! 💬', primaryNavy);
-              // 🟢 التوجيه الفعلي لصفحة الـ OTP مع إرسال البيانات
+              
+              String formattedPhoneToPass = _phoneController.text.trim();
+              if (formattedPhoneToPass.startsWith('0')) {
+                formattedPhoneToPass = formattedPhoneToPass.substring(1);
+              }
+              if (!formattedPhoneToPass.startsWith('+20')) {
+                formattedPhoneToPass = '+20$formattedPhoneToPass';
+              }
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => OtpPage(
                     verificationId: state.verificationId,
                     name: _nameController.text.trim(),
-                    phone: _phoneController.text.trim(),
+                    email: _emailController.text.trim(), // 🟢 إرسال الإيميل للـ OTP
+                    phone: formattedPhoneToPass, 
+                    role: _selectedRole, 
                   ),
                 ),
               );
             } else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message, Colors.green);
-              Navigator.pushAndRemoveUntil(
-                context, 
-                MaterialPageRoute(builder: (context) => const HomePage()), 
-                (route) => false
-              );
+              _showFloatingSnackBar(state.message ?? '', Colors.green);
+              if (state.role == 'captain' || state.role == 'كابتن') {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+              } else {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+              }
             }
           },
           builder: (context, state) {
@@ -131,7 +151,60 @@ class _SignUpPageState extends State<SignUpPage> {
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600),
                     ),
-                    SizedBox(height: 40.h),
+                    SizedBox(height: 30.h),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedRole = 'passenger'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 14.h),
+                              decoration: BoxDecoration(
+                                color: _selectedRole == 'passenger' ? primaryNavy : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedRole == 'passenger' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                                boxShadow: _selectedRole == 'passenger' ? [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_rounded, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade600, size: 22.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('راكب', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedRole = 'captain'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 14.h),
+                              decoration: BoxDecoration(
+                                color: _selectedRole == 'captain' ? accentGold : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedRole == 'captain' ? accentGold : Colors.grey.shade300, width: 1.5),
+                                boxShadow: _selectedRole == 'captain' ? [BoxShadow(color: accentGold.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.directions_car_rounded, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade600, size: 22.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('كابتن', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24.h),
 
                     Container(
                       decoration: BoxDecoration(
@@ -149,6 +222,31 @@ class _SignUpPageState extends State<SignUpPage> {
                           hintText: 'الاسم بالكامل',
                           hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: Colors.grey.shade600),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    // 🟢 حقل البريد الإلكتروني
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        enabled: !isLoading,
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.left,
+                        style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                        decoration: InputDecoration(
+                          hintText: 'البريد الإلكتروني',
+                          hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
+                          prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
                         ),
@@ -278,7 +376,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           );
                         },
                         child: Text(
-                          'التسجيل باستخدام البريد الإلكتروني',
+                          'التسجيل باستخدام البريد الإلكتروني فقط',
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w500, color: primaryNavy, decoration: TextDecoration.underline),
                         ),
                       ),

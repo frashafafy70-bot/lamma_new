@@ -1,4 +1,4 @@
-import '../../domain/entities/user_entity.dart';
+import '../../domain/entities/user_entity.dart'; // 🟢 تم تصحيح حرف الـ i
 
 class UserModel extends UserEntity {
   UserModel({
@@ -18,8 +18,9 @@ class UserModel extends UserEntity {
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
       // بنعمل كاستنج للـ List عشان الفايربيس بيرجعها dynamic
-      roles: List<String>.from(json['roles'] ?? ['client']),
-      activeRole: json['activeRole'] ?? 'client',
+      // 🟢 خلينا الافتراضي passenger عشان يطابق اختيارات الواجهة بدلاً من client
+      roles: List<String>.from(json['roles'] ?? ['passenger']),
+      activeRole: json['activeRole'] ?? 'passenger',
     );
   }
 

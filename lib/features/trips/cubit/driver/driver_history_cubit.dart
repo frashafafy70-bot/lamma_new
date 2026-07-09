@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,13 +22,17 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
   DriverHistoryCubit() : super(DriverHistoryInitial());
 
   StreamSubscription? _historySubscription;
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  
+  // ❌ السطر ده اتمسح من هنا عشان كان بيعلق الإيميل القديم
 
   void startListeningToHistoryTrips() {
+    // ✅ تم النقل هنا: عشان كل مرة تشتغل تجيب الإيميل اللي فاتح حالياً
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    
     if (currentUserId.isEmpty) return;
 
     if (state is! DriverHistoryLoaded) {
-      emit(DriverHistoryLoading());
+      if (!isClosed) emit(DriverHistoryLoading());
     }
 
     _historySubscription?.cancel();
@@ -38,15 +43,14 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
         .snapshots()
         .listen((snapshot) {
           
+      if (isClosed) return;
+
       var historyTrips = snapshot.docs.where((doc) {
         var data = doc.data(); 
         bool isNotDeleted = data['isDeletedForDriver'] != true;
         
-        // 🟢 حماية من الـ null لو الحقل مش موجود
         String status = data['status'] ?? ''; 
         
-        // 🟢 تم تصحيح الـ spelling ليشمل 'canceled' بـ L واحدة (المستخدمة في الـ Backend) 
-        // و 'cancelled' بـ 2 L عشان لو في داتا قديمة متسجلة كده
         bool isHistoryStatus = status == 'completed' || status == 'canceled' || status == 'cancelled';
                              
         return isNotDeleted && isHistoryStatus;
@@ -64,11 +68,58 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
         return timeB.compareTo(timeA); 
       });
 
-      emit(DriverHistoryLoaded(historyTrips));
+      if (!isClosed) emit(DriverHistoryLoaded(historyTrips));
       
     }, onError: (error) {
-      emit(DriverHistoryError('حدث خطأ في تحميل السجل.'));
+      if (!isClosed) emit(DriverHistoryError('حدث خطأ في تحميل السجل.'));
     });
+  }
+
+  // =======================================================
+  // 🟢 دالة إلغاء الرحلة بالكامل (Soft Delete + تنظيف الحجوزات)
+  // =======================================================
+  Future<void> cancelDriverTrip(String tripId) async {
+    try {
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      DocumentReference tripRef = FirebaseFirestore.instance.collection('trips').doc(tripId);
+      batch.update(tripRef, {
+        'status': 'canceled',
+        'isDeleted': true, 
+        'canceledAt': FieldValue.serverTimestamp(),
+      });
+
+      var bookingsSnapshot = await FirebaseFirestore.instance
+          .collection('trip_bookings')
+          .where('tripId', isEqualTo: tripId)
+          .get();
+
+      for (var doc in bookingsSnapshot.docs) {
+        batch.delete(doc.reference); 
+      }
+
+      await batch.commit();
+      debugPrint('✅ تم إلغاء الرحلة وتنظيف الحجوزات المرتبطة بها بنجاح');
+
+    } catch (e) {
+      debugPrint('❌ خطأ في إلغاء رحلة الكابتن: $e');
+      if (!isClosed) emit(DriverHistoryError('حدث خطأ أثناء إلغاء الرحلة'));
+    }
+  }
+
+  // =======================================================
+  // 🟢 دالة مسح الرحلة من السجل الشخصي للكابتن فقط
+  // =======================================================
+  Future<void> deleteTripFromHistory(String docId) async {
+    try {
+      await FirebaseFirestore.instance.collection('trips').doc(docId).update({
+        'isDeletedForDriver': true,
+      });
+      debugPrint('✅ تم إخفاء الرحلة من سجل الكابتن');
+    } catch (e) {
+      debugPrint('❌ خطأ في حذف الطلب من السجل: $e');
+      if (!isClosed) emit(DriverHistoryError('حدث خطأ أثناء مسح الرحلة من السجل'));
+    }
   }
 
   @override

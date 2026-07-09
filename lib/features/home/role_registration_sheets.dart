@@ -1,13 +1,16 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:http/http.dart' as http;
-import 'package:lamma_new/features/home/cubit/home_cubit.dart';
+
+// 🟢 استيراد ProfileCubit بدلاً من HomeCubit
+import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
 
 class RoleRegistrationSheets {
-  // 🟢 تم توحيد الألوان لدرجات الشاشة الرئيسية الفخمة
   static const Color primaryNavy = Color(0xFF131E31); 
   static const Color goldAccent = Color(0xFFF3C444);
   static final ImagePicker _picker = ImagePicker();
@@ -112,19 +115,20 @@ class RoleRegistrationSheets {
     }
   }
 
-  static void showDriver(BuildContext pageContext, HomeCubit cubit, String fullName) {
+  // 🟢 استبدال HomeCubit بـ ProfileCubit
+  static void showDriver(BuildContext pageContext, ProfileCubit cubit, String fullName) {
     Navigator.push(pageContext, MaterialPageRoute(builder: (context) => DriverRegistrationPage(cubit: cubit, fullName: fullName)));
   }
 
-  static void showLawyer(BuildContext pageContext, HomeCubit cubit, String fullName) {
+  static void showLawyer(BuildContext pageContext, ProfileCubit cubit, String fullName) {
     Navigator.push(pageContext, MaterialPageRoute(builder: (context) => LawyerRegistrationPage(cubit: cubit, fullName: fullName)));
   }
 
-  static void showDoctor(BuildContext pageContext, HomeCubit cubit, String fullName) {
+  static void showDoctor(BuildContext pageContext, ProfileCubit cubit, String fullName) {
     Navigator.push(pageContext, MaterialPageRoute(builder: (context) => DoctorRegistrationPage(cubit: cubit, fullName: fullName)));
   }
 
-  static void showNurse(BuildContext pageContext, HomeCubit cubit, String fullName) {
+  static void showNurse(BuildContext pageContext, ProfileCubit cubit, String fullName) {
     Navigator.push(pageContext, MaterialPageRoute(builder: (context) => NurseRegistrationPage(cubit: cubit, fullName: fullName)));
   }
 
@@ -145,7 +149,6 @@ class RoleRegistrationSheets {
     );
   }
 
-  // 🟢 تصميم الزرار الجديد (شاشة كاملة العرض ويترص بالطول)
   static Widget buildDarkImageButton(String title, File? file, VoidCallback onTap) {
     bool isUploaded = file != null;
     return InkWell(
@@ -179,7 +182,7 @@ class RoleRegistrationSheets {
 // -----------------------------------------------------------------------------
 // 1. صفحة السائق
 class DriverRegistrationPage extends StatefulWidget {
-  final HomeCubit cubit; final String fullName;
+  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
   const DriverRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<DriverRegistrationPage> createState() => _DriverRegistrationPageState();
 }
@@ -193,7 +196,6 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
       var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'driver', docName: 'car_license_front', file: carLicenseFront!),
         widget.cubit.uploadDocument(role: 'driver', docName: 'car_license_back', file: carLicenseBack!),
@@ -221,7 +223,6 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
         body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
           RoleRegistrationSheets.buildDarkTextField(controller: vehicleController, label: 'نوع السيارة', icon: Icons.directions_car_rounded), const SizedBox(height: 16),
           RoleRegistrationSheets.buildDarkTextField(controller: plateController, label: 'رقم اللوحة', icon: Icons.pin_rounded), const SizedBox(height: 24),
-          // 🟢 تم إزالة الـ Row ورص الكروت بالطول
           RoleRegistrationSheets.buildDarkImageButton('رخصة المركبة (أمامي)', carLicenseFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseFront = f, keywords: ['رخصة'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('رخصة المركبة (خلفي)', carLicenseBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseBack = f, keywords: ['فحص'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
@@ -237,7 +238,7 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 2. صفحة المحامي
 class LawyerRegistrationPage extends StatefulWidget {
-  final HomeCubit cubit; final String fullName;
+  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
   const LawyerRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<LawyerRegistrationPage> createState() => _LawyerRegistrationPageState();
 }
@@ -251,7 +252,6 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
       var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'bar_id_front', file: barIdFront!),
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'personal_id_front', file: personalIdFront!),
@@ -278,7 +278,6 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
         body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
           RoleRegistrationSheets.buildDarkTextField(controller: degreeController, label: 'درجة القيد', icon: Icons.school_rounded), const SizedBox(height: 16),
           RoleRegistrationSheets.buildDarkTextField(controller: registrationNumController, label: 'رقم القيد بالنقابة', icon: Icons.numbers_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          // 🟢 تم الرص بالطول
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', barIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => barIdFront = f, keywords: ['نقابة'], cropTitle: 'تعديل')),
@@ -293,7 +292,7 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 3. صفحة الطبيب
 class DoctorRegistrationPage extends StatefulWidget {
-  final HomeCubit cubit; final String fullName;
+  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
   const DoctorRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<DoctorRegistrationPage> createState() => _DoctorRegistrationPageState();
 }
@@ -307,7 +306,6 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
       var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'doctor', docName: 'medical_id_front', file: medicalIdFront!),
         widget.cubit.uploadDocument(role: 'doctor', docName: 'personal_id_front', file: personalIdFront!),
@@ -334,7 +332,6 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
         body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
           RoleRegistrationSheets.buildDarkTextField(controller: specialtyController, label: 'التخصص', icon: Icons.healing_rounded), const SizedBox(height: 16),
           RoleRegistrationSheets.buildDarkTextField(controller: licenseController, label: 'رقم ترخيص مزاولة المهنة', icon: Icons.assignment_ind_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          // 🟢 تم الرص بالطول
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', medicalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => medicalIdFront = f, keywords: ['أطباء'], cropTitle: 'تعديل')),
@@ -349,7 +346,7 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 4. صفحة التمريض
 class NurseRegistrationPage extends StatefulWidget {
-  final HomeCubit cubit; final String fullName;
+  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
   const NurseRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<NurseRegistrationPage> createState() => _NurseRegistrationPageState();
 }
@@ -363,7 +360,6 @@ class _NurseRegistrationPageState extends State<NurseRegistrationPage> {
     }
     setState(() => _isLoading = true);
     try {
-      // 🟢 تم التعديل هنا لـ Future.wait<dynamic>
       var uploads = await Future.wait<dynamic>([
         widget.cubit.uploadDocument(role: 'nurse', docName: 'nurse_id_front', file: nurseIdFront!),
         widget.cubit.uploadDocument(role: 'nurse', docName: 'personal_id_front', file: personalIdFront!),
@@ -390,7 +386,6 @@ class _NurseRegistrationPageState extends State<NurseRegistrationPage> {
         body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
           RoleRegistrationSheets.buildDarkTextField(controller: qualificationController, label: 'المؤهل (أخصائي / فني)', icon: Icons.assignment_rounded), const SizedBox(height: 16),
           RoleRegistrationSheets.buildDarkTextField(controller: nurseLicenseController, label: 'رقم ترخيص النقابة', icon: Icons.pin_outlined, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          // 🟢 تم الرص بالطول
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
           RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', nurseIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => nurseIdFront = f, keywords: ['تمريض'], cropTitle: 'تعديل')),

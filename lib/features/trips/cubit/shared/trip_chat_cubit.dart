@@ -6,8 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:audioplayers/audioplayers.dart'; // 🟢 مكتبة الصوت
 
-// 🟢 تم تعديل المسار ليكون صحيحاً (../../ بدلاً من ../../../)
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 
@@ -18,6 +19,7 @@ class TripChatCubit extends Cubit<TripChatState> {
   
   StreamSubscription<RemoteMessage>? _notificationSubscription;
   final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _fcmAudioPlayer = AudioPlayer(); // 🟢 مشغل صوت إشعارات الـ FCM بالخلفية
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   
   StreamSubscription? _chatSubscription;
@@ -32,10 +34,24 @@ class TripChatCubit extends Cubit<TripChatState> {
     _listenToChatNotifications();
   }
 
+  Future<void> sendNotificationToOtherParty({required String tripId, required String message}) async {
+    try {
+      var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
+      if (isClosed) return; 
+      if (!tripDoc.exists) return;
+      debugPrint("🔔 إرسال إشعار بمحتوى: $message");
+      // الـ Backend هو اللي بيبعت الإشعار من هنا أو لو عامل Cloud Function
+    } catch (e) {
+      debugPrint("Error sending notification: $e");
+    }
+  }
+
   void _listenToChatNotifications() {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.data['type'] == 'chat') {
-        debugPrint("💬 [TripChatCubit] رسالة جديدة وصلت لايف: ${message.notification?.body}");
+        debugPrint("💬 [TripChatCubit] رسالة جديدة وصلت لايف في الخلفية الأمامية");
+        // 🟢 هيشغل صوت التنبيه القوي لو المستخدم برة الشات بس فاتح التطبيق
+        _fcmAudioPlayer.play(AssetSource('sounds/chat_receive.mp3'), mode: PlayerMode.lowLatency);
       }
     });
   }
@@ -44,22 +60,24 @@ class TripChatCubit extends Cubit<TripChatState> {
   Future<void> close() {
     _notificationSubscription?.cancel();
     _audioRecorder.dispose();
+    _fcmAudioPlayer.dispose(); // 🟢 تنظيف ذاكرة المشغل
     _chatSubscription?.cancel();
     return super.close();
   }
 
   void loadChat(String tripId) {
     if (_messages.isEmpty) emit(TripChatLoading());
-    
     _chatSubscription?.cancel();
     _chatSubscription = chatRepository.getMessagesStream(tripId, _messageLimit).listen(
       (messages) {
+        if (isClosed) return; 
         _messages = messages;
         chatRepository.markMessagesAsRead(tripId: tripId, currentUserId: currentUserId);
         isLoadingMore = false;
         emit(TripChatLoaded(List.from(_messages)));
       }, 
       onError: (error) {
+        if (isClosed) return;
         emit(TripChatError("خطأ في جلب الرسائل: $error"));
       }
     );
@@ -72,28 +90,37 @@ class TripChatCubit extends Cubit<TripChatState> {
     loadChat(tripId);
   }
 
+  Future<void> cancelRecording() async {
+    try {
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+      }
+      isRecording = false;
+      if (isClosed) return; 
+      emit(TripChatLoaded(List.from(_messages)));
+    } catch (e) {
+      if (isClosed) return;
+      emit(TripChatError("خطأ أثناء إلغاء التسجيل: $e"));
+    }
+  }
+
   Future<void> sendMessage(String tripId, String senderId, String text) async {
     if (text.trim().isEmpty) return;
     try {
-      await chatRepository.sendTextMessage(
-        tripId: tripId, 
-        senderId: senderId, 
-        text: text.trim()
-      );
+      await chatRepository.sendTextMessage(tripId: tripId, senderId: senderId, text: text.trim());
+      await sendNotificationToOtherParty(tripId: tripId, message: text.trim());
     } catch (e) {
+      if (isClosed) return; 
       emit(TripChatError("خطأ في إرسال الرسالة: $e"));
     }
   }
 
   Future<void> sendImageMessage(String tripId, File imageFile) async {
-    emit(TripChatLoaded(List.from(_messages))); 
     try {
-      await chatRepository.sendImageMessage(
-        tripId: tripId, 
-        senderId: currentUserId, 
-        imageFile: imageFile
-      );
+      await chatRepository.sendImageMessage(tripId: tripId, senderId: currentUserId, imageFile: imageFile);
+      await sendNotificationToOtherParty(tripId: tripId, message: "صورة جديدة 📸");
     } catch (e) {
+      if (isClosed) return; 
       emit(TripChatError("خطأ في رفع الصورة: $e"));
     }
   }
@@ -103,19 +130,13 @@ class TripChatCubit extends Cubit<TripChatState> {
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
         String filePath = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        
         isRecording = true;
-        emit(TripChatLoaded(List.from(_messages)));
-        
-        await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc), 
-          path: filePath,
-        );
-      } else {
-        emit(TripChatError("برجاء الموافقة على صلاحية الميكروفون للتسجيل"));
+        if (!isClosed) emit(TripChatLoaded(List.from(_messages)));
+        await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: filePath);
       }
     } catch (e) {
       isRecording = false;
+      if (isClosed) return; 
       emit(TripChatLoaded(List.from(_messages)));
       emit(TripChatError("خطأ أثناء بدء التسجيل: $e"));
     }
@@ -125,38 +146,18 @@ class TripChatCubit extends Cubit<TripChatState> {
     try {
       final path = await _audioRecorder.stop();
       isRecording = false;
-      emit(TripChatLoaded(List.from(_messages)));
+      if (!isClosed) emit(TripChatLoaded(List.from(_messages)));
       
       if (path != null) {
         File audioFile = File(path);
         if (await audioFile.exists()) {
-          await _uploadAndSendAudio(tripId, audioFile);
+          await chatRepository.sendAudioMessage(tripId: tripId, senderId: currentUserId, audioFile: audioFile);
+          await sendNotificationToOtherParty(tripId: tripId, message: "رسالة صوتية 🎙️");
         }
       }
     } catch (e) {
+      if (isClosed) return; 
       emit(TripChatError("خطأ أثناء إيقاف التسجيل: $e"));
-    }
-  }
-
-  Future<void> cancelRecording() async {
-    try {
-      await _audioRecorder.stop(); 
-      isRecording = false;
-      emit(TripChatLoaded(List.from(_messages)));
-    } catch (e) {
-      emit(TripChatError("خطأ أثناء الإلغاء: $e"));
-    }
-  }
-
-  Future<void> _uploadAndSendAudio(String tripId, File audioFile) async {
-    try {
-      await chatRepository.sendAudioMessage(
-        tripId: tripId, 
-        senderId: currentUserId, 
-        audioFile: audioFile
-      );
-    } catch (e) {
-      emit(TripChatError("خطأ في رفع ملف الصوت: $e"));
     }
   }
 }

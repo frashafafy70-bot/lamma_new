@@ -74,7 +74,8 @@ class TripRepositoryImpl implements TripRepository {
     var tripsStream = _firestore
         .collection('trips')
         .where('driverId', isEqualTo: uid)
-        .where('status', whereIn: ['accepted', 'negotiating', 'arrived', 'started'])
+        // 🟢 التعديل هنا: إضافة 'available' عشان العداد يقرا الرحلات المنشورة
+        .where('status', whereIn: ['available', 'accepted', 'negotiating', 'arrived', 'started'])
         .snapshots();
 
     return Rx.combineLatest2(

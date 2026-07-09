@@ -83,12 +83,12 @@ class RideServiceForm extends StatelessWidget {
           }
         ),
         
-        // 🟢 حقل السعر بتصميم "شاشة العرض" الفخمة
+        // حقل السعر بتصميم "شاشة العرض" الفخمة
         _buildPriceInputDisplay(),
 
         SizedBox(height: 16.h),
 
-        // 🟢 أزرار التسعير السريع المخصصة (Custom Buttons)
+        // أزرار التسعير السريع المخصصة (Custom Buttons)
         _buildPremiumQuickPriceChips(),
         
         SizedBox(height: 28.h),
@@ -136,7 +136,7 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // 🟢 ودجت حقل السعر المستقل (لإعطائه فخامة خاصة)
+  // ودجت حقل السعر المستقل (لإعطائه فخامة خاصة)
   Widget _buildPriceInputDisplay() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
@@ -171,10 +171,10 @@ class RideServiceForm extends StatelessWidget {
               controller: priceController,
               focusNode: priceFocusNode,
               keyboardType: TextInputType.number,
-              textAlign: TextAlign.center, // 🟢 الرقم في النص للفخامة
+              textAlign: TextAlign.center, // الرقم في النص للفخامة
               style: TextStyle(
                 fontFamily: 'Cairo', 
-                fontSize: 24.sp, // 🟢 خط ضخم للرقم
+                fontSize: 24.sp, // خط ضخم للرقم
                 fontWeight: FontWeight.w900, 
                 color: AppColors.primaryDark
               ),
@@ -184,7 +184,7 @@ class RideServiceForm extends StatelessWidget {
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
-                suffixText: 'ج.م', // 🟢 إضافة العملة
+                suffixText: 'ج.م', // إضافة العملة
                 suffixStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
               ),
             ),
@@ -194,7 +194,7 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // 🟢 ودجت أزرار التسعير السريع الفخمة
+  // ودجت أزرار التسعير السريع الفخمة
   Widget _buildPremiumQuickPriceChips() {
     return Row(
       children: [
@@ -211,7 +211,7 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // 🟢 زر التحكم في السعر (Custom Button)
+  // زر التحكم في السعر (Custom Button)
   Widget _buildActionButton(String label, int amount, {bool isClear = false, bool isNegative = false}) {
     // تحديد ألوان الزر بناءً على نوعه
     Color bgColor = AppColors.accentGold.withValues(alpha: 0.1);
@@ -228,7 +228,7 @@ class RideServiceForm extends StatelessWidget {
       textColor = Colors.grey.shade700;
     }
 
-    return Expanded( // 🟢 عشان كل الأزرار تاخد نفس العرض بالضبط
+    return Expanded( // عشان كل الأزرار تاخد نفس العرض بالضبط
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact(); 
@@ -263,7 +263,7 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // ودجت إدخال المواقع (من وإلى)
+  // 🟢 ودجت إدخال المواقع (من وإلى) - مُعدل
   Widget _buildSeparateLocationInput({
     required String prefixText, 
     required String label, 
@@ -285,16 +285,6 @@ class RideServiceForm extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(8.w),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-            ),
-            child: Icon(icon, color: iconColor, size: 20.sp),
-          ),
-          SizedBox(width: 12.w),
           Text(
             prefixText, 
             style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600)
@@ -303,8 +293,7 @@ class RideServiceForm extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              readOnly: true, 
-              onTap: onMapTap,
+              readOnly: false, // 🟢 السماح بالكتابة اليدوية
               style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
               decoration: InputDecoration(
                 hintText: label,
@@ -313,6 +302,20 @@ class RideServiceForm extends StatelessWidget {
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 12.h),
               ),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          // 🟢 الأيقونة (الدبوس/الزوم) على اليسار وتفتح الخريطة
+          GestureDetector(
+            onTap: onMapTap,
+            child: Container(
+              padding: EdgeInsets.all(8.w),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              child: Icon(icon, color: iconColor, size: 20.sp),
             ),
           ),
         ],

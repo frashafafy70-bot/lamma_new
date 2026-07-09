@@ -117,7 +117,7 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 width: double.infinity, 
                 height: 50.h, 
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15), 
+                  color: Colors.white.withOpacity(0.15), 
                   borderRadius: BorderRadius.circular(25.r),
                 ),
                 child: TabBar(
@@ -154,7 +154,12 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                                 availableTravelTrips = snapshot.data!.docs.where((doc) {
                                   var data = doc.data() as Map<String, dynamic>? ?? {};
                                   String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
-                                  return ownerId != currentUserId;
+                                  bool isFullCar = data['tripType'] == 'full_car';
+                                  int availableSeats = int.tryParse(data['availableSeats'].toString()) ?? 0;
+                                  
+                                  // تجاهل الرحلات اللي مقاعدها خلصت من العداد
+                                  bool hasSeats = isFullCar || availableSeats > 0;
+                                  return ownerId != currentUserId && hasSeats;
                                 }).length;
                               }
                               
@@ -244,21 +249,26 @@ class PassengerTravelTripsTab extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.directions_bus_filled_outlined, size: 80.sp, color: Colors.grey.shade300),
-                  SizedBox(height: 16.h),
-                  Text('لا توجد رحلات سفر متاحة حالياً.', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8.h),
-                  Text('السائقين لسه منزلوش رحلات، جرب تدخل وقت تاني.', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade500)),
-                ],
-              ),
-            );
+            return _buildEmptyState();
           }
 
-          var trips = snapshot.data!.docs.toList();
+          // فلترة الرحلات عشان نخفي اللي مقاعدها خلصت
+          var trips = snapshot.data!.docs.where((doc) {
+            var data = doc.data() as Map<String, dynamic>;
+            bool isFullCar = data['tripType'] == 'full_car';
+            int availableSeats = int.tryParse(data['availableSeats'].toString()) ?? 0;
+            
+            // لو مش رحلة كاملة ومفيش مقاعد، اخفيها
+            if (!isFullCar && availableSeats <= 0) {
+              return false;
+            }
+            return true;
+          }).toList();
+
+          if (trips.isEmpty) {
+            return _buildEmptyState();
+          }
+
           trips.sort((a, b) {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
@@ -293,7 +303,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                 margin: EdgeInsets.only(bottom: 16.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16.r),
-                  side: BorderSide(color: AppColors.accentGold.withValues(alpha: 0.3), width: 1),
+                  side: BorderSide(color: AppColors.accentGold.withOpacity(0.3), width: 1),
                 ),
                 child: Padding(
                   padding: EdgeInsets.all(16.w),
@@ -307,7 +317,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                             children: [
                               CircleAvatar(
                                 radius: 18.r,
-                                backgroundColor: primaryNavy.withValues(alpha: 0.1),
+                                backgroundColor: primaryNavy.withOpacity(0.1),
                                 child: Icon(Icons.person_pin, color: primaryNavy, size: 20.sp),
                               ),
                               SizedBox(width: 8.w),
@@ -322,7 +332,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                           ),
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                            decoration: BoxDecoration(color: AppColors.royalGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20.r)),
+                            decoration: BoxDecoration(color: AppColors.royalGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(20.r)),
                             child: Text('${tripData['price'] ?? tripData['seatPrice'] ?? '0'} ج.م', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.royalGreen)),
                           ),
                         ],
@@ -411,6 +421,21 @@ class PassengerTravelTripsTab extends StatelessWidget {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.directions_bus_filled_outlined, size: 80.sp, color: Colors.grey.shade300),
+          SizedBox(height: 16.h),
+          Text('لا توجد رحلات سفر متاحة حالياً.', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+          SizedBox(height: 8.h),
+          Text('السائقين لسه منزلوش رحلات، جرب تدخل وقت تاني.', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+
   void _showBookingDialog(BuildContext context, String tripId, String driverId, String driverName, bool isFullCar, int maxSeats) {
     int requestedSeats = 1;
 
@@ -464,12 +489,15 @@ class PassengerTravelTripsTab extends StatelessWidget {
                     Navigator.pop(ctx); 
                     
                     try {
-                      final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                      final User? currentUser = FirebaseAuth.instance.currentUser;
+                      final String currentUserId = currentUser?.uid ?? '';
+                      final String currentUserName = currentUser?.displayName ?? 'عميل';
                       
                       await FirebaseFirestore.instance.collection('trip_bookings').add({
                         'tripId': tripId,
                         'driverId': driverId,
                         'passengerId': currentUserId,
+                        'passengerName': currentUserName,
                         'seats': isFullCar ? 1 : requestedSeats, 
                         'status': 'pending', 
                         'createdAt': FieldValue.serverTimestamp(),

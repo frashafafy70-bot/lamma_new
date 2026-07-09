@@ -3,13 +3,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
 
 import '../../cubit/auth_cubit.dart'; 
 import '../../cubit/auth_state.dart'; 
 import '../../../home/home_page.dart'; 
 
 class EmailSignUpPage extends StatefulWidget {
-  const EmailSignUpPage({super.key});
+  // 🟢 استقبال البيانات من شاشة الـ OTP بما فيها الإيميل
+  final String? name;
+  final String? phone;
+  final String? email; // 🟢 تم إضافة الإيميل هنا
+  final String? role;
+
+  const EmailSignUpPage({
+    super.key, 
+    this.name, 
+    this.phone, 
+    this.email, // 🟢 تم الاستقبال
+    this.role
+  });
 
   @override
   State<EmailSignUpPage> createState() => _EmailSignUpPageState();
@@ -22,9 +35,26 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
   
   bool _isPasswordObscured = true;
+  String _selectedRole = 'passenger'; 
 
   final Color primaryNavy = const Color(0xFF0F172A); 
   final Color accentGold = const Color(0xFFD4AF37); 
+
+  @override
+  void initState() {
+    super.initState();
+    // 🟢 تعبئة البيانات تلقائياً لو جاية من شاشة الـ OTP
+    if (widget.name != null) _nameController.text = widget.name!;
+    if (widget.email != null) _emailController.text = widget.email!; // 🟢 تعبئة الإيميل تلقائياً
+    if (widget.role != null) _selectedRole = widget.role!;
+    if (widget.phone != null) {
+      String formattedPhone = widget.phone!;
+      if (formattedPhone.startsWith('+20')) {
+        formattedPhone = formattedPhone.substring(3);
+      }
+      _phoneController.text = formattedPhone;
+    }
+  }
 
   @override
   void dispose() {
@@ -72,12 +102,25 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
       return;
     }
 
-    context.read<AuthCubit>().signUp(
-      email: email, 
-      password: password, 
-      name: name, 
-      phone: phone
-    );
+    // 🟢 التفريق بين التسجيل المباشر واستكمال البيانات بعد الـ OTP
+    if (FirebaseAuth.instance.currentUser != null) {
+      // المستخدم أكد رقمه بالفعل، هنستكمل بياناته بس
+      context.read<AuthCubit>().completeRegistration(
+        email: email, 
+        password: password, 
+        name: name, 
+        phone: phone,
+        role: _selectedRole,
+      );
+    } else {
+      // المستخدم داخل يسجل بالإيميل مباشرة من غير OTP
+      context.read<AuthCubit>().signUp(
+        email: email, 
+        password: password, 
+        name: name, 
+        phone: phone,
+      );
+    }
   }
 
   @override
@@ -90,12 +133,13 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
             if (state is AuthError) {
               _showFloatingSnackBar(state.message, Colors.red);
             } else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message, Colors.green);
-              Navigator.pushAndRemoveUntil(
-                context, 
-                MaterialPageRoute(builder: (context) => const HomePage()), 
-                (route) => false
-              );
+              _showFloatingSnackBar(state.message ?? 'تم التسجيل بنجاح', Colors.green);
+              
+              if (state.role == 'captain' || state.role == 'كابتن' || _selectedRole == 'captain') {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+              } else {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+              }
             }
           },
           builder: (context, state) {
@@ -123,17 +167,70 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                     Icon(Icons.alternate_email_rounded, size: 60.sp, color: primaryNavy), 
                     SizedBox(height: 16.h),
                     Text(
-                      'التسجيل بالإيميل',
+                      'استكمال البيانات',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 26.sp, fontWeight: FontWeight.bold, color: primaryNavy),
                     ),
                     SizedBox(height: 8.h),
                     Text(
-                      'أدخل بياناتك كاملة لإنشاء حسابك',
+                      'أدخل بريدك الإلكتروني وكلمة المرور لإنشاء حسابك',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600),
                     ),
-                    SizedBox(height: 32.h),
+                    SizedBox(height: 24.h),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedRole = 'passenger'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 14.h),
+                              decoration: BoxDecoration(
+                                color: _selectedRole == 'passenger' ? primaryNavy : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedRole == 'passenger' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                                boxShadow: _selectedRole == 'passenger' ? [BoxShadow(color: primaryNavy.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_rounded, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade600, size: 22.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('راكب', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedRole = 'captain'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 14.h),
+                              decoration: BoxDecoration(
+                                color: _selectedRole == 'captain' ? accentGold : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedRole == 'captain' ? accentGold : Colors.grey.shade300, width: 1.5),
+                                boxShadow: _selectedRole == 'captain' ? [BoxShadow(color: accentGold.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.directions_car_rounded, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade600, size: 22.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('كابتن', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24.h),
 
                     _buildTextField(
                       controller: _nameController, 
@@ -227,7 +324,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                         onPressed: isLoading ? null : _validateAndSubmit,
                         child: isLoading 
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('إنشاء حساب', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            : Text('حفظ البيانات والتفعيل', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ],

@@ -1,22 +1,20 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:audioplayers/audioplayers.dart'; 
 
-// استدعاء ملف الألوان المركزي
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
-
-// الخريطة المخصصة
 import 'package:lamma_new/features/trips/presentation/widgets/driver_live_map.dart'; 
 
 class DriverTripTrackingPage extends StatefulWidget {
   final String tripId;
 
-  // شيلنا كل المتغيرات الثابتة من هنا، مش محتاجين غير الـ ID وهنجيب الباقي "لايف"
   const DriverTripTrackingPage({
     super.key, 
     required this.tripId,
@@ -28,7 +26,56 @@ class DriverTripTrackingPage extends StatefulWidget {
 
 class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
 
-  // دالة فتح تطبيق خرائط جوجل للتوجيه الصوتي (بتاخد الإحداثيات الحية)
+  late final Stream<DocumentSnapshot> _tripLiveStream;
+  
+  StreamSubscription<DocumentSnapshot>? _tripStatusSubscription;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  String _previousStatus = ''; 
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _tripLiveStream = FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots();
+
+    _tripStatusSubscription = _tripLiveStream.listen((snapshot) {
+      if (snapshot.exists) {
+        // 🟢 تم حل مشكلة الـ Casting هنا عشان الفلتر ميعملش Error
+        var data = snapshot.data() as Map<String, dynamic>?;
+        String currentStatus = data?['status'] ?? '';
+        
+        if (_previousStatus.isNotEmpty && currentStatus != _previousStatus) {
+          _playSoundForStatus(currentStatus);
+        }
+        
+        _previousStatus = currentStatus; 
+      }
+    });
+  }
+
+  Future<void> _playSoundForStatus(String status) async {
+    try {
+      if (status == 'negotiating') {
+        await _audioPlayer.play(AssetSource('audio/ping_pong.mp3')); 
+      } else if (status == 'cancelled') {
+        await _audioPlayer.play(AssetSource('audio/cancell.mp3')); 
+      } else if (status == 'completed') {
+        await _audioPlayer.play(AssetSource('audio/notification.mp3')); 
+      } else if (status == 'accepted') {
+        await _audioPlayer.play(AssetSource('audio/edite.mp3'));
+      }
+    } catch (e) {
+      debugPrint("مشكلة في تشغيل الصوت: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    _tripStatusSubscription?.cancel();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
   Future<void> _launchGoogleMapsNavigation(double? lat, double? lng) async {
     if (lat == null || lng == null) {
       if (mounted) {
@@ -57,7 +104,6 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
     }
   }
 
-  // دالة تحديث حالة الرحلة في قاعدة البيانات بشكل آمن
   Future<void> _updateTripStatus(String newStatus) async {
     try {
       await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).update({
@@ -82,9 +128,8 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.white,
-        // الاستماع للرحلة مرة واحدة بس، وكل الصفحة تتبني على أساسها
         body: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots(),
+          stream: _tripLiveStream,
           builder: (context, snapshot) {
             
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
@@ -100,49 +145,74 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
 
             var tripData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
             
-            // استخراج البيانات "الحية" في كل ثانية
             String currentStatus = tripData['status'] ?? 'accepted';
             String destination = tripData['destination'] ?? 'وجهة غير محددة';
             String price = tripData['price']?.toString() ?? '0';
             
-            // قراءة الإحداثيات لو موجودة كـ GeoPoint في الفايربيز
             GeoPoint? pickupGeo = tripData['pickupLocation'];
             double? clientLat = pickupGeo?.latitude;
             double? clientLng = pickupGeo?.longitude;
 
             return Column(
               children: [
-                // AppBar مدمج جوه العمود عشان نقدر نمررله اللوكيشن الحي لزرار النافيجيشن
+                // البار العلوي
                 Container(
-                  padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-                  color: AppColors.primaryDark,
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 10.h, 
+                    bottom: 16.h, 
+                    left: 20.w, 
+                    right: 20.w
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF1B4332)], 
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1B4332).withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      Expanded(
-                        child: Text(
-                          'تتبع الرحلة', 
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: Colors.white)
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 28),
+                      ),
+                      Text(
+                        'تتبع الرحلة',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.navigation_rounded, color: AppColors.accentGold, size: 26.sp),
-                        onPressed: () => _launchGoogleMapsNavigation(clientLat, clientLng),
-                        tooltip: 'توجيه عبر خرائط جوجل',
+                      InkWell(
+                        onTap: () => _launchGoogleMapsNavigation(clientLat, clientLng),
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.navigation_rounded, color: AppColors.accentGold, size: 22.sp),
+                        ),
                       ),
-                      SizedBox(width: 8.w),
                     ],
                   ),
                 ),
 
-                // 1. الخريطة المخصصة (بتاخد الإحداثيات الحية، لو العميل اتحرك الخريطة هتتحدث)
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(24.r)),
+                    borderRadius: BorderRadius.zero,
                     child: DriverLiveMap(
                       tripId: widget.tripId,
                       targetLat: clientLat, 
@@ -151,18 +221,17 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
                   ),
                 ),
 
-                // 2. كارت معلومات الرحلة في الأسفل 
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08), 
+                        color: Color(0x14000000), 
                         blurRadius: 20, 
                         spreadRadius: 5,
-                        offset: const Offset(0, -5),
+                        offset: Offset(0, -5),
                       )
                     ],
                     borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
@@ -256,7 +325,6 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
     );
   }
 
-  // ويدجت الزرار الديناميكي (شغال بناءً على الحالة الحية)
   Widget _buildDynamicActionButton(String status) {
     if (status == 'accepted') {
       return ElevatedButton.icon(
@@ -282,8 +350,19 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
         onPressed: () => _updateTripStatus('in_progress'),
       );
     } 
+    else if (status == 'completed') {
+      return ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey, 
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        ),
+        icon: Icon(Icons.done_all_rounded, color: Colors.white, size: 20.sp),
+        label: Text('تم إنهاء الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp)),
+        onPressed: null, 
+      );
+    }
     else {
-      // حالة in_progress أو غيرها
       return ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.success, 
@@ -292,13 +371,19 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
         ),
         icon: Icon(Icons.check_circle_rounded, color: Colors.white, size: 20.sp),
         label: Text('إنهاء الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp)),
-        onPressed: () {
-          TripDialogsHelper.showRatingDialog(
-            context: context, 
-            docId: widget.tripId, 
-            royalGreen: AppColors.royalGreen, 
-            isDriver: true,
-          );
+        onPressed: () async {
+          await _updateTripStatus('completed');
+          if (mounted) {
+            await TripDialogsHelper.showRatingDialog(
+              context: context, 
+              docId: widget.tripId, 
+              royalGreen: AppColors.royalGreen, 
+              isDriver: true,
+            );
+          }
+          if (mounted) {
+            Navigator.pop(context);
+          }
         },
       );
     }

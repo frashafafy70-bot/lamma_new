@@ -9,10 +9,10 @@ class MapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // نقطة بداية الكاميرا (مثال: القاهرة)
+    // 🟢 نقطة بداية الكاميرا (تم التعديل لإحداثيات الكويت)
     const CameraPosition initialPosition = CameraPosition(
-      target: LatLng(30.0444, 31.2357),
-      zoom: 14.4746,
+      target: LatLng(29.3759, 47.9774),
+      zoom: 12.0, // قللنا الزوم شوية لرؤية أوضح
     );
 
     return Scaffold(
@@ -20,11 +20,8 @@ class MapScreen extends StatelessWidget {
         title: const Text('خريطة لمَّة', style: TextStyle(fontFamily: 'Cairo')),
         backgroundColor: const Color(0xFF1B4332),
       ),
-      // استخدام Column لعرض عناصر فوق الخريطة إن أردت
       body: Column(
         children: [
-          // إذا كان لديك عناصر هنا مثل أزرار (سيارة / موتوسيكل)، ضعها هنا
-          // مثال بسيط:
           Container(
             padding: const EdgeInsets.all(8.0),
             color: Colors.grey[200],
@@ -37,12 +34,10 @@ class MapScreen extends StatelessWidget {
             ),
           ),
           
-          // 👇 السر هنا: استخدام Expanded يجعل الخريطة تأخذ باقي المساحة المتاحة فقط
-          // وبذلك نتجنب مشكلة الـ RenderFlex Overflow تماماً
           const Expanded(
             child: LammaGoogleMap(
               initialCameraPosition: initialPosition,
-              showCenterPin: true, // إظهار الدبوس في المنتصف
+              showCenterPin: true, 
             ),
           ),
         ],
@@ -52,7 +47,7 @@ class MapScreen extends StatelessWidget {
 }
 
 // ==========================================
-// 2. الكود الخاص بك للخريطة (لم يتم تغييره لأنه سليم)
+// 2. كود مكون الخريطة الأساسي
 // ==========================================
 class LammaGoogleMap extends StatefulWidget {
   final CameraPosition initialCameraPosition;

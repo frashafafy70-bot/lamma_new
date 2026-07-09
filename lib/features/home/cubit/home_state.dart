@@ -1,66 +1,53 @@
+import '../domain/entities/service_category_entity.dart';
+import '../domain/entities/order_summary_entity.dart';
+
 enum HomeStatus { initial, loading, loaded, error }
-enum HomeActionStatus { idle, loading, success, error, registrationRequired }
+enum HomeActionStatus { initial, success, error, registrationRequired }
 
 class HomeState {
   final int bottomNavIndex;
-  final String userName;
-  final String userEmail;
-  final String profileImageUrl;
-  final String activeRole;
   final HomeStatus status;
   final HomeActionStatus actionStatus;
-  final String? pendingRegistrationRole;
+  final List<ServiceCategoryEntity> categories;
+  final List<OrderSummaryEntity> activeOrders; 
   final String? errorMessage;
   final String? successMessage;
-  final bool hasNewNotification; 
-  final int unreadNotificationsCount; 
-  final int activeOrdersCount; 
+  final String? pendingRegistrationRole;
 
   HomeState({
     this.bottomNavIndex = 0,
-    this.userName = 'جاري التحميل...',
-    this.userEmail = '',
-    this.profileImageUrl = '',
-    this.activeRole = 'customer',
     this.status = HomeStatus.initial,
-    this.actionStatus = HomeActionStatus.idle,
-    this.pendingRegistrationRole,
+    this.actionStatus = HomeActionStatus.initial,
+    this.categories = const [],
+    this.activeOrders = const [],
     this.errorMessage,
     this.successMessage,
-    this.hasNewNotification = false,
-    this.unreadNotificationsCount = 0,
-    this.activeOrdersCount = 0, 
+    this.pendingRegistrationRole,
   });
+
+  // Getter ممتاز لاختصار الكود في الـ UI
+  int get activeOrdersCount => activeOrders.length;
 
   HomeState copyWith({
     int? bottomNavIndex,
-    String? userName,
-    String? userEmail,
-    String? profileImageUrl,
-    String? activeRole,
     HomeStatus? status,
     HomeActionStatus? actionStatus,
-    String? pendingRegistrationRole,
+    List<ServiceCategoryEntity>? categories,
+    List<OrderSummaryEntity>? activeOrders,
     String? errorMessage,
     String? successMessage,
-    bool? hasNewNotification,
-    int? unreadNotificationsCount,
-    int? activeOrdersCount, 
+    String? pendingRegistrationRole,
   }) {
     return HomeState(
       bottomNavIndex: bottomNavIndex ?? this.bottomNavIndex,
-      userName: userName ?? this.userName,
-      userEmail: userEmail ?? this.userEmail,
-      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      activeRole: activeRole ?? this.activeRole,
       status: status ?? this.status,
       actionStatus: actionStatus ?? this.actionStatus,
-      pendingRegistrationRole: pendingRegistrationRole ?? this.pendingRegistrationRole,
+      categories: categories ?? this.categories,
+      activeOrders: activeOrders ?? this.activeOrders,
+      // ترك هذه القيم بدون (??) ممتاز جداً لتفريغ الرسائل وعدم تكرار الـ SnackBar
       errorMessage: errorMessage,
       successMessage: successMessage,
-      hasNewNotification: hasNewNotification ?? this.hasNewNotification,
-      unreadNotificationsCount: unreadNotificationsCount ?? this.unreadNotificationsCount,
-      activeOrdersCount: activeOrdersCount ?? this.activeOrdersCount, 
+      pendingRegistrationRole: pendingRegistrationRole,
     );
   }
 }

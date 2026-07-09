@@ -9,16 +9,23 @@ import '../../cubit/auth_cubit.dart';
 import '../../cubit/auth_state.dart';
 import '../../../home/home_page.dart';
 
+// 🟢 استدعي هنا الصفحة اللي المستخدم بيكتب فيها الباسورد والايميل (غالباً اسمها EmailSignUpPage)
+import 'email_sign_up_page.dart'; 
+
 class OtpPage extends StatefulWidget {
   final String verificationId;
   final String name;
+  final String email; // 🟢 تم إضافة الإيميل هنا
   final String phone;
+  final String role; 
 
   const OtpPage({
     super.key,
     required this.verificationId,
     required this.name,
+    required this.email, // 🟢 تم استقبال الإيميل
     required this.phone,
+    required this.role, 
   });
 
   @override
@@ -26,7 +33,6 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  // إنشاء 6 حقول تحكم و FocusNodes لكتابة الكود بشكل احترافي
   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
@@ -67,19 +73,10 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
 
-    // توليد إيميل وباسورد افتراضي بناءً على رقم التليفون لضمان نجاح دالة التسجيل في الكيوبت
-    String formattedPhone = widget.phone.replaceAll('+2', '').replaceAll('+', '');
-    String generatedEmail = '$formattedPhone@lamma.com';
-    String generatedPassword = 'Lamma$formattedPhone';
-
-    context.read<AuthCubit>().verifyOtpAndCompleteSignUp(
+    // 🟢 هنا التعديل: بننادي على دالة التحقق من الـ OTP فقط، مش دالة استكمال التسجيل
+    context.read<AuthCubit>().verifyOtp(
       verificationId: widget.verificationId,
       smsCode: smsCode,
-      email: generatedEmail,
-      password: generatedPassword,
-      name: widget.name,
-      phone: widget.phone,
-      role: 'عميل',
     );
   }
 
@@ -106,12 +103,26 @@ class _OtpPageState extends State<OtpPage> {
           listener: (context, state) {
             if (state is AuthError) {
               _showFloatingSnackBar(state.message, Colors.red);
-            } else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message, Colors.green);
-              Navigator.pushAndRemoveUntil(
+            } 
+            // 🟢 لو الحساب قديم وموجود، هيدخل الرئيسية علطول
+            else if (state is AuthSuccess) {
+              _showFloatingSnackBar(state.message ?? 'تم تسجيل الدخول بنجاح', Colors.green);
+              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+            } 
+            // 🟢 لو ده حساب جديد (الـ OTP صح بس لسه مفيش باسورد)، هيوجهه لصفحة استكمال البيانات
+            else if (state is AuthNeedsPasswordAndProfile) {
+              _showFloatingSnackBar('تم تأكيد الرقم بنجاح، يرجى كتابة كلمة المرور', Colors.green);
+              
+              Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const HomePage()),
-                (route) => false,
+                MaterialPageRoute(
+                  builder: (context) => EmailSignUpPage( 
+                    name: widget.name,
+                    email: widget.email, // 🟢 تم تمرير الإيميل للصفحة اللي بعدها
+                    phone: widget.phone,
+                    role: widget.role,
+                  ),
+                ),
               );
             }
           },
@@ -164,9 +175,8 @@ class _OtpPageState extends State<OtpPage> {
                     ),
                     SizedBox(height: 40.h),
 
-                    // صناديق إدخال الكود (OTP)
                     Directionality(
-                      textDirection: TextDirection.ltr, // لضمان إدخال الأرقام من اليسار لليمين
+                      textDirection: TextDirection.ltr, 
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(6, (index) {
@@ -229,7 +239,6 @@ class _OtpPageState extends State<OtpPage> {
                         Text('لم يصلك الكود؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
                         TextButton(
                           onPressed: isLoading ? null : () {
-                            // إعادة إرسال الكود
                             _showFloatingSnackBar('جاري إعادة الإرسال...', primaryNavy);
                             context.read<AuthCubit>().sendSignUpOtp(phone: widget.phone);
                             for (var controller in _controllers) {

@@ -15,12 +15,14 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   void init() {
-    _getPassengerLocation();
-    _listenToTrips();
+    // 🟢 الحل الجذري 1: استدعاء دالة واحدة فقط تظبط الموقع وبعدين تفتح الـ Stream
+    _getPassengerLocation(); 
   }
 
   Future<void> _getPassengerLocation() async {
+    if (isClosed) return; // 🟢 تأمين
     emit(AvailableTravelsLoading());
+    
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _listenToTrips(); 
@@ -48,6 +50,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
 
   void toggleNearby(bool val) {
     if (_passengerPosition == null && val) {
+      if (isClosed) return;
       emit(AvailableTravelsError('يرجى تفعيل الموقع (GPS) لاستخدام هذه الميزة'));
       _getPassengerLocation();
       return;
@@ -71,7 +74,10 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   }
 
   void _processAndEmitTrips(dynamic rawDocs, {bool forceReprocess = false}) {
+    if (isClosed) return;
+    
     List<Map<String, dynamic>> processedTrips = [];
+    String activeUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     
     Iterable docs = rawDocs is List<QueryDocumentSnapshot> 
         ? rawDocs 
@@ -81,12 +87,33 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       var data = doc is QueryDocumentSnapshot ? doc.data() as Map<String, dynamic> : doc['data'] as Map<String, dynamic>;
       String docId = doc is QueryDocumentSnapshot ? doc.id : doc['docId'];
       
-      if (data['departureTime'] != null && data['departureTime'] is Timestamp) {
-        DateTime tripDate = (data['departureTime'] as Timestamp).toDate();
-        if (tripDate.isBefore(DateTime.now())) {
-          continue; 
-        }
-      } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
+      // 🟢 1. إخفاء الرحلة لو المقاعد المتاحة بقت صفر 
+      int availableSeats = 0;
+      if (data['availableSeats'] != null) {
+        availableSeats = int.tryParse(data['availableSeats'].toString()) ?? 0;
+      }
+      if (availableSeats <= 0) continue; 
+
+      // 🟢 2. إخفاء الرحلة لو الراكب الحالي حاجز فيها
+      List<dynamic> bookedPassengers = data['bookedPassengersIds'] ?? [];
+      if (bookedPassengers.contains(activeUserId)) {
+        continue; 
+      }
+
+      // 🟢 3. الحل الجذري 2: الاعتماد على travelDate زي ما الكابتن بيحفظها بالضبط لمنع تعليق الرحلات
+      DateTime? tripDate;
+      if (data['travelDate'] != null && data['travelDate'] is Timestamp) {
+        tripDate = (data['travelDate'] as Timestamp).toDate();
+      } else if (data['departureTime'] != null && data['departureTime'] is Timestamp) {
+        tripDate = (data['departureTime'] as Timestamp).toDate(); // Fallback للبيانات القديمة
+      }
+
+      // لو تاريخ الرحلة أقدم من وقتنا الحالي، اخفيها فوراً!
+      if (tripDate != null && tripDate.isBefore(DateTime.now())) {
+        continue; 
+      } 
+      // لو ملهاش تاريخ خالص بس عدى على إنشائها يومين، اخفيها
+      else if (tripDate == null && data['createdAt'] != null && data['createdAt'] is Timestamp) {
         DateTime createdDate = (data['createdAt'] as Timestamp).toDate();
         if (DateTime.now().difference(createdDate).inDays > 2) {
           continue; 
@@ -124,33 +151,31 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
     ));
   }
 
-  // 🟢 دالة الحجز المحدثة (تعمل Batch Write لغلق الرحلة وإنشاء الحجز معاً)
-  Future<bool> bookDriverPost(String tripId, String driverId) async {
+  Future<bool> bookSeatInDriverPost(String tripId, String driverId, int seatsToBook) async {
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
+      String activeUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-      // 1. تحديث الرحلة الأساسية عشان تختفي من المتاح وتتقفل
       DocumentReference tripRef = FirebaseFirestore.instance.collection('trips').doc(tripId);
       batch.update(tripRef, {
-        'status': 'accepted',
-        'passengerId': currentUserId,
+        'bookedPassengersIds': FieldValue.arrayUnion([activeUid]),
       });
 
-      // 2. تسجيل الحجز في جدول الحجوزات عشان يظهر في "متابعة طلباتي"
       DocumentReference bookingRef = FirebaseFirestore.instance.collection('trip_bookings').doc();
       batch.set(bookingRef, {
         'tripId': tripId,
         'driverId': driverId,
-        'passengerId': currentUserId,
-        'seats': 1, 
-        'status': 'accepted', 
+        'passengerId': activeUid,
+        'seats': seatsToBook, 
+        'status': 'pending', 
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       await batch.commit();
       return true; 
     } catch (e) {
-      emit(AvailableTravelsError('حدث خطأ أثناء الحجز، يرجى المحاولة مرة أخرى'));
+      if (isClosed) return false; // 🟢 تأمين
+      emit(AvailableTravelsError('حدث خطأ أثناء حجز المقعد، يرجى المحاولة مرة أخرى'));
       return false;
     }
   }

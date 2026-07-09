@@ -35,9 +35,16 @@ exports.notifyDriverNewBooking = functions.firestore
                 android: {
                     priority: "high",
                     notification: {
-                        channelId: "lamma_final_sound",
+                        channelId: "lamma_alerts_channel_v2", 
                         priority: "max",
                         sound: "default"
+                    }
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: "default"
+                        }
                     }
                 },
                 data: { type: 'new_booking', bookingId: context.params.bookingId }
@@ -66,9 +73,16 @@ exports.notifyPassengerBookingStatus = functions.firestore
                 android: {
                     priority: "high",
                     notification: {
-                        channelId: "lamma_final_sound",
+                        channelId: "lamma_alerts_channel_v2", 
                         priority: "max",
                         sound: "default"
+                    }
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: "default"
+                        }
                     }
                 },
                 data: { type: 'booking_accepted', bookingId: context.params.bookingId }
@@ -88,7 +102,6 @@ exports.sendChatNotification = functions.firestore
         if (!senderId) return null;
 
         try {
-            // 1. جلب بيانات الرحلة لمعرفة الطرف الآخر
             const tripDoc = await admin.firestore().collection('trips').doc(tripId).get();
             if (!tripDoc.exists) return null;
 
@@ -96,11 +109,9 @@ exports.sendChatNotification = functions.firestore
             const driverId = tripData.driverId || '';
             const passengerId = tripData.passengerId || '';
 
-            // 2. تحديد المستلم
             const receiverId = senderId === driverId ? passengerId : driverId;
             if (!receiverId) return null;
 
-            // 3. جلب بيانات المستلم (للحصول على التوكن) والمرسل (للحصول على الاسم)
             const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
             const senderDoc = await admin.firestore().collection('users').doc(senderId).get();
             
@@ -108,12 +119,10 @@ exports.sendChatNotification = functions.firestore
             
             const senderName = senderDoc.exists ? (senderDoc.data().name || 'مستخدم لمة') : 'مستخدم لمة';
 
-            // 4. تجهيز نص الرسالة
             let bodyText = 'أرسل لك رسالة جديدة';
-            if (messageData.type === 'image') bodyText = 'أرسل لك صورة 📷';
-            if (messageData.type === 'audio') bodyText = 'أرسل لك مقطع صوتي 🎤';
+            if (messageData.type === 'image') bodyText = 'أرسل لك صورة 📸';
+            if (messageData.type === 'audio') bodyText = 'أرسل لك مقطع صوتي 🎙️';
 
-            // 5. تجهيز الإشعار بنفس إعدادات تطبيق لمة
             const message = {
                 token: receiverDoc.data().fcmToken,
                 notification: {
@@ -123,9 +132,16 @@ exports.sendChatNotification = functions.firestore
                 android: {
                     priority: "high",
                     notification: {
-                        channelId: "lamma_final_sound",
+                        channelId: "lamma_alerts_channel_v2", 
                         priority: "max",
                         sound: "default"
+                    }
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: "default"
+                        }
                     }
                 },
                 data: { 
@@ -136,4 +152,134 @@ exports.sendChatNotification = functions.firestore
 
             await admin.messaging().send(message);
         } catch (error) { console.error('خطأ إشعار الشات:', error); }
+    });
+
+// 9. إشعار لكل الكباتن عند طلب رحلة جديدة من العميل (الرادار) 📡
+exports.notifyDriversNewTrip = functions.firestore
+    .document('trips/{tripId}')
+    .onCreate(async (snap, context) => {
+        const tripData = snap.data();
+
+        // التأكد إن الطلب من عميل مش كابتن بينشر رحلة
+        if (tripData.isDriverPost === true) return null;
+
+        const passengerName = tripData.passengerName || 'عميل جديد';
+        const destination = tripData.destination || 'وجهة غير محددة';
+        const category = tripData.tripCategory || 'رحلة';
+
+        // تجهيز الإشعار وإرساله لكل الكباتن المشتركين في الرادار
+        const message = {
+            topic: 'drivers_radar', 
+            notification: {
+                title: `طلب ${category} جديد! 🚕`,
+                body: `${passengerName} يطلب رحلة إلى ${destination}`
+            },
+            android: {
+                priority: "high",
+                notification: {
+                    channelId: "lamma_alerts_channel_v2", 
+                    priority: "max",
+                    sound: "default"
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: "default" 
+                    }
+                }
+            },
+            data: { 
+                type: 'new_trip_request', 
+                tripId: context.params.tripId 
+            }
+        };
+
+        try {
+            await admin.messaging().send(message);
+            console.log('تم إرسال إشعار الرادار بنجاح');
+        } catch (error) { 
+            console.error('خطأ إشعار الرادار:', error); 
+        }
+    });
+
+// 10. إشعارات التفاوض (البينج بونج) بين الكابتن والعميل 🏓
+exports.notifyTripNegotiation = functions.firestore
+    .document('trips/{tripId}')
+    .onUpdate(async (change, context) => {
+        const beforeData = change.before.data();
+        const afterData = change.after.data();
+
+        // 1. التأكد إن الحالة تفاوض
+        if (afterData.status !== 'negotiating') return null;
+
+        // 2. التأكد إن السعر أو المفاوض اتغير عشان مانبعتش إشعار متكرر على الفاضي
+        if (beforeData.negotiationPrice === afterData.negotiationPrice && 
+            beforeData.lastNegotiator === afterData.lastNegotiator) {
+            return null;
+        }
+
+        const lastNegotiator = afterData.lastNegotiator;
+        const price = afterData.negotiationPrice;
+        const tripId = context.params.tripId;
+        
+        let receiverId = null;
+        let title = '';
+        let body = '';
+
+        // 3. تحديد المستلم والرسالة بناءً على مين اللي فاوض
+        if (lastNegotiator === 'driver') {
+            // لو الكابتن اللي فاوض، المستلم هو العميل
+            receiverId = afterData.passengerId; 
+            title = 'عرض سعر جديد 🚕';
+            body = `الكابتن اقترح سعر ${price} ج.م`;
+        } 
+        else if (lastNegotiator === 'passenger') {
+            // لو العميل اللي فاوض، المستلم هو الكابتن
+            receiverId = afterData.driverId; 
+            title = 'رد من العميل 👤';
+            body = `العميل اقترح سعر ${price} ج.م`;
+        }
+
+        // لو مفيش مستلم لأي سبب، نوقف الدالة
+        if (!receiverId) return null;
+
+        try {
+            // 4. جلب توكن المستلم من الداتا بيز
+            const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
+            if (!receiverDoc.exists || !receiverDoc.data().fcmToken) return null;
+
+            const message = {
+                token: receiverDoc.data().fcmToken,
+                notification: {
+                    title: title,
+                    body: body
+                },
+                android: {
+                    priority: "high",
+                    notification: {
+                        channelId: "lamma_alerts_channel_v2", 
+                        priority: "max",
+                        sound: "default"
+                    }
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: "default"
+                        }
+                    }
+                },
+                data: { 
+                    type: 'negotiation_offer', 
+                    tripId: tripId 
+                }
+            };
+
+            // 5. إرسال الإشعار
+            await admin.messaging().send(message);
+            console.log(`تم إرسال إشعار التفاوض بنجاح إلى ${receiverId}`);
+        } catch (error) { 
+            console.error('خطأ في إرسال إشعار التفاوض:', error); 
+        }
     });

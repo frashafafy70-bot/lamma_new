@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
+import '../role_registration_sheets.dart';
 import 'package:lamma_new/core/constants/app_strings.dart';
 import 'package:lamma_new/core/constants/firebase_constants.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
@@ -13,7 +16,6 @@ class AccountSwitchWidget extends StatelessWidget {
     required this.currentRole,
   });
 
-  // 🟢 توحيد المسمى في الواجهة ليكون (driver) برمجياً و(كابتن) للمستخدم
   List<Map<String, dynamic>> get _roles => [
     {'key': 'client', 'name': 'عميل', 'icon': Icons.person_rounded},
     {'key': 'driver', 'name': 'كابتن', 'icon': Icons.local_taxi_rounded}, 
@@ -24,7 +26,6 @@ class AccountSwitchWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 معالجة الاسم اللي جاي عشان يتطابق صح ويظلل الكارت المضبوط
     String safeCurrentRole = currentRole.trim().toLowerCase();
     if (safeCurrentRole == 'customer') safeCurrentRole = 'client';
     if (safeCurrentRole == 'captain') safeCurrentRole = 'driver';
@@ -215,7 +216,55 @@ class AccountSwitchWidget extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.pop(context, roleKey);
+            final profileCubit = context.read<ProfileCubit>();
+            final profileState = profileCubit.state;
+            
+            // جلب مصفوفة الأدوار من الـ State الحالية
+            final userRoles = profileState.userRoles;
+            
+            // 🚨 [اختبار الكشف] يطبع الأدوار الحالية في الـ Debug Console عند الضغط
+            print("==========================================================");
+            print("======== 🚨 الأدوار الحالية لليوزر في الـ State: $userRoles ========");
+            print("==========================================================");
+            
+            bool isRoleVerified = userRoles.contains(roleKey) || 
+                                  (roleKey == 'driver' && userRoles.contains('captain'));
+            
+            String fullName = profileState.userName.isNotEmpty 
+                ? profileState.userName 
+                : "مستخدم لَمَّة"; 
+
+            if (roleKey == 'driver') {
+              if (isRoleVerified) {
+                Navigator.pop(context, roleKey);
+              } else {
+                RoleRegistrationSheets.showDriver(context, profileCubit, fullName);
+              }
+            } 
+            else if (roleKey == 'lawyer') {
+              if (isRoleVerified) {
+                Navigator.pop(context, roleKey);
+              } else {
+                RoleRegistrationSheets.showLawyer(context, profileCubit, fullName);
+              }
+            }
+            else if (roleKey == 'doctor') {
+              if (isRoleVerified) {
+                Navigator.pop(context, roleKey);
+              } else {
+                RoleRegistrationSheets.showDoctor(context, profileCubit, fullName);
+              }
+            }
+            else if (roleKey == 'nurse') {
+              if (isRoleVerified) {
+                Navigator.pop(context, roleKey);
+              } else {
+                RoleRegistrationSheets.showNurse(context, profileCubit, fullName);
+              }
+            }
+            else {
+              Navigator.pop(context, roleKey);
+            }
           },
           borderRadius: BorderRadius.circular(16.r),
           splashColor: AppColors.accentGold.withValues(alpha: 0.15),

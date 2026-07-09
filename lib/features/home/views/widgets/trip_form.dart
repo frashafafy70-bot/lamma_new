@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io'; // 🟢 ضروري عشان الريكورد
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:lamma_new/core/theme/app_colors.dart'; 
+import 'package:lamma_new/core/theme/app_colors.dart';
+
+// 🟢 استدعاء الويدجت الجديد بتاع الريكورد (تأكد من المسار لو مختلف)
+import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart';
 
 class TripForm extends StatefulWidget {
   final String tripCategory;
@@ -21,6 +24,8 @@ class TripForm extends StatefulWidget {
   final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
+  // 🟢 ضفنا هنا دالة استقبال الملف الصوتي عشان نقدر نرفعه
+  final Function(File?)? onAudioRecorded; 
 
   const TripForm({
     super.key,
@@ -39,6 +44,7 @@ class TripForm extends StatefulWidget {
     required this.onVehicleChanged,
     required this.onOpenMapSelection,
     required this.onSubmit,
+    this.onAudioRecorded, // 🟢 تم إضافتها هنا
   });
 
   @override
@@ -46,37 +52,7 @@ class TripForm extends StatefulWidget {
 }
 
 class _TripFormState extends State<TripForm> {
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _speech = stt.SpeechToText();
-  }
-
-  void _listenToSpeech() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('onStatus: $val'),
-        onError: (val) => debugPrint('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            widget.errandDetailsController.text = val.recognizedWords;
-          }),
-          listenOptions: stt.SpeechListenOptions(
-            localeId: 'ar_EG',
-          ),
-        );
-      }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
-  }
+  // 🔴 تم مسح كل أكواد الـ SpeechToText من هنا لأننا مش محتاجينها خلاص
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +62,7 @@ class _TripFormState extends State<TripForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. التابات العلوية الفخمة (Premium Tabs)
+            // 1. التابات العلوية
             Container(
               padding: EdgeInsets.all(4.w),
               decoration: BoxDecoration(
@@ -103,7 +79,7 @@ class _TripFormState extends State<TripForm> {
             ),
             SizedBox(height: 24.h),
 
-            // 2. اختيار نوع المركبة (يظهر فقط في الداخلي) - 🟢 تم التعديل لاستخدام الصور الحقيقية
+            // 2. اختيار نوع المركبة
             if (widget.tripCategory == 'داخلي') ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -140,39 +116,16 @@ class _TripFormState extends State<TripForm> {
             ),
             SizedBox(height: 12.h),
 
-            // 5. حقول خاصة بقسم "طلبات" (مع المايكروفون الذكي)
+            // 5. حقول خاصة بقسم "طلبات"
             if (widget.tripCategory == 'طلبات') ...[
-              TextFormField(
+              // 🟢 تم دمج الويدجت الذكي الخاص بك هنا للريكورد الفعلي
+              OrderInputWidget(
                 controller: widget.errandDetailsController,
-                style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
-                minLines: 1,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'تفاصيل الطلبات (اكتب أو سجل صوتك)',
-                  labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600),
-                  prefixIcon: const Icon(Icons.list_alt_rounded, color: AppColors.primaryDark),
-                  suffixIcon: GestureDetector(
-                    onTap: _listenToSpeech,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: EdgeInsets.all(8.w),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isListening ? AppColors.error.withValues(alpha: 0.1) : Colors.transparent,
-                      ),
-                      child: Icon(
-                        _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                        color: _isListening ? AppColors.error : AppColors.accentGold,
-                        size: 26.sp,
-                      ),
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: AppColors.backgroundLight,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
-                ),
+                onAudioRecorded: (file) {
+                  if (widget.onAudioRecorded != null) {
+                    widget.onAudioRecorded!(file);
+                  }
+                },
               ),
               SizedBox(height: 12.h),
 
@@ -187,7 +140,7 @@ class _TripFormState extends State<TripForm> {
               SizedBox(height: 12.h),
             ],
 
-            // 6. سعر التوصيل (الأجرة)
+            // 6. سعر التوصيل
             _buildInputField(
               controller: widget.priceController,
               focusNode: widget.priceFocusNode,
@@ -198,7 +151,7 @@ class _TripFormState extends State<TripForm> {
             ),
             SizedBox(height: 24.h),
 
-            // 7. زر الإرسال الفخم
+            // 7. زر الإرسال
             SizedBox(
               height: 55.h,
               child: ElevatedButton(
@@ -225,7 +178,7 @@ class _TripFormState extends State<TripForm> {
     );
   }
 
-  // 🔴 ودجت التابات العلوية
+  // ودجت التابات العلوية
   Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
     bool isSelected = widget.tripCategory == logicTitle;
     return Expanded(
@@ -259,7 +212,7 @@ class _TripFormState extends State<TripForm> {
     );
   }
 
-  // 🔴 ودجت حقول الإدخال
+  // ودجت حقول الإدخال
   Widget _buildInputField({
     required TextEditingController controller,
     required String label,
@@ -290,7 +243,7 @@ class _TripFormState extends State<TripForm> {
     );
   }
 
-  // 🔴 ودجت السيارات الفرعي (تم التعديل لاستقبال مسار الصورة بدل الأيقونة)
+  // ودجت السيارات الفرعي 
   Widget _buildVehicleChip(String title, String imagePath) {
     bool isSelected = widget.vehicleType == title;
     return Expanded(
@@ -307,7 +260,6 @@ class _TripFormState extends State<TripForm> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // عرض الصورة من الـ assets
               Image.asset(
                 imagePath,
                 height: 45.h,

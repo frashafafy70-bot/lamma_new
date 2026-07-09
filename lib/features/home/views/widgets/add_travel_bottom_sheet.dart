@@ -1,11 +1,15 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
-import 'package:lamma_new/features/home/cubit/home_cubit.dart';
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
+// 🟢 استيراد ملف الكيوبت الخاص بالرحلات النشطة للسائق
+import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
 class AddTravelBottomSheet extends StatefulWidget {
   final String userName;
@@ -207,14 +211,32 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                   height: 50.h,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r))),
-                    onPressed: () {
+                    onPressed: () async {
                       if (!formKey.currentState!.validate()) return; 
                       
                       if (selectedDate == null) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء تحديد تاريخ ووقت الرحلة', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
                         return;
                       }
+
+                      // 🟢 الفحص الجديد: هل السائق عنده رحلة نشطة؟
+                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip();
                       
+                      if (!context.mounted) return;
+
+                      if (hasActiveTrip) {
+                        // لو عنده رحلة نشطة، نطلع رسالة ونمنع الإرسال
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('عفواً، لا يمكنك نشر رحلة جديدة لوجود رحلة نشطة بالفعل.', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                            backgroundColor: Colors.redAccent,
+                            behavior: SnackBarBehavior.floating,
+                          )
+                        );
+                        return; 
+                      }
+                      
+                      // لو معندوش، نقفل الـ BottomSheet ونكمل الإرسال عادي
                       Navigator.pop(context); 
                       
                       final newTrip = TripModel(
@@ -231,7 +253,8 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         status: 'available',
                       );
 
-                      context.read<HomeCubit>().addTravelTrip(trip: newTrip);
+                      // 🟢 توجيه الأمر لـ TripActionsCubit بدلاً من HomeCubit
+                      context.read<TripActionsCubit>().addTravelTrip(trip: newTrip);
                     },
                     child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
                   ),

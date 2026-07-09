@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 import '../../domain/repositories/driver_radar_repository.dart';
 
@@ -11,16 +12,18 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance; // 🟢 تم تصحيح Firebase_auth إلى FirebaseAuth
 
   String get _currentUserId => _auth.currentUser?.uid ?? '';
   String get _currentUserName => _auth.currentUser?.displayName ?? 'سائق لَمَّة';
 
   @override
   Stream<List<TripModel>> getRadarTripsStream() {
+    // 🟢 الفلتر هنا بيجيب بس الطلبات المتاحة، والباقي بيتفلتر في السيرفر عشان الأداء
     return _firestore
         .collection('trips')
         .where('isDriverPost', isEqualTo: false)
+        .where('status', whereIn: ['pending', 'negotiating']) // 🟢 فلتر صارم من السيرفر
         .snapshots()
         .map((snapshot) {
       
@@ -29,23 +32,18 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
       for (var doc in snapshot.docs) {
         var data = doc.data();
         
-        // 🟢 تطبيق قواعد العمل (Business Logic) والفلترة هنا بدلاً من واجهة المستخدم
-        if (data['isDeletedForDriver'] == true) {
-          continue; // تخطي هذه الرحلة
-        }
+        // منع ظهور الطلبات اللي السائق مسحها من عنده (Soft Delete)
+        if (data['isDeletedForDriver'] == true) continue;
         
-        String status = data['status'] ?? '';
-        String driverId = data['driverId'] ?? '';
+        // لو الرحلة في حالة تفاوض، نتأكد إننا مابنعرضهاش لنفسنا لو إحنا اللي باعتين العرض
+        if (data['status'] == 'negotiating' && data['driverId'] == _currentUserId) continue;
         
-        bool isPending = status == 'pending';
-        bool isNegotiatingWithAnother = status == 'negotiating' && driverId != _currentUserId;
-        
-        if (isPending || isNegotiatingWithAnother) {
-          // إذا طابقت الشروط، نقوم بتحويلها إلى TripModel وإضافتها للقائمة
+        try {
           activeTrips.add(TripModel.fromMap(data, doc.id));
+        } catch (e) {
+          if (kDebugMode) print('Error parsing trip ${doc.id}: $e');
         }
       }
-      
       return activeTrips;
     });
   }
@@ -62,22 +60,12 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
 
     await _firestore.runTransaction((transaction) async {
       DocumentSnapshot tripSnapshot = await transaction.get(tripRef);
-
-      if (!tripSnapshot.exists) {
-        throw Exception('TRIP_NOT_FOUND');
-      }
+      if (!tripSnapshot.exists) throw Exception('TRIP_NOT_FOUND');
 
       var tripData = tripSnapshot.data() as Map<String, dynamic>;
       String status = tripData['status'] ?? '';
-      String? existingDriverId = tripData['driverId'];
-
-      bool isPending = status == 'pending';
-      bool isNegotiatingWithMe = status == 'negotiating' && existingDriverId == _currentUserId;
-      bool isNegotiatingWithoutDriver = status == 'negotiating' && (existingDriverId == null || existingDriverId.isEmpty);
-
-      if (!(isPending || isNegotiatingWithMe || isNegotiatingWithoutDriver)) {
-        throw Exception('TRIP_ALREADY_TAKEN');
-      }
+      
+      if (status == 'accepted') throw Exception('TRIP_ALREADY_TAKEN');
 
       Map<String, dynamic> updateData = {
         'status': 'accepted',
@@ -86,10 +74,7 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
         'acceptedAt': FieldValue.serverTimestamp(),
       };
 
-      if (negotiatedPrice != null) {
-        updateData['price'] = negotiatedPrice;
-      }
-
+      if (negotiatedPrice != null) updateData['price'] = negotiatedPrice;
       transaction.update(tripRef, updateData);
     });
   }

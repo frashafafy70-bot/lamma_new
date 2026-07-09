@@ -2,11 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../home/home_page.dart'; 
+// import '../../../captain/captain_home_page.dart'; 
+
 import '../../cubit/auth_cubit.dart'; 
 import '../../cubit/auth_state.dart'; 
 import 'sign_up_page.dart'; 
@@ -25,13 +26,11 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
-  // متغير جديد لحفظ مرجع للـ Controller الداخلي الخاص بـ Autocomplete
   TextEditingController? _autoCompleteController;
   
   bool _isPasswordObscured = true;
   bool _rememberMe = false; 
 
-  // المحافظة على ألوان الشاشة وتناسقها مع الثيم الخاص بك
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
 
@@ -54,31 +53,10 @@ class _LoginPageState extends State<LoginPage> {
         _rememberMe = true; 
       });
       
-      // التحديث الآمن: لو واجهة Autocomplete اتبنت، حدث النص فيها فوراً
       if (_autoCompleteController != null) {
         _autoCompleteController!.text = savedList.first;
       }
     }
-  }
-
-  Future<String?> _resolveEmail(String input) async {
-    input = input.trim();
-    if (input.contains('@') && input.contains('.')) {
-      return input;
-    }
-    
-    if (RegExp(r'^\d+$').hasMatch(input)) {
-      final query = await FirebaseFirestore.instance.collection('users').where('phone', isEqualTo: input).limit(1).get();
-      if (query.docs.isNotEmpty) {
-        return query.docs.first.data()['email'] as String?;
-      }
-    } else {
-      final query = await FirebaseFirestore.instance.collection('users').where('username', isEqualTo: input.toLowerCase()).limit(1).get();
-      if (query.docs.isNotEmpty) {
-        return query.docs.first.data()['email'] as String?;
-      }
-    }
-    return null;
   }
 
   Future<void> _savePreferencesLocally(String currentInput) async {
@@ -89,35 +67,32 @@ class _LoginPageState extends State<LoginPage> {
       }
       _savedIdentifiersList.insert(0, currentInput); 
       await prefs.setStringList('saved_identifiers_list', _savedIdentifiersList);
-      await prefs.remove('saved_identifier');
-      await prefs.remove('saved_password');
     }
   }
 
-  Future<void> _login() async {
+  void _login() {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    String currentInput = _identifierController.text.trim();
-    String? loginEmail = await _resolveEmail(currentInput);
-    
-    if (loginEmail == null) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم العثور على حساب بهذا المُدخل، تأكد من البيانات.', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.red.shade800));
-      return;
-    }
+    // 🟢 الشاشة بترسل المدخل كما هو (ايميل أو هاتف) للـ Cubit
+    // الـ Cubit هو من سيتولى عملية الاستعلام عن البيانات (Clean Architecture)
+    context.read<AuthCubit>().login(
+      email: _identifierController.text.trim(), // الـ Cubit الآن قادر على معالجة هذا المدخل أياً كان
+      password: _passwordController.text.trim(),
+    );
+  }
 
-    if (mounted) {
-      context.read<AuthCubit>().login(
-        email: loginEmail,
-        password: _passwordController.text.trim(),
-      );
-    }
+  // 🟢 دالة مساعدة لإظهار الإشعارات بشكل نظيف
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating, // شكل احترافي أكثر للإشعار
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+      ),
+    );
   }
 
   @override
@@ -127,14 +102,17 @@ class _LoginPageState extends State<LoginPage> {
         listener: (context, state) {
           if (state is AuthSuccess) {
             _savePreferencesLocally(_identifierController.text.trim());
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message, style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.green),
-            );
-            Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+            _showSnackBar(state.message, Colors.green);
+            
+            // 🟢 التوجيه الذكي بناءً على الصلاحية (Role)
+            if (state.role == 'captain' || state.role == 'كابتن') {
+               Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+               // هنا مستقبلاً ستضع: const CaptainHomePage()
+            } else {
+               Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+            }
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message, style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.red.shade800),
-            );
+            _showSnackBar(state.message, Colors.red.shade800);
           }
         },
         builder: (context, state) {
@@ -145,7 +123,13 @@ class _LoginPageState extends State<LoginPage> {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [primaryNavy, const Color(0xFF1E293B), Colors.black87])),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, 
+                  end: Alignment.bottomCenter, 
+                  colors: [primaryNavy, const Color(0xFF1E293B), Colors.black87]
+                )
+              ),
               child: SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
@@ -153,6 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Logo Section
                         Container(
                           padding: EdgeInsets.all(16.w),
                           decoration: BoxDecoration(shape: BoxShape.circle, color: goldAccent.withValues(alpha: 0.1), border: Border.all(color: goldAccent, width: 2)),
@@ -164,6 +149,7 @@ class _LoginPageState extends State<LoginPage> {
                         Text('كل خدماتك في مكان واحد، يرجى تسجيل الدخول', style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade400, fontFamily: 'Cairo')),
                         SizedBox(height: 40.h),
 
+                        // Form Section
                         Card(
                           elevation: 8,
                           shadowColor: Colors.black54,
@@ -180,33 +166,17 @@ class _LoginPageState extends State<LoginPage> {
                                   
                                   Autocomplete<String>(
                                     optionsBuilder: (TextEditingValue textEditingValue) {
-                                      if (textEditingValue.text == '') {
-                                        return _savedIdentifiersList;
-                                      }
-                                      return _savedIdentifiersList.where((String option) {
-                                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                      });
+                                      if (textEditingValue.text == '') return _savedIdentifiersList;
+                                      return _savedIdentifiersList.where((String option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
                                     },
-                                    onSelected: (String selection) {
-                                      _identifierController.text = selection;
-                                    },
+                                    onSelected: (String selection) => _identifierController.text = selection,
                                     fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-                                      
-                                      // الحل النموذجي: ربط الـ Controller الداخلي مرة واحدة لتجنب الأخطاء
                                       if (_autoCompleteController != fieldTextEditingController) {
                                         _autoCompleteController = fieldTextEditingController;
-                                        
-                                        // تأجيل تعيين القيمة حتى تنتهي فلاتر من بناء الشاشة لتجنب Crash
                                         if (_identifierController.text.isNotEmpty && _autoCompleteController!.text.isEmpty) {
-                                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                                            _autoCompleteController!.text = _identifierController.text;
-                                          });
+                                          WidgetsBinding.instance.addPostFrameCallback((_) => _autoCompleteController!.text = _identifierController.text);
                                         }
-
-                                        // إضافة المستمع مرة واحدة فقط وتحديث المتحكم الرئيسي
-                                        _autoCompleteController!.addListener(() {
-                                          _identifierController.text = _autoCompleteController!.text;
-                                        });
+                                        _autoCompleteController!.addListener(() => _identifierController.text = _autoCompleteController!.text);
                                       }
 
                                       return TextFormField(
@@ -232,12 +202,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 )
                                               : null,
                                         ),
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty) {
-                                            return 'برجاء إدخال البيانات';
-                                          }
-                                          return null;
-                                        },
+                                        validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال البيانات' : null,
                                       );
                                     },
                                     optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<String> onSelected, Iterable<String> options) {
@@ -255,9 +220,7 @@ class _LoginPageState extends State<LoginPage> {
                                               itemBuilder: (BuildContext context, int index) {
                                                 final String option = options.elementAt(index);
                                                 return InkWell(
-                                                  onTap: () {
-                                                    onSelected(option);
-                                                  },
+                                                  onTap: () => onSelected(option),
                                                   child: Padding(
                                                     padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 16.w),
                                                     child: Row(
@@ -278,6 +241,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   
                                   SizedBox(height: 16.h),
+                                  
                                   TextFormField(
                                     controller: _passwordController,
                                     obscureText: _isPasswordObscured,
@@ -293,12 +257,7 @@ class _LoginPageState extends State<LoginPage> {
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
                                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide(color: goldAccent, width: 2))
                                     ),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'برجاء إدخال كلمة المرور';
-                                      }
-                                      return null;
-                                    },
+                                    validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال كلمة المرور' : null,
                                   ),
                                   
                                   Row(
@@ -307,11 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                                         value: _rememberMe,
                                         activeColor: primaryNavy,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.r)),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _rememberMe = value ?? false;
-                                          });
-                                        },
+                                        onChanged: (value) => setState(() => _rememberMe = value ?? false),
                                       ),
                                       GestureDetector(
                                         onTap: () => setState(() => _rememberMe = !_rememberMe),
@@ -319,9 +274,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       const Spacer(),
                                       TextButton(
-                                        onPressed: () {
-                                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage()));
-                                        },
+                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage())),
                                         child: Text('نسيت كلمة المرور؟', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13.sp)),
                                       ),
                                     ],
@@ -358,9 +311,7 @@ class _LoginPageState extends State<LoginPage> {
                                   SizedBox(height: 16.h),
 
                                   ElevatedButton(
-                                    onPressed: isLoading ? null : () {
-                                      context.read<AuthCubit>().loginWithGoogle();
-                                    },
+                                    onPressed: isLoading ? null : () => context.read<AuthCubit>().loginWithGoogle(),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.white,
                                       surfaceTintColor: Colors.white,
@@ -387,10 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                               ),
                                               SizedBox(width: 12.w),
-                                              Text(
-                                                'الدخول باستخدام Google', 
-                                                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.black87, fontFamily: 'Cairo')
-                                              ),
+                                              Text('الدخول باستخدام Google', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.black87, fontFamily: 'Cairo')),
                                             ],
                                           ),
                                   ),
@@ -406,9 +354,7 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             Text('ليس لديك حساب؟', style: TextStyle(color: Colors.grey.shade300, fontFamily: 'Cairo', fontSize: 14.sp)),
                             TextButton(
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpPage()));
-                              },
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpPage())),
                               child: Text('سجل الآن', style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
                             ),
                           ],

@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-// 🟢 استيراد الـ Repositories والـ Entities بدلاً من الـ Services القديمة
 import '../../domain/repositories/map_repository.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../../domain/entities/place_search_entity.dart';
@@ -21,19 +20,19 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   PassengerRequestCubit({required this.mapRepository, required this.tripRepository})
       : super(PassengerRequestInitial());
 
-  // 📍 جلب الموقع الحالي بالاعتماد على الـ Repository
   Future<void> getUserLocation() async {
+    if (isClosed) return; 
     emit(LocationLoading());
     
     try {
-      // 🟢 الـ Repository يتكفل بكل شيء (فحص الصلاحيات، تفعيل الـ GPS، وتحديد الموقع)
       final position = await mapRepository.getUserCurrentLocation();
+      if (isClosed) return; 
       emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
 
     } catch (e) {
+      if (isClosed) return; 
       String errorMessage = 'حدث خطأ أثناء جلب الموقع.';
       
-      // التعامل مع الأخطاء التي تم تمريرها من طبقة الـ Data
       if (e.toString().contains('GPS_DISABLED')) {
         errorMessage = 'خدمة الموقع مقفولة، يرجى تفعيلها من إعدادات الهاتف.';
       } else if (e.toString().contains('PERMISSION_DENIED_FOREVER')) {
@@ -47,37 +46,41 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     }
   }
 
-  // 🗺️ جلب العنوان من الإحداثيات (Reverse Geocoding)
   Future<void> getAddressFromLatLng(LatLng latLng) async {
+    if (isClosed) return;
     emit(AddressLoading());
     try {
       String address = await mapRepository.getAddressFromCoordinates(latLng);
+      if (isClosed) return;
       emit(AddressLoaded(address));
     } catch (e) {
+      debugPrint("💥 الخطأ الحقيقي في جلب العنوان: $e"); 
+      if (isClosed) return;
       emit(AddressError("حدث خطأ أثناء جلب العنوان"));
     }
   }
 
-  // 🔍 البحث عن أماكن
   Future<void> searchForPlaces(String input) async {
     if (input.isEmpty) {
+      if (isClosed) return;
       emit(PlacesSearchLoaded([]));
       return;
     }
     try {
-      // 🟢 الآن نحن نستقبل قائمة من الكيان النظيف PlaceSearchEntity بدلاً من dynamic
       List<PlaceSearchEntity> results = await mapRepository.searchPlaces(input);
+      if (isClosed) return;
       emit(PlacesSearchLoaded(results));
     } catch (e) {
+      if (isClosed) return;
       emit(PlacesSearchLoaded([]));
     }
   }
 
-  // 📍 جلب تفاصيل المكان المحدد
   Future<void> fetchPlaceDetails(String placeId, String description) async {
     try {
       LatLng? location = await mapRepository.getPlaceCoordinates(placeId);
       if (location != null) {
+        if (isClosed) return;
         emit(PlaceDetailsLoaded(location, description));
       }
     } catch (e) {
@@ -85,7 +88,6 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     }
   }
 
-  // 🚀 إرسال الطلب
   Future<void> submitTripRequest({
     required String tripCategory,
     required String vehicleType,
@@ -99,6 +101,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     File? orderAudioFile,
   }) async {
     
+    if (isClosed) return;
     emit(TripSubmitting());
 
     try {
@@ -137,9 +140,11 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
 
       await tripRepository.createNewTripRequest(tripData);
       
+      if (isClosed) return; 
       emit(TripSubmitSuccess());
     } catch (e) {
       debugPrint("❌ خطأ الإرسال: $e");
+      if (isClosed) return;
       emit(TripSubmitError("حدث خطأ أثناء إرسال الطلب."));
     }
   }

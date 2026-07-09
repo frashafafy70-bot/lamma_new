@@ -5,13 +5,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'package:intl/intl.dart' hide TextDirection; // 🟢 عشان نظبط الوقت والتاريخ بشياكة
+import 'package:intl/intl.dart' hide TextDirection; 
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_state.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/my_request_trip_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
+
+// 🟢 استدعاء Helper الديالوج عشان شاشة التقييم
+import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 
 class PassengerMyRequestsTab extends StatefulWidget {
   const PassengerMyRequestsTab({super.key});
@@ -23,6 +26,7 @@ class PassengerMyRequestsTab extends StatefulWidget {
 class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with AutomaticKeepAliveClientMixin {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   final Set<String> _navigatedTripIds = {};
+  final Set<String> _completedTripIds = {}; 
 
   @override
   bool get wantKeepAlive => true; 
@@ -33,7 +37,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
     context.read<PassengerMyRequestsCubit>().startListeningToMyRequests();
   }
 
-  // 🟢 ديالوج التأكيد قبل ما العميل يلغي حجز الكرسي
   void _showCancelBookingDialog(BuildContext context, DocumentReference bookingRef) {
     showDialog(
       context: context,
@@ -50,7 +53,7 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
-              await bookingRef.delete(); // 🟢 مسح الحجز فوراً
+              await bookingRef.delete(); 
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء الحجز بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
               }
@@ -75,13 +78,28 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
             for (var doc in state.requests) {
               final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
               final tripId = doc.id;
+              final status = data['status'];
               
-              if (data['status'] == 'accepted' && !_navigatedTripIds.contains(tripId)) {
+              // 🟢 المتغير اللي بيحدد العميل قيّم الرحلة دي قبل كده ولا لأ
+              final passengerRating = data['passengerRatingForDriver']; 
+              
+              if (status == 'accepted' && !_navigatedTripIds.contains(tripId)) {
                 _navigatedTripIds.add(tripId); 
-                
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)),
+                );
+              }
+
+              // 🟢 تم إضافة شرط passengerRating == null لمنع تكرار ظهور الشاشة للرحلات القديمة المكتملة
+              if (status == 'completed' && passengerRating == null && !_completedTripIds.contains(tripId)) {
+                _completedTripIds.add(tripId); 
+                
+                TripDialogsHelper.showRatingDialog(
+                  context: context,
+                  docId: tripId,
+                  royalGreen: AppColors.royalGreen, 
+                  isDriver: false,
                 );
               }
             }
@@ -129,10 +147,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      
-                      // =================================================================
-                      // 💺 أولاً: جزء حجوزات رحلات السفر (تصميم بريميوم شيك جداً ✨)
-                      // =================================================================
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('trip_bookings')
@@ -158,7 +172,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                                   var data = booking.data() as Map<String, dynamic>;
                                   bool isAccepted = data['status'] == 'accepted';
                                   
-                                  // 🟢 تظبيط شكل الوقت والتاريخ
                                   String timeString = 'غير محدد';
                                   if (data['createdAt'] != null) {
                                     DateTime dt = (data['createdAt'] as Timestamp).toDate();
@@ -177,7 +190,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          // الجزء العلوي: الأيقونة والعنوان
                                           Row(
                                             children: [
                                               CircleAvatar(
@@ -204,7 +216,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                                           
                                           SizedBox(height: 12.h),
                                           
-                                          // 🟢 الجزء الأوسط: الوقت والتاريخ
                                           Container(
                                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
                                             decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8.r)),
@@ -219,7 +230,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
 
                                           Padding(padding: EdgeInsets.symmetric(vertical: 12.h), child: const Divider(height: 1)),
 
-                                          // 🟢 الجزء السفلي: الأزرار الشيك (شات + إلغاء)
                                           Row(
                                             children: [
                                               if (isAccepted) ...[
@@ -269,9 +279,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                         },
                       ),
 
-                      // =================================================================
-                      // 🚗 ثانياً: جزء الطلبات والمشاوير العادية (الكود القديم بتاعك)
-                      // =================================================================
                       if (requests.isEmpty)
                         Padding(
                           padding: EdgeInsets.only(top: 100.h),
@@ -288,7 +295,7 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                         )
                       else
                         ListView.builder(
-                          shrinkWrap: true, // مهم للـ Column الداخلي
+                          shrinkWrap: true, 
                           physics: const NeverScrollableScrollPhysics(),
                           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
                           itemCount: requests.length,

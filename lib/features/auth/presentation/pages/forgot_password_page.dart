@@ -1,8 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../../cubit/auth_cubit.dart';
+import '../../cubit/auth_state.dart';
+import 'reset_password_otp_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -12,59 +16,48 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController(); // 🟢 حقل للإيميل
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
+
+  String _selectedMethod = 'email'; // 🟢 email أو phone
 
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
 
-  Future<void> _resetPassword() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  void _showFloatingSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(bottom: 20.h, left: 20.w, right: 20.w),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
-    setState(() => _isLoading = true);
+  void _sendPasswordReset() {
+    if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
 
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
-      );
-
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني! ✅', 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      String message = 'حدث خطأ غير متوقع';
-      if (e.code == 'user-not-found') {
-        message = 'لا يوجد مستخدم مسجل بهذا البريد الإلكتروني.';
-      } else if (e.code == 'invalid-email') {
-        message = 'صيغة البريد الإلكتروني غير صحيحة.';
-      }
-      
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)), backgroundColor: Colors.red.shade800),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (_selectedMethod == 'email') {
+      // 🟢 الاعتماد على الإيميل (الطريقة الجديدة السريعة)
+      String email = _emailController.text.trim();
+      context.read<AuthCubit>().sendPasswordResetEmail(email: email);
+    } else {
+      // 🟢 الاعتماد على التليفون (الطريقة القديمة OTP)
+      String inputPhone = _phoneController.text.trim();
+      String fullPhone = inputPhone.startsWith('+20') ? inputPhone : '+20${inputPhone.replaceFirst(RegExp(r'^0+'), '')}';
+      context.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
     }
   }
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -72,70 +65,205 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: primaryNavy,
         title: const Text('استعادة كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
       ),
-      // قمت بإضافة SingleChildScrollView هنا لحل مشكلة الـ Bottom Overflow عند ظهور الكيبورد
-      body: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.lock_reset_rounded, size: 80.sp, color: goldAccent),
-                  SizedBox(height: 24.h),
-                  Text(
-                    'هل نسيت كلمة المرور؟',
-                    style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy),
-                  ),
-                  SizedBox(height: 12.h),
-                  Text(
-                    'أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور الخاصة بك.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600, fontFamily: 'Cairo'),
-                  ),
-                  SizedBox(height: 32.h),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'البريد الإلكتروني',
-                      prefixIcon: Icon(Icons.email_rounded, color: primaryNavy),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15.r),
-                        borderSide: BorderSide(color: goldAccent, width: 2),
+      body: BlocConsumer<AuthCubit, AuthState>(
+        listener: (context, state) {
+          if (state is AuthOtpSent) {
+            _showFloatingSnackBar('تم إرسال كود التفعيل بنجاح 💬', Colors.green);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ResetPasswordOtpPage(
+                  verificationId: state.verificationId, 
+                  phone: _phoneController.text.trim(),
+                ),
+              ),
+            );
+          } else if (state is AuthSuccess) {
+            // 🟢 في حالة الإيميل، بيظهر رسالة ويرجع خطوة للخلف
+            _showFloatingSnackBar(state.message ?? 'تم الإرسال بنجاح', Colors.green);
+            Navigator.pop(context);
+          } else if (state is AuthError) {
+            _showFloatingSnackBar(state.message, Colors.red.shade800);
+          }
+        },
+        builder: (context, state) {
+          bool isLoading = state is AuthLoading;
+
+          return Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.phonelink_lock_rounded, size: 80.sp, color: goldAccent),
+                    SizedBox(height: 24.h),
+                    Text(
+                      'هل نسيت كلمة المرور؟',
+                      style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      'اختر طريقة الاستعادة المناسبة لك لإعادة تعيين كلمة المرور بكل سهولة.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600, fontFamily: 'Cairo', height: 1.5),
+                    ),
+                    SizedBox(height: 32.h),
+                    
+                    // 🟢 أزرار التبديل الفخمة بين الإيميل والرقم
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedMethod = 'email'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: _selectedMethod == 'email' ? primaryNavy : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedMethod == 'email' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.email_outlined, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade600, size: 20.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('بريد إلكتروني', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: isLoading ? null : () => setState(() => _selectedMethod = 'phone'),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: _selectedMethod == 'phone' ? primaryNavy : Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: _selectedMethod == 'phone' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.phone_android_rounded, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade600, size: 20.sp),
+                                  SizedBox(width: 8.w),
+                                  Text('رقم الهاتف', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24.h),
+
+                    // 🟢 التبديل بين حقل الإيميل وحقل الهاتف
+                    if (_selectedMethod == 'email')
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15.r),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textDirection: TextDirection.ltr,
+                          textAlign: TextAlign.left,
+                          style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                          decoration: InputDecoration(
+                            hintText: 'example@mail.com',
+                            hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
+                            prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty || !value.contains('@')) {
+                              return 'برجاء إدخال بريد إلكتروني صحيح';
+                            }
+                            return null;
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15.r),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          textDirection: TextDirection.rtl,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16.w),
+                              child: Text(
+                                '+20', 
+                                textDirection: TextDirection.ltr, 
+                                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                            ),
+                            Container(width: 1.w, height: 24.h, color: Colors.grey.shade300),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                textDirection: TextDirection.ltr,
+                                textAlign: TextAlign.left,
+                                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, letterSpacing: 1),
+                                decoration: InputDecoration(
+                                  hintText: '10xxxxxxxxx',
+                                  hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400, letterSpacing: 0),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty || value.length < 10) {
+                                    return 'برجاء إدخال رقم هاتف صحيح';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    
+                    SizedBox(height: 24.h),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55.h,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryNavy,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                        ),
+                        onPressed: isLoading ? null : _sendPasswordReset,
+                        child: isLoading
+                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : Text(_selectedMethod == 'email' ? 'إرسال رابط الاستعادة' : 'إرسال كود التحقق', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
                       ),
                     ),
-                    validator: (value) => (value == null || !value.contains('@')) ? 'أدخل بريداً إلكترونياً صحيحاً' : null,
-                  ),
-                  SizedBox(height: 24.h),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55.h,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryNavy,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
-                      ),
-                      onPressed: _isLoading ? null : _resetPassword,
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text('إرسال الرابط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

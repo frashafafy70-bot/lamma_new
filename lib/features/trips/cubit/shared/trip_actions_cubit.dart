@@ -10,7 +10,32 @@ import 'trip_actions_state.dart';
 class TripActionsCubit extends Cubit<TripActionsState> {
   TripActionsCubit() : super(TripActionsInitial());
 
-  // 1. إرسال إشعارات (FCM)
+  Future<void> addTravelTrip({required TripModel trip}) async {
+    emit(TripActionsLoading());
+    try {
+      await FirebaseFirestore.instance.collection('trips').add({
+        'driverId': trip.driverId,
+        'driverName': trip.driverName,
+        'pickup': trip.pickup,
+        'destination': trip.destination,
+        'travelDate': trip.travelDate,
+        'price': trip.price,
+        'tripCategory': trip.tripCategory,
+        'tripType': trip.tripType,
+        'availableSeats': trip.availableSeats,
+        'status': trip.status,
+        'isDriverPost': trip.isDriverPost,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      if (isClosed) return; // 🟢 حماية
+      emit(TripActionsSuccess(action: 'add', message: 'تم إضافة الرحلة بنجاح!'));
+    } catch (e) {
+      debugPrint("Error adding travel trip: $e");
+      if (isClosed) return;
+      emit(TripActionsError("حدث خطأ أثناء إضافة الرحلة."));
+    }
+  }
+
   Future<void> _notifyOtherParty(TripModel trip, bool isDriver, String title, String body) async {
     try {
       String targetUserId = isDriver ? (trip.passengerId ?? '') : (trip.driverId ?? '');
@@ -39,7 +64,6 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     }
   }
 
-  // 2. إرسال عرض سعر (Negotiation)
   Future<void> sendOffer(TripModel trip, String price, bool isDriver, String currentUserId) async {
     if (price.trim().isEmpty) return;
     
@@ -59,14 +83,15 @@ class TripActionsCubit extends Cubit<TripActionsState> {
       });
       
       await _notifyOtherParty(trip, isDriver, 'عرض سعر جديد 💰', 'تم تقديم عرض سعر جديد بقيمة $price ج.م');
+      if (isClosed) return;
       emit(TripActionsSuccess(action: 'negotiate', message: 'تم إرسال العرض بنجاح'));
     } catch (e) {
       debugPrint("Firebase Error in sendOffer: $e");
+      if (isClosed) return;
       emit(TripActionsError("حدث خطأ أثناء إرسال العرض."));
     }
   }
 
-  // 3. قبول عرض
   Future<void> acceptOffer(TripModel trip, bool isDriver, String currentUserId) async {
     emit(TripActionsLoading());
     try {
@@ -80,13 +105,14 @@ class TripActionsCubit extends Cubit<TripActionsState> {
       });
 
       await _notifyOtherParty(trip, isDriver, 'تم قبول الطلب! 🚖', 'تم الموافقة على السعر، الرحلة جاهزة للبدء.');
+      if (isClosed) return;
       emit(TripActionsSuccess(action: 'accept', message: 'تم قبول الرحلة بنجاح'));
     } catch (e) {
+      if (isClosed) return;
       emit(TripActionsError("حدث خطأ أثناء القبول."));
     }
   }
 
-  // 4. إلغاء الرحلة
   Future<void> rejectOrCancelTrip(TripModel trip, bool isDriver) async {
     emit(TripActionsLoading());
     try {
@@ -98,31 +124,34 @@ class TripActionsCubit extends Cubit<TripActionsState> {
           'driverId': FieldValue.delete(), 
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        if (isClosed) return;
         emit(TripActionsSuccess(action: 'reject', message: 'تم رفض العرض والعودة للبحث'));
       } else {
         await FirebaseFirestore.instance.collection('trips').doc(trip.id ?? '').update({
           'status': 'cancelled',
           'cancelledAt': FieldValue.serverTimestamp(),
         });
+        if (isClosed) return;
         emit(TripActionsSuccess(action: 'cancel', message: 'تم إلغاء الرحلة بالكامل'));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(TripActionsError("حدث خطأ أثناء الإلغاء."));
     }
   }
 
-  // 5. نشر رحلة جديدة (سائق)
   Future<void> publishTravelPost(TripModel trip) async {
     emit(TripActionsLoading());
     try {
       await FirebaseFirestore.instance.collection('trips').add(trip.toMap());
+      if (isClosed) return;
       emit(TripActionsSuccess(action: 'publish', message: 'تم نشر الرحلة بنجاح!'));
     } catch (e) {
+      if (isClosed) return;
       emit(TripActionsError("حدث خطأ أثناء النشر."));
     }
   }
 
-  // 🟢 6. بدء الرحلة (حالة in_progress)
   Future<void> startTrip(String tripId) async {
     emit(TripActionsLoading());
     try {
@@ -130,13 +159,14 @@ class TripActionsCubit extends Cubit<TripActionsState> {
         'status': 'in_progress',
         'startedAt': FieldValue.serverTimestamp(),
       });
+      if (isClosed) return;
       emit(TripActionsSuccess(action: 'start', message: 'تم بدء الرحلة!'));
     } catch (e) {
+      if (isClosed) return;
       emit(TripActionsError("خطأ في بدء الرحلة."));
     }
   }
 
-  // 🟢 7. إنهاء الرحلة (حالة completed)
   Future<void> completeTrip(String tripId) async {
     emit(TripActionsLoading());
     try {
@@ -144,13 +174,14 @@ class TripActionsCubit extends Cubit<TripActionsState> {
         'status': 'completed',
         'completedAt': FieldValue.serverTimestamp(),
       });
+      if (isClosed) return;
       emit(TripActionsSuccess(action: 'complete', message: 'رحلة سعيدة!'));
     } catch (e) {
+      if (isClosed) return;
       emit(TripActionsError("خطأ في إنهاء الرحلة."));
     }
   }
 
-  // 🟢 8. تحديث الموقع لايف
   Future<void> updateDriverLocation(String tripId, GeoPoint location) async {
     try {
       await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
@@ -159,6 +190,24 @@ class TripActionsCubit extends Cubit<TripActionsState> {
       });
     } catch (e) {
       debugPrint("Error updating location: $e");
+    }
+  }
+
+  // 🟢 إضافة دالة رفع التقييم للكيوبيت
+  Future<void> submitRating({required String tripId, required double rating, required String comment}) async {
+    emit(TripActionsLoading());
+    try {
+      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
+        'passengerRating': rating,
+        'passengerComment': comment,
+        'isRatedByPassenger': true,
+      });
+      if (isClosed) return;
+      emit(TripActionsSuccess(action: 'rate', message: 'شكراً لتقييمك الكابتن!'));
+    } catch (e) {
+      debugPrint("Error submitting rating: $e");
+      if (isClosed) return;
+      emit(TripActionsError("حدث خطأ أثناء إرسال التقييم."));
     }
   }
 }

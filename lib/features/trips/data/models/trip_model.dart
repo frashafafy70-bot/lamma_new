@@ -83,26 +83,49 @@ class TripModel {
   });
 
   factory TripModel.fromMap(Map<String, dynamic> map, String documentId) {
+    // 🛡️ دوال مساعدة لحماية التحويل ومنع انهيار التطبيق 🛡️
+    
+    DateTime? parseDate(dynamic data) {
+      if (data == null) return null;
+      if (data is Timestamp) return data.toDate();
+      if (data is String) return DateTime.tryParse(data);
+      if (data is int) return DateTime.fromMillisecondsSinceEpoch(data);
+      return null;
+    }
+
+    GeoPoint? parseGeoPoint(dynamic data) {
+      if (data is GeoPoint) return data;
+      return null;
+    }
+
+    bool parseBool(dynamic data) {
+      if (data == null) return false;
+      if (data is bool) return data;
+      if (data is String) return data.toLowerCase() == 'true';
+      return false;
+    }
+
     return TripModel(
       id: documentId,
-      isDriverPost: map['isDriverPost'] ?? false,
-      driverId: map['driverId'],
-      driverName: map['driverName'],
-      passengerId: map['passengerId'],
-      passengerName: map['passengerName'],
-      tripCategory: map['tripCategory'],
-      vehicleType: map['vehicleType'],
-      pickup: map['pickup'],
-      destination: map['destination'],
-      pickupLocation: map['pickupLocation'],
-      destinationLocation: map['destinationLocation'],
-      fromCity: map['fromCity'],
-      toCity: map['toCity'],
-      fromLocation: map['fromLocation'],
-      toLocation: map['toLocation'],
-      time: map['time'],
-      travelDate: map['travelDate'] != null ? (map['travelDate'] as Timestamp).toDate() : null, 
-      tripType: map['tripType'], 
+      isDriverPost: parseBool(map['isDriverPost']),
+      // استخدام ?.toString() يضمن تحويل الأرقام لنصوص بأمان إذا تم حفظها كأرقام في قاعدة البيانات
+      driverId: map['driverId']?.toString(),
+      driverName: map['driverName']?.toString(),
+      passengerId: map['passengerId']?.toString(),
+      passengerName: map['passengerName']?.toString(),
+      tripCategory: map['tripCategory']?.toString(),
+      vehicleType: map['vehicleType']?.toString(),
+      pickup: map['pickup']?.toString(),
+      destination: map['destination']?.toString(),
+      pickupLocation: parseGeoPoint(map['pickupLocation']),
+      destinationLocation: parseGeoPoint(map['destinationLocation']),
+      fromCity: map['fromCity']?.toString(),
+      toCity: map['toCity']?.toString(),
+      fromLocation: parseGeoPoint(map['fromLocation']),
+      toLocation: parseGeoPoint(map['toLocation']),
+      time: map['time']?.toString(),
+      travelDate: parseDate(map['travelDate']), 
+      tripType: map['tripType']?.toString(), 
       availableSeats: map['availableSeats']?.toString(),
       suggestedPrice: map['suggestedPrice']?.toString(),
       price: map['price']?.toString(),
@@ -110,12 +133,12 @@ class TripModel {
       fullCarPrice: map['fullCarPrice']?.toString(), 
       finalPrice: map['finalPrice']?.toString(),
       negotiationPrice: map['negotiationPrice']?.toString(),
-      lastNegotiator: map['lastNegotiator'],
-      errandDetails: map['errandDetails'],
+      lastNegotiator: map['lastNegotiator']?.toString(),
+      errandDetails: map['errandDetails']?.toString(),
       errandCost: map['errandCost']?.toString(),
-      audioUrl: map['audioUrl'],
-      status: map['status'] ?? TripStatus.pending, // 🟢 تم التعديل
-      createdAt: map['createdAt'] != null ? (map['createdAt'] as Timestamp).toDate() : null,
+      audioUrl: map['audioUrl']?.toString(),
+      status: map['status']?.toString() ?? TripStatus.pending,
+      createdAt: parseDate(map['createdAt']),
     );
   }
 
