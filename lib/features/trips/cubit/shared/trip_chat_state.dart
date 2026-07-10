@@ -8,7 +8,7 @@ class TripChatInitial extends TripChatState {}
 // 🟢 حالة التحميل
 class TripChatLoading extends TripChatState {}
 
-// 🟢 حالة نجاح جلب الرسائل (تم تعديلها لتستقبل الكيان النظيف)
+// 🟢 حالة نجاح جلب الرسائل (تستقبل الكيان النظيف)
 class TripChatLoaded extends TripChatState {
   final List<ChatMessageEntity> messages;
   TripChatLoaded(this.messages);

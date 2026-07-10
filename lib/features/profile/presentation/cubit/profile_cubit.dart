@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../domain/use_cases/get_user_profile_use_case.dart';
 import '../../domain/use_cases/update_user_profile_use_case.dart';
 import '../../domain/repositories/profile_repository.dart';
+
+// 🟢 استيراد ملف الـ State الخاص بالبروفايل بشكل واضح
 import 'profile_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {
@@ -22,7 +25,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> loadUserProfile() async {
     emit(state.copyWith(status: ProfileStatus.loading));
     final result = await _getUserProfileUseCase();
-    if (isClosed) return; // 🟢 حماية
+    if (isClosed) return; 
+    
     result.fold(
       (failure) => emit(state.copyWith(status: ProfileStatus.error, errorMessage: failure.message)),
       (profile) => emit(state.copyWith(
@@ -44,6 +48,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       name: name, phone: phone, nationalId: nationalId, newProfileImage: newProfileImage, currentImageUrl: state.profileImageUrl,
     );
     if (isClosed) return;
+    
     result.fold(
       (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
       (_) {
@@ -54,19 +59,17 @@ class ProfileCubit extends Cubit<ProfileState> {
   }
 
   Future<void> switchUserRole(String newRole) async {
-    // 🟢 السر هنا (Optimistic UI): تحديث الواجهة فوراً لتجنب التهنيج أو اللخبطة
     emit(state.copyWith(activeRole: newRole)); 
     
     final result = await _repository.switchUserRole(newRole);
     if (isClosed) return;
+    
     result.fold(
       (failure) {
-        // لو حصل مشكلة مع السيرفر نرجع نعرض رسالة الخطأ ونسحب الداتا الصح
         emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message));
         loadUserProfile();
       },
       (_) {
-        // في حالة النجاح، نسحب الداتا المحدثة من السيرفر بهدوء في الخلفية
         loadUserProfile();
       },
     );
@@ -84,12 +87,30 @@ class ProfileCubit extends Cubit<ProfileState> {
     emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
     final result = await _repository.submitRoleRegistration(role, profileData);
     if (isClosed) return;
+    
     result.fold(
       (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
       (_) {
         emit(state.copyWith(actionStatus: ProfileActionStatus.success, successMessage: 'تم تفعيل الحساب بنجاح!'));
         switchUserRole(role);
       },
+    );
+  }
+
+  Future<void> sendSupportTicket({required String message}) async {
+    emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
+    
+    final result = await _repository.sendSupportTicket(
+      name: state.userName, 
+      email: state.userEmail, 
+      message: message,
+    );
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
+      (_) => emit(state.copyWith(actionStatus: ProfileActionStatus.success, successMessage: 'تم إرسال رسالتك للدعم الفني بنجاح ✅')),
     );
   }
 

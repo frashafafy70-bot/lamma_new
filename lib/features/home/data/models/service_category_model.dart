@@ -1,11 +1,24 @@
+import 'package:hive/hive.dart';
 import '../../domain/entities/service_category_entity.dart';
 
+part 'service_category_model.g.dart'; // ده الملف اللي هيتولد تلقائياً
+
+@HiveType(typeId: 0) // استخدم ID فريد لكل موديل (0، 1، 2...)
 class ServiceCategoryModel extends ServiceCategoryEntity {
+  @HiveField(0)
+  final String id;
+  @HiveField(1)
+  final String title;
+  @HiveField(2)
+  final String iconUrl;
+  @HiveField(3)
+  final String routeName;
+
   ServiceCategoryModel({
-    required String id,
-    required String title,
-    required String iconUrl,
-    required String routeName,
+    required this.id,
+    required this.title,
+    required this.iconUrl,
+    required this.routeName,
   }) : super(
           id: id,
           title: title,

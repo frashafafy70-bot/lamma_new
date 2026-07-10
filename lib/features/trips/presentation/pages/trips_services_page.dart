@@ -8,6 +8,9 @@ import 'package:rxdart/rxdart.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
+// 🟢 الاستدعاءات الجديدة
+import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
+import 'package:lamma_new/features/trips/domain/usecases/get_passenger_active_trips_usecase.dart';
 
 import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_request_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_my_requests_tab.dart'; 
@@ -80,17 +83,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
         backgroundColor: Colors.white,
         resizeToAvoidBottomInset: false, 
         appBar: AppBar(
-          backgroundColor: Colors.transparent, 
+          backgroundColor: AppColors.primaryDark, 
           elevation: 0,
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primaryDark, AppColors.royalGreen],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-              ),
-            ),
-          ),
           centerTitle: true,
           title: Text(
             'خدمات التوصيل', 
@@ -117,8 +111,12 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                 width: double.infinity, 
                 height: 50.h, 
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15), 
+                  color: AppColors.primaryDark, 
                   borderRadius: BorderRadius.circular(25.r),
+                  border: Border.all(color: AppColors.accentGold.withOpacity(0.5), width: 1), 
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 4))
+                  ],
                 ),
                 child: TabBar(
                   controller: _tabController,
@@ -130,8 +128,8 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                     borderRadius: BorderRadius.circular(25.r),
                     boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
                   ),
-                  labelColor: AppColors.royalGreen, 
-                  unselectedLabelColor: Colors.white, 
+                  labelColor: AppColors.primaryDark, 
+                  unselectedLabelColor: Colors.white.withOpacity(0.9), 
                   labelStyle: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp),
                   labelPadding: EdgeInsets.zero, 
                   tabs: [
@@ -157,7 +155,6 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
                                   bool isFullCar = data['tripType'] == 'full_car';
                                   int availableSeats = int.tryParse(data['availableSeats'].toString()) ?? 0;
                                   
-                                  // تجاهل الرحلات اللي مقاعدها خلصت من العداد
                                   bool hasSeats = isFullCar || availableSeats > 0;
                                   return ownerId != currentUserId && hasSeats;
                                 }).length;
@@ -214,8 +211,16 @@ class _TripsServicesPageState extends State<TripsServicesPage> with SingleTicker
           children: [
             PassengerRequestTab(tabController: _tabController), 
             PassengerTravelTripsTab(tabController: _tabController),
+            // 🟢 تم تمرير الـ UseCase بشكل سليم هنا
             BlocProvider(
-              create: (context) => PassengerMyRequestsCubit(), 
+              create: (context) => PassengerMyRequestsCubit(
+                GetPassengerActiveTripsUseCase(
+                  TripRepositoryImpl(
+                    firestore: FirebaseFirestore.instance,
+                    auth: FirebaseAuth.instance,
+                  )
+                )
+              ), 
               child: const PassengerMyRequestsTab(),
             ),
           ],
@@ -232,7 +237,6 @@ class PassengerTravelTripsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryNavy = const Color(0xFF0F172A);
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? ''; 
 
     return Container(
@@ -245,20 +249,18 @@ class PassengerTravelTripsTab extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
+            return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return _buildEmptyState();
           }
 
-          // فلترة الرحلات عشان نخفي اللي مقاعدها خلصت
           var trips = snapshot.data!.docs.where((doc) {
             var data = doc.data() as Map<String, dynamic>;
             bool isFullCar = data['tripType'] == 'full_car';
             int availableSeats = int.tryParse(data['availableSeats'].toString()) ?? 0;
             
-            // لو مش رحلة كاملة ومفيش مقاعد، اخفيها
             if (!isFullCar && availableSeats <= 0) {
               return false;
             }
@@ -317,14 +319,14 @@ class PassengerTravelTripsTab extends StatelessWidget {
                             children: [
                               CircleAvatar(
                                 radius: 18.r,
-                                backgroundColor: primaryNavy.withOpacity(0.1),
-                                child: Icon(Icons.person_pin, color: primaryNavy, size: 20.sp),
+                                backgroundColor: AppColors.primaryDark.withOpacity(0.1),
+                                child: const Icon(Icons.person_pin, color: AppColors.primaryDark, size: 20),
                               ),
                               SizedBox(width: 8.w),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(tripData['driverName'] ?? 'سائق لَمَّة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: primaryNavy)),
+                                  Text(tripData['driverName'] ?? 'سائق لَمَّة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.primaryDark)),
                                   Text('سائق موثوق', style: TextStyle(fontFamily: 'Cairo', fontSize: 11.sp, color: Colors.green)),
                                 ],
                               ),
@@ -332,8 +334,8 @@ class PassengerTravelTripsTab extends StatelessWidget {
                           ),
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                            decoration: BoxDecoration(color: AppColors.royalGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(20.r)),
-                            child: Text('${tripData['price'] ?? tripData['seatPrice'] ?? '0'} ج.م', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.royalGreen)),
+                            decoration: BoxDecoration(color: AppColors.accentGold.withOpacity(0.1), borderRadius: BorderRadius.circular(20.r)),
+                            child: Text('${tripData['price'] ?? tripData['seatPrice'] ?? '0'} ج.م', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.primaryDark)),
                           ),
                         ],
                       ),
@@ -354,9 +356,9 @@ class PassengerTravelTripsTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(tripData['pickup'] ?? tripData['fromCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(tripData['pickup'] ?? tripData['fromCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: AppColors.primaryDark), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 SizedBox(height: 12.h),
-                                Text(tripData['destination'] ?? tripData['toCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(tripData['destination'] ?? tripData['toCity'] ?? '', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w600, color: AppColors.primaryDark), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ],
                             ),
                           ),
@@ -401,7 +403,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                           height: 45.h,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryNavy,
+                              backgroundColor: AppColors.primaryDark,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
                             ),
                             onPressed: () {
@@ -446,7 +448,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
-              title: Text('تأكيد الحجز', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.royalGreen, fontSize: 18.sp)),
+              title: Text('تأكيد الحجز', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 18.sp)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,7 +486,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                   child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.royalGreen),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark),
                   onPressed: () async {
                     Navigator.pop(ctx); 
                     
@@ -504,9 +506,9 @@ class PassengerTravelTripsTab extends StatelessWidget {
                       });
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم إرسال طلب الحجز للسائق بنجاح!', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-                          backgroundColor: AppColors.royalGreen,
+                        SnackBar(
+                          content: const Text('تم إرسال طلب الحجز للسائق بنجاح!', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                          backgroundColor: AppColors.primaryDark,
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
@@ -519,7 +521,7 @@ class PassengerTravelTripsTab extends StatelessWidget {
                       );
                     }
                   },
-                  child: const Text('تأكيد وإرسال', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: Text('تأكيد وإرسال', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.accentGold)),
                 ),
               ],
             );

@@ -8,20 +8,31 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:audioplayers/audioplayers.dart'; // 🟢 مكتبة الصوت
-import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_state.dart';
+import 'package:audioplayers/audioplayers.dart'; 
+
+import '../../domain/usecases/get_passenger_active_trips_usecase.dart'; // 🟢 تأكد من المسار
+import '../../data/models/trip_model.dart';
+import 'passenger_my_requests_state.dart';
 
 class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
-  StreamSubscription<RemoteMessage>? _notificationSubscription;
-  StreamSubscription? _requestsSubscription;
+  final GetPassengerActiveTripsUseCase _getPassengerActiveTripsUseCase;
   
-  // 🟢 مشغل الصوت
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  PassengerMyRequestsCubit() : super(PassengerMyRequestsInitial()) {
+  // 🟢 متغيرات التحكم في الـ Pagination
+  List<TripModel> _trips = [];
+  bool _hasReachedMax = false;
+  bool _isFetchingMore = false;
+  final int _limit = 15;
+
+  PassengerMyRequestsCubit(this._getPassengerActiveTripsUseCase) : super(PassengerMyRequestsInitial()) {
     _listenToPassengerNotifications();
   }
 
+  // --------------------------------------------------
+  // 🔥 1. نظام الإشعارات والأصوات (كما هو)
+  // --------------------------------------------------
   void _listenToPassengerNotifications() {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       debugPrint("🔔 [PassengerCubit] إشعار لايف وصل للعميل: ${message.notification?.title}");
@@ -29,25 +40,19 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
       try {
         String type = message.data['type'] ?? '';
         
-        // 🟢 التعديل هنا: شملنا حالات قبول الحجز والشات
         if (type == 'driver_offer' || type == 'negotiating') {
-          // الكابتن بعت عرض
           await _audioPlayer.play(AssetSource('audio/ping_pong.mp3'));
         } 
         else if (type == 'trip_accepted' || type == 'booking_accepted') {
-          // الكابتن وافق على الرحلة أو الحجز
           await _audioPlayer.play(AssetSource('audio/edite.mp3'));
         } 
         else if (type == 'trip_cancelled' || type == 'canceled') {
-          // الكابتن ألغى
           await _audioPlayer.play(AssetSource('audio/cancell.mp3'));
         } 
         else if (type == 'chat') {
-          // رسالة شات جديدة
           await _audioPlayer.play(AssetSource('audio/ping_pong.mp3'));
         }
         else {
-          // إشعار عام 
           await _audioPlayer.play(AssetSource('audio/notification.mp3'));
         }
       } catch (e) {
@@ -88,52 +93,108 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
     }
   }
 
+  // --------------------------------------------------
+  // 🔥 2. نظام الـ Pagination لجلب الطلبات
+  // --------------------------------------------------
   void startListeningToMyRequests() {
-    if (!isClosed) emit(PassengerMyRequestsLoading());
-    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-
-    _requestsSubscription = FirebaseFirestore.instance
-        .collection('trips')
-        .where('passengerId', isEqualTo: currentUserId)
-        .where('isDriverPost', isEqualTo: false)
-        .snapshots()
-        .listen((snapshot) {
-          
-      if (isClosed) return;
-
-      List<QueryDocumentSnapshot> docs = snapshot.docs.where((doc) {
-        final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
-        bool isDeleted = data['isDeletedForPassenger'] == true || data['isDeleted'] == true;
-        String status = data['status'] ?? '';
-        
-        bool isFinished = status == 'canceled'; 
-        
-        return !isDeleted && !isFinished;
-      }).toList();
-
-      docs.sort((a, b) {
-        final dataA = (a.data() as Map<String, dynamic>?) ?? {};
-        final dataB = (b.data() as Map<String, dynamic>?) ?? {};
-        Timestamp? timeA = dataA['createdAt'];
-        Timestamp? timeB = dataB['createdAt'];
-        if (timeA == null && timeB == null) return 0;
-        if (timeA == null) return 1;
-        if (timeB == null) return -1;
-        return timeB.compareTo(timeA); 
-      });
-
-      if (!isClosed) emit(PassengerMyRequestsLoaded(docs));
-      
-    }, onError: (error) {
-      if (!isClosed) emit(PassengerMyRequestsError('حدث خطأ في تحميل البيانات'));
-    });
+    fetchInitialPassengerTrips();
   }
 
+  Future<void> fetchInitialPassengerTrips() async {
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (currentUserId.isEmpty) {
+      emit(PassengerMyRequestsError('لم يتم العثور على حساب المستخدم.'));
+      return;
+    }
+
+    emit(PassengerMyRequestsLoading());
+    
+    _trips.clear();
+    _hasReachedMax = false;
+    _isFetchingMore = false;
+
+    try {
+      final result = await _getPassengerActiveTripsUseCase(uid: currentUserId, limit: _limit);
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) => emit(PassengerMyRequestsError('حدث خطأ في تحميل البيانات')),
+        (trips) {
+          _trips = trips;
+          _hasReachedMax = trips.length < _limit;
+          
+          emit(PassengerMyRequestsLoaded(
+            requests: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      if (!isClosed) emit(PassengerMyRequestsError('حدث خطأ غير متوقع: $e'));
+    }
+  }
+
+  Future<void> fetchMorePassengerTrips() async {
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (_hasReachedMax || _isFetchingMore || currentUserId.isEmpty) return;
+
+    _isFetchingMore = true;
+    if (state is PassengerMyRequestsLoaded) {
+      emit((state as PassengerMyRequestsLoaded).copyWith(isFetchingMore: true));
+    }
+
+    try {
+      final lastTrip = _trips.isNotEmpty ? _trips.last : null;
+      final result = await _getPassengerActiveTripsUseCase(
+        uid: currentUserId, 
+        limit: _limit, 
+        lastTrip: lastTrip
+      );
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) {
+          _isFetchingMore = false;
+          if (state is PassengerMyRequestsLoaded) {
+            emit((state as PassengerMyRequestsLoaded).copyWith(isFetchingMore: false));
+          }
+        },
+        (newTrips) {
+          _isFetchingMore = false;
+          if (newTrips.isEmpty) {
+            _hasReachedMax = true;
+          } else {
+            _trips.addAll(newTrips);
+            _hasReachedMax = newTrips.length < _limit;
+          }
+          
+          emit(PassengerMyRequestsLoaded(
+            requests: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      _isFetchingMore = false;
+      if (state is PassengerMyRequestsLoaded && !isClosed) {
+        emit((state as PassengerMyRequestsLoaded).copyWith(isFetchingMore: false));
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // 🔥 3. الأكشنز والتفاعلات (كما هي تماماً)
+  // --------------------------------------------------
   Future<void> deleteRequest(String docId) async {
     try {
       await FirebaseFirestore.instance.collection('trips').doc(docId).update({
         'isDeletedForPassenger': true,
       });
+      fetchInitialPassengerTrips(); // تحديث بعد الحذف
     } catch (e) {
       debugPrint('خطأ في حذف الطلب: $e');
       rethrow;
@@ -147,6 +208,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
         'finalPrice': acceptedPrice
       });
       await _notifyDriver(docId, 'تم قبول الرحلة! ✅', 'العميل وافق على السعر، الرحلة جاهزة للبدء.');
+      fetchInitialPassengerTrips(); // تحديث القائمة
     } catch (e) {
       debugPrint('خطأ في قبول العرض: $e');
     }
@@ -159,6 +221,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
         'canceledBy': 'passenger'
       });
       await _notifyDriver(docId, 'تم إلغاء الطلب ❌', 'قام العميل بإلغاء الطلب أو رفض العرض.');
+      fetchInitialPassengerTrips(); // تحديث القائمة
     } catch (e) {
       debugPrint('خطأ في رفض الرحلة: $e');
     }
@@ -173,6 +236,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
         'lastNegotiator': 'passenger'
       });
       await _notifyDriver(docId, 'عرض سعر جديد 👤', 'العميل يطلب تعديل السعر إلى $offer ج.م');
+      fetchInitialPassengerTrips(); // تحديث القائمة
     } catch (e) {
       debugPrint('خطأ في التفاوض: $e');
     }
@@ -180,14 +244,12 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
 
   void resetCubit() {
     _notificationSubscription?.cancel();
-    _requestsSubscription?.cancel();
     emit(PassengerMyRequestsInitial());
   }
 
   @override
   Future<void> close() {
     _notificationSubscription?.cancel();
-    _requestsSubscription?.cancel();
     _audioPlayer.dispose();
     return super.close();
   }

@@ -13,8 +13,8 @@ import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_s
 import 'package:lamma_new/features/trips/presentation/widgets/my_request_trip_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 
-// 🟢 استدعاء Helper الديالوج عشان شاشة التقييم
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
+import 'package:lamma_new/features/trips/data/models/trip_model.dart'; // 🟢 إضافة موديل الرحلة
 
 class PassengerMyRequestsTab extends StatefulWidget {
   const PassengerMyRequestsTab({super.key});
@@ -27,6 +27,9 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   final Set<String> _navigatedTripIds = {};
   final Set<String> _completedTripIds = {}; 
+  
+  // 🟢 إضافة متحكم التمرير للـ Pagination
+  final ScrollController _scrollController = ScrollController();
 
   @override
   bool get wantKeepAlive => true; 
@@ -34,7 +37,27 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
   @override
   void initState() {
     super.initState();
-    context.read<PassengerMyRequestsCubit>().startListeningToMyRequests();
+    _scrollController.addListener(_onScroll);
+    
+    Future.microtask(() {
+      if (mounted) context.read<PassengerMyRequestsCubit>().startListeningToMyRequests();
+    });
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 200)) {
+      context.read<PassengerMyRequestsCubit>().fetchMorePassengerTrips();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _showCancelBookingDialog(BuildContext context, DocumentReference bookingRef) {
@@ -73,15 +96,11 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
     return Container(
       color: AppColors.backgroundLight,
       child: BlocListener<PassengerMyRequestsCubit, PassengerMyRequestsState>(
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is PassengerMyRequestsLoaded) {
-            for (var doc in state.requests) {
-              final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
-              final tripId = doc.id;
-              final status = data['status'];
-              
-              // 🟢 المتغير اللي بيحدد العميل قيّم الرحلة دي قبل كده ولا لأ
-              final passengerRating = data['passengerRatingForDriver']; 
+            for (TripModel trip in state.requests) {
+              final tripId = trip.id ?? '';
+              final status = trip.status;
               
               if (status == 'accepted' && !_navigatedTripIds.contains(tripId)) {
                 _navigatedTripIds.add(tripId); 
@@ -91,16 +110,22 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                 );
               }
 
-              // 🟢 تم إضافة شرط passengerRating == null لمنع تكرار ظهور الشاشة للرحلات القديمة المكتملة
-              if (status == 'completed' && passengerRating == null && !_completedTripIds.contains(tripId)) {
+              // 🟢 ملاحظة هندسية: TripModel لا يحتوي حالياً على حقل 'passengerRatingForDriver'.
+              // كحل جذري لحين إضافتك للحقل في الموديل، سنتحقق منه مباشرة من Firestore إذا كانت الرحلة مكتملة
+              if (status == 'completed' && !_completedTripIds.contains(tripId)) {
                 _completedTripIds.add(tripId); 
                 
-                TripDialogsHelper.showRatingDialog(
-                  context: context,
-                  docId: tripId,
-                  royalGreen: AppColors.royalGreen, 
-                  isDriver: false,
-                );
+                final doc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
+                if (doc.exists && doc.data()?['passengerRatingForDriver'] == null) {
+                  if (context.mounted) {
+                    TripDialogsHelper.showRatingDialog(
+                      context: context,
+                      docId: tripId,
+                      royalGreen: AppColors.royalGreen, 
+                      isDriver: false,
+                    );
+                  }
+                }
               }
             }
           }
@@ -140,13 +165,15 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
               return RefreshIndicator(
                 color: AppColors.royalGreen,
                 onRefresh: () async {
-                  context.read<PassengerMyRequestsCubit>().startListeningToMyRequests();
+                  await context.read<PassengerMyRequestsCubit>().fetchInitialPassengerTrips();
                 },
                 child: SingleChildScrollView(
+                  controller: _scrollController, // 🟢 ربط الـ ScrollController هنا للـ Pagination
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 🟢 جزء الحجوزات (Trip Bookings) كما هو دون تعديل
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('trip_bookings')
@@ -279,6 +306,7 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                         },
                       ),
 
+                      // 🟢 جزء الطلبات النشطة للعميل
                       if (requests.isEmpty)
                         Padding(
                           padding: EdgeInsets.only(top: 100.h),
@@ -300,16 +328,30 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
                           itemCount: requests.length,
                           itemBuilder: (context, index) {
-                            final doc = requests[index];
-                            final data = (doc.data() as Map<String, dynamic>?) ?? {}; 
+                            final trip = requests[index];
+                            
+                            // 🟢 تحويل الـ TripModel لـ Map وإضافة الـ id عشان ويدجت MyRequestTripCard يشتغل بدون مشاكل
+                            Map<String, dynamic> tripDataMap = trip.toMap();
+                            tripDataMap['id'] = trip.id;
                             
                             return MyRequestTripCard(
-                              docId: doc.id,
-                              data: data,
+                              docId: trip.id ?? '',
+                              data: tripDataMap,
                               royalGreen: AppColors.royalGreen,
                             );
                           },
                         ),
+                        
+                      // 🟢 مؤشر التحميل في أسفل القائمة
+                      if (state.isFetchingMore)
+                        Padding(
+                          padding: EdgeInsets.all(16.w),
+                          child: const Center(
+                            child: CircularProgressIndicator(color: AppColors.royalGreen),
+                          ),
+                        ),
+                        
+                      SizedBox(height: 100.h),
                     ],
                   ),
                 ),

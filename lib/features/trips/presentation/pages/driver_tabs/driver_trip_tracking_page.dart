@@ -7,7 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:audioplayers/audioplayers.dart'; 
 
+// 🟢 استدعاء الـ Extensions والألوان
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/extensions/context_extension.dart';
+
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/driver_live_map.dart'; 
@@ -40,7 +43,6 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
 
     _tripStatusSubscription = _tripLiveStream.listen((snapshot) {
       if (snapshot.exists) {
-        // 🟢 تم حل مشكلة الـ Casting هنا عشان الفلتر ميعملش Error
         var data = snapshot.data() as Map<String, dynamic>?;
         String currentStatus = data?['status'] ?? '';
         
@@ -165,14 +167,14 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF0F172A), Color(0xFF1B4332)], 
+                      colors: [AppColors.primaryDark, AppColors.royalGreen], 
                       begin: Alignment.topRight,
                       end: Alignment.bottomLeft,
                     ),
                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF1B4332).withValues(alpha: 0.25),
+                        color: AppColors.royalGreen.withValues(alpha: 0.25),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -182,7 +184,7 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => context.pop(), // 🟢 استخدام الـ Extension
                         child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 28),
                       ),
                       Text(
@@ -382,7 +384,7 @@ class _DriverTripTrackingPageState extends State<DriverTripTrackingPage> {
             );
           }
           if (mounted) {
-            Navigator.pop(context);
+            context.pop(); // 🟢 استخدام الـ Extension
           }
         },
       );

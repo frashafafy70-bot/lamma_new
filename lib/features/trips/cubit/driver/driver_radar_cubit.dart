@@ -6,43 +6,106 @@ import 'driver_radar_state.dart';
 
 class DriverRadarCubit extends Cubit<DriverRadarState> {
   final DriverRadarRepository _repository;
-  StreamSubscription? _radarSubscription;
+  
+  // 🟢 متغيرات التحكم في الـ Pagination
+  List<TripModel> _trips = [];
+  bool _hasReachedMax = false;
+  bool _isFetchingMore = false;
+  final int _limit = 20;
 
   DriverRadarCubit(this._repository) : super(DriverRadarInitial());
 
-  void listenToRadarTrips() {
+  /// 🟢 جلب الصفحة الأولى من الرادار
+  Future<void> fetchInitialRadarTrips() async {
     emit(DriverRadarLoading());
     
-    _radarSubscription?.cancel();
-    _radarSubscription = _repository.getRadarTripsStream().listen(
-      (trips) {
-        if (isClosed) return; // 🟢 حماية المستمع
-        try {
-          List<TripModel> models = [];
+    _trips.clear();
+    _hasReachedMax = false;
+    _isFetchingMore = false;
+
+    try {
+      final result = await _repository.getPaginatedRadarTrips(limit: _limit);
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) {
+          emit(DriverRadarError('حدث خطأ في معالجة الطلبات.'));
+        },
+        (trips) {
+          _trips = trips;
+          _hasReachedMax = trips.length < _limit;
           
-          if (trips is List<TripModel>) {
-            models = trips;
-          } else if (trips is List) {
-            models = trips.map((e) => e as TripModel).toList();
+          emit(DriverRadarLoaded(
+            radarTrips: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      if (!isClosed) emit(DriverRadarError('حدث خطأ غير متوقع: ${e.toString()}'));
+    }
+  }
+
+  /// 🟢 جلب الصفحات الإضافية
+  Future<void> fetchMoreRadarTrips() async {
+    if (_hasReachedMax || _isFetchingMore) return;
+
+    _isFetchingMore = true;
+    final currentState = state;
+    
+    if (currentState is DriverRadarLoaded) {
+      emit(currentState.copyWith(isFetchingMore: true));
+    }
+
+    try {
+      final lastTrip = _trips.isNotEmpty ? _trips.last : null;
+      
+      final result = await _repository.getPaginatedRadarTrips(
+        limit: _limit,
+        lastTrip: lastTrip,
+      );
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) {
+          _isFetchingMore = false;
+          if (state is DriverRadarLoaded) {
+            emit((state as DriverRadarLoaded).copyWith(isFetchingMore: false));
+          }
+        },
+        (newTrips) {
+          _isFetchingMore = false;
+          
+          if (newTrips.isEmpty) {
+            _hasReachedMax = true;
+          } else {
+            _trips.addAll(newTrips);
+            _hasReachedMax = newTrips.length < _limit;
           }
           
-          emit(DriverRadarLoaded(models));
-        } catch (e) {
-          emit(DriverRadarError('حدث خطأ في معالجة الطلبات: ${e.toString()}'));
-        }
-      },
-      onError: (error) {
-        if (isClosed) return;
-        emit(DriverRadarError(error.toString()));
-      },
-    );
+          emit(DriverRadarLoaded(
+            radarTrips: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      _isFetchingMore = false;
+      if (state is DriverRadarLoaded && !isClosed) {
+        emit((state as DriverRadarLoaded).copyWith(isFetchingMore: false));
+      }
+    }
   }
 
   Future<void> acceptTrip(String tripId, {String? negotiatedPrice}) async {
     emit(DriverRadarActionLoading());
     try {
       await _repository.acceptTripSecurely(tripId, negotiatedPrice);
-      if (isClosed) return; // 🟢 حماية بعد عملية الـ await
+      if (isClosed) return;
       emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
     } catch (e) {
       if (isClosed) return;
@@ -66,11 +129,5 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
       if (isClosed) return;
       emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: ${e.toString()}'));
     }
-  }
-
-  @override
-  Future<void> close() {
-    _radarSubscription?.cancel();
-    return super.close();
   }
 }

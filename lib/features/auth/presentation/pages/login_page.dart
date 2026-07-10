@@ -5,14 +5,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../home/home_page.dart'; 
-// import '../../../captain/captain_home_page.dart'; 
+// 🟢 استدعاءات الـ AutoRoute 
+import 'package:auto_route/auto_route.dart';
+import 'package:lamma_new/core/routes/app_router.dart';
+import 'package:lamma_new/core/extensions/context_extension.dart';
 
 import '../../cubit/auth_cubit.dart'; 
 import '../../cubit/auth_state.dart'; 
-import 'sign_up_page.dart'; 
-import 'forgot_password_page.dart'; 
 
+@RoutePage() 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -75,21 +76,18 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    // 🟢 الشاشة بترسل المدخل كما هو (ايميل أو هاتف) للـ Cubit
-    // الـ Cubit هو من سيتولى عملية الاستعلام عن البيانات (Clean Architecture)
     context.read<AuthCubit>().login(
-      email: _identifierController.text.trim(), // الـ Cubit الآن قادر على معالجة هذا المدخل أياً كان
+      email: _identifierController.text.trim(), 
       password: _passwordController.text.trim(),
     );
   }
 
-  // 🟢 دالة مساعدة لإظهار الإشعارات بشكل نظيف
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 14.sp)),
         backgroundColor: color,
-        behavior: SnackBarBehavior.floating, // شكل احترافي أكثر للإشعار
+        behavior: SnackBarBehavior.floating, 
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
       ),
     );
@@ -104,12 +102,11 @@ class _LoginPageState extends State<LoginPage> {
             _savePreferencesLocally(_identifierController.text.trim());
             _showSnackBar(state.message, Colors.green);
             
-            // 🟢 التوجيه الذكي بناءً على الصلاحية (Role)
+            // 🟢 التوجيه باستخدام AutoRoute (بدون const)
             if (state.role == 'captain' || state.role == 'كابتن') {
-               Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
-               // هنا مستقبلاً ستضع: const CaptainHomePage()
+               context.router.replaceAll([HomeRoute()]);
             } else {
-               Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+               context.router.replaceAll([HomeRoute()]);
             }
           } else if (state is AuthError) {
             _showSnackBar(state.message, Colors.red.shade800);
@@ -274,7 +271,8 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       const Spacer(),
                                       TextButton(
-                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage())),
+                                        // 🟢 تم إزالة const
+                                        onPressed: () => context.router.push(ForgotPasswordRoute()),
                                         child: Text('نسيت كلمة المرور؟', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13.sp)),
                                       ),
                                     ],
@@ -354,7 +352,8 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             Text('ليس لديك حساب؟', style: TextStyle(color: Colors.grey.shade300, fontFamily: 'Cairo', fontSize: 14.sp)),
                             TextButton(
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpPage())),
+                              // 🟢 تم إزالة const
+                              onPressed: () => context.router.push(SignUpRoute()),
                               child: Text('سجل الآن', style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
                             ),
                           ],

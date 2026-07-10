@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:dartz/dartz.dart'; 
+import '../../../../core/errors/failures.dart'; 
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 import '../../domain/repositories/driver_radar_repository.dart';
 
@@ -12,18 +14,17 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance; // 🟢 تم تصحيح Firebase_auth إلى FirebaseAuth
+        _auth = auth ?? FirebaseAuth.instance; 
 
   String get _currentUserId => _auth.currentUser?.uid ?? '';
   String get _currentUserName => _auth.currentUser?.displayName ?? 'سائق لَمَّة';
 
   @override
   Stream<List<TripModel>> getRadarTripsStream() {
-    // 🟢 الفلتر هنا بيجيب بس الطلبات المتاحة، والباقي بيتفلتر في السيرفر عشان الأداء
     return _firestore
         .collection('trips')
         .where('isDriverPost', isEqualTo: false)
-        .where('status', whereIn: ['pending', 'negotiating']) // 🟢 فلتر صارم من السيرفر
+        .where('status', whereIn: ['pending', 'negotiating']) 
         .snapshots()
         .map((snapshot) {
       
@@ -32,10 +33,8 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
       for (var doc in snapshot.docs) {
         var data = doc.data();
         
-        // منع ظهور الطلبات اللي السائق مسحها من عنده (Soft Delete)
         if (data['isDeletedForDriver'] == true) continue;
         
-        // لو الرحلة في حالة تفاوض، نتأكد إننا مابنعرضهاش لنفسنا لو إحنا اللي باعتين العرض
         if (data['status'] == 'negotiating' && data['driverId'] == _currentUserId) continue;
         
         try {
@@ -44,8 +43,57 @@ class DriverRadarRepositoryImpl implements DriverRadarRepository {
           if (kDebugMode) print('Error parsing trip ${doc.id}: $e');
         }
       }
+      
+      // 🟢 الترتيب بيتم محلياً للستريم عشان يجيب أحدث الطلبات الأول
+      activeTrips.sort((a, b) {
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
       return activeTrips;
     });
+  }
+
+  @override
+  Future<Either<Failure, List<TripModel>>> getPaginatedRadarTrips({
+    required int limit,
+    TripModel? lastTrip,
+  }) async {
+    try {
+      // 🟢 شيلنا الـ orderBy والـ limit عشان نرتب الداتا عندنا ونتجنب خطأ الـ Index
+      Query query = _firestore
+          .collection('trips')
+          .where('isDriverPost', isEqualTo: false)
+          .where('status', whereIn: ['pending', 'negotiating']);
+
+      final snapshot = await query.get();
+      List<TripModel> activeTrips = [];
+
+      for (var doc in snapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        
+        if (data['isDeletedForDriver'] == true) continue;
+        if (data['status'] == 'negotiating' && data['driverId'] == _currentUserId) continue;
+        
+        try {
+          activeTrips.add(TripModel.fromMap(data, doc.id));
+        } catch (e) {
+          if (kDebugMode) print('Error parsing trip ${doc.id}: $e');
+        }
+      }
+
+      // 🟢 الترتيب بيتم محلياً عن طريق الدارت (من الأحدث للأقدم)
+      activeTrips.sort((a, b) {
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      return Right(activeTrips);
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء جلب الطلبات: ${e.toString()}')); 
+    }
   }
 
   @override

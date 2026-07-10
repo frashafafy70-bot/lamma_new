@@ -23,7 +23,7 @@ class ProfileState {
     this.userPhone, 
     this.nationalId, 
     this.profileImageUrl = '',
-    this.activeRole = 'client', // 🟢 القيمة الافتراضية
+    this.activeRole = 'client', // القيمة الافتراضية
     this.userRoles = const ['client'], 
     this.errorMessage,
     this.successMessage,

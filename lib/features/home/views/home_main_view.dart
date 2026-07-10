@@ -4,15 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
+// مسارات الكوبيت والستيت
 import '../cubit/home_cubit.dart';
+import '../cubit/home_state.dart';
+
+// مسارات الميزات الأخرى
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
-
 import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
-import 'account_switch_widget.dart'; 
-
 import 'package:lamma_new/core/theme/app_colors.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/modern_service_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/wide_service_card.dart'; 
@@ -21,6 +19,10 @@ import 'package:lamma_new/features/home/views/widgets/add_travel_bottom_sheet.da
 import 'package:lamma_new/features/trips/presentation/widgets/fade_slide_animator.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/driver_radar_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; 
+import 'package:lamma_new/features/home/views/widgets/home_shimmer_loading.dart';
+
+// مسارات محلية
+import 'account_switch_widget.dart'; 
 
 class HomeMainView extends StatefulWidget {
   final String activeRole;
@@ -28,6 +30,7 @@ class HomeMainView extends StatefulWidget {
   final String profileImageUrl;
   final int unreadCount; 
   final int activeOrdersCount; 
+  final int clientRequestsBadgeCount; 
   final VoidCallback onOpenNotifications;
 
   const HomeMainView({
@@ -37,6 +40,7 @@ class HomeMainView extends StatefulWidget {
     required this.profileImageUrl,
     required this.unreadCount,
     required this.activeOrdersCount, 
+    required this.clientRequestsBadgeCount, 
     required this.onOpenNotifications,
   });
 
@@ -45,17 +49,6 @@ class HomeMainView extends StatefulWidget {
 }
 
 class _HomeMainViewState extends State<HomeMainView> {
-  // 🟢 تعريف الستريم هنا بيمنع إعادة إنشائه مع كل عملية Rebuild للشاشة
-  late final Stream<QuerySnapshot> _availableTripsStream;
-
-  @override
-  void initState() {
-    super.initState();
-    _availableTripsStream = FirebaseFirestore.instance
-        .collection('trips')
-        .where('isDriverPost', isEqualTo: true)
-        .snapshots();
-  }
 
   void _openAccountSwitchPage(BuildContext mainContext) async {
     final String? newSelectedRole = await Navigator.push<String>(
@@ -77,35 +70,41 @@ class _HomeMainViewState extends State<HomeMainView> {
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight, 
         appBar: _buildAppBar(),
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 10.h, bottom: 100.h), 
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // كارت حالة الحساب تم فصله
-              _RoleHeaderCard(
-                activeRole: widget.activeRole,
-                onSwitchTap: () => _openAccountSwitchPage(context),
+        body: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            if (state.status == HomeStatus.loading) {
+              return const HomeShimmerLoading();
+            }
+
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 10.h, bottom: 100.h), 
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _RoleHeaderCard(
+                    activeRole: widget.activeRole,
+                    onSwitchTap: () => _openAccountSwitchPage(context),
+                  ),
+                  
+                  SizedBox(height: 18.h), 
+                  
+                  if (widget.activeRole == 'driver')
+                    _DriverDashboard(
+                      activeOrdersCount: widget.activeOrdersCount,
+                      userName: widget.userName,
+                    )
+                  else if (widget.activeRole == 'lawyer')
+                    const _LawyerDashboard()
+                  else
+                    _ClientDashboard(
+                      activeOrdersCount: widget.activeOrdersCount,
+                      availableTravels: widget.clientRequestsBadgeCount, 
+                    ),
+                ],
               ),
-              
-              SizedBox(height: 18.h), 
-              
-              // 🟢 استخدام Classes منفصلة لتوزيع شجرة الودجات وتقليل الـ Rebuilds
-              if (widget.activeRole == 'driver')
-                _DriverDashboard(
-                  activeOrdersCount: widget.activeOrdersCount,
-                  userName: widget.userName,
-                )
-              else if (widget.activeRole == 'lawyer')
-                const _LawyerDashboard()
-              else
-                _ClientDashboard(
-                  activeOrdersCount: widget.activeOrdersCount,
-                  availableTripsStream: _availableTripsStream,
-                ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -158,10 +157,6 @@ class _HomeMainViewState extends State<HomeMainView> {
   }
 }
 
-// ==========================================
-// 🟢 الأجزاء المنفصلة (Widgets Extraction)
-// ==========================================
-
 class _RoleHeaderCard extends StatelessWidget {
   final String activeRole;
   final VoidCallback onSwitchTap;
@@ -190,10 +185,10 @@ class _RoleHeaderCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [AppColors.primaryDark, AppColors.royalGreen], begin: Alignment.topRight, end: Alignment.bottomLeft),
         borderRadius: BorderRadius.circular(20.r),
-        // تم استبدال withOpacity بلون Hex ثابت لتحقيق الـ const
         border: Border.all(color: const Color(0x26FFFFFF), width: 1.w),
-        // 🔴 تم إزالة const من الـ list وتمريرها للـ Offset فقط
-        boxShadow: [BoxShadow(color: AppColors.royalGreenLight, blurRadius: 20, offset: const Offset(0, 10))]
+        boxShadow: [
+          BoxShadow(color: AppColors.royalGreenLight, blurRadius: 20, offset: const Offset(0, 10))
+        ]
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -279,45 +274,30 @@ class _DriverDashboard extends StatelessWidget {
 
 class _ClientDashboard extends StatelessWidget {
   final int activeOrdersCount;
-  final Stream<QuerySnapshot> availableTripsStream;
+  final int availableTravels; 
 
   const _ClientDashboard({
     required this.activeOrdersCount,
-    required this.availableTripsStream,
+    required this.availableTravels,
   });
 
   @override
   Widget build(BuildContext context) {
+    int totalAlerts = activeOrdersCount + availableTravels;
+
     return Column(
       children: [
         FadeSlideAnimator(
           delayMs: 100,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: availableTripsStream,
-            builder: (context, snapshot) {
-              int availableTravels = 0;
-              if (snapshot.hasData && !snapshot.hasError) {
-                String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                availableTravels = snapshot.data!.docs.where((doc) {
-                  var data = doc.data() as Map<String, dynamic>? ?? {};
-                  String status = data['status'] ?? '';
-                  String ownerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
-                  return status == 'available' && ownerId != currentUserId;
-                }).length;
-              }
-              int totalAlerts = activeOrdersCount + availableTravels;
-
-              return WideServiceCard(
-                title: 'توصيل ورحلات', 
-                subtitle: 'اطلب كابتن فوراً لرحلتك', 
-                imagePath: 'assets/images/taxi_3d.png', 
-                fallbackIcon: Icons.local_taxi_rounded, 
-                fallbackColor: AppColors.accentGold,
-                badgeCount: totalAlerts,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
-                }
-              );
+          child: WideServiceCard(
+            title: 'توصيل ورحلات', 
+            subtitle: 'اطلب كابتن فوراً لرحلتك', 
+            imagePath: 'assets/images/taxi_3d.png', 
+            fallbackIcon: Icons.local_taxi_rounded, 
+            fallbackColor: AppColors.accentGold,
+            badgeCount: totalAlerts, 
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
             }
           ),
         ),

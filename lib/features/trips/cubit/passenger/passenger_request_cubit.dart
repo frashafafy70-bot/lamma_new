@@ -88,6 +88,18 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     }
   }
 
+  // 🟢 الدالة الجديدة لجلب نقاط المسار من الـ Repository
+  Future<void> fetchRoute(LatLng origin, LatLng destination) async {
+    if (isClosed) return;
+    try {
+      final points = await mapRepository.getRouteCoordinates(origin, destination);
+      if (isClosed) return;
+      emit(RouteCoordinatesLoaded(points));
+    } catch (e) {
+      debugPrint("Error fetching route from Cubit: $e");
+    }
+  }
+
   Future<void> submitTripRequest({
     required String tripCategory,
     required String vehicleType,

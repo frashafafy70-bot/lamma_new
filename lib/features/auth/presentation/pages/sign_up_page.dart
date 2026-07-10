@@ -4,12 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+// 🟢 استدعاءات الـ AutoRoute 
+import 'package:auto_route/auto_route.dart';
+import 'package:lamma_new/core/routes/app_router.dart';
+import 'package:lamma_new/core/extensions/context_extension.dart';
+
 import '../../cubit/auth_cubit.dart'; 
 import '../../cubit/auth_state.dart'; 
-import '../../../home/home_page.dart'; 
 import 'email_sign_up_page.dart'; 
 import 'otp_page.dart'; 
 
+@RoutePage() 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -19,7 +24,7 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController(); // 🟢 حقل الإيميل الجديد
+  final TextEditingController _emailController = TextEditingController(); 
   final TextEditingController _phoneController = TextEditingController();
   
   String _selectedRole = 'passenger';
@@ -100,7 +105,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   builder: (context) => OtpPage(
                     verificationId: state.verificationId,
                     name: _nameController.text.trim(),
-                    email: _emailController.text.trim(), // 🟢 إرسال الإيميل للـ OTP
+                    email: _emailController.text.trim(), 
                     phone: formattedPhoneToPass, 
                     role: _selectedRole, 
                   ),
@@ -108,10 +113,12 @@ class _SignUpPageState extends State<SignUpPage> {
               );
             } else if (state is AuthSuccess) {
               _showFloatingSnackBar(state.message ?? '', Colors.green);
+              
+              // 🟢 التوجيه باستخدام AutoRoute (بدون const)
               if (state.role == 'captain' || state.role == 'كابتن') {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+                context.router.replaceAll([HomeRoute()]);
               } else {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+                context.router.replaceAll([HomeRoute()]);
               }
             }
           },
@@ -133,7 +140,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       child: IconButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          Navigator.pop(context);
+                          // 🟢 تم التغيير إلى maybePop
+                          context.router.maybePop(); 
                         },
                         icon: Icon(Icons.arrow_back_ios_new_rounded, color: primaryNavy),
                       ),
@@ -229,7 +237,6 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     SizedBox(height: 16.h),
 
-                    // 🟢 حقل البريد الإلكتروني
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -391,7 +398,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         TextButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            Navigator.pop(context); 
+                            // 🟢 تم التغيير إلى maybePop
+                            context.router.maybePop(); 
                           },
                           child: Text('تسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
                         ),

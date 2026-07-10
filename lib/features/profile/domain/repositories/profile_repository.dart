@@ -15,4 +15,11 @@ abstract class ProfileRepository {
     File? newProfileImage,
     required String currentImageUrl,
   });
+  
+  // 🟢 دالة إرسال الدعم الفني
+  Future<Either<Failure, Unit>> sendSupportTicket({
+    required String name, 
+    required String email, 
+    required String message
+  });
 }

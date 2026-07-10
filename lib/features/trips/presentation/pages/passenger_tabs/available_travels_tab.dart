@@ -6,9 +6,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart' hide TextDirection; 
 
-import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import '../../../cubit/passenger/available_travels_cubit.dart';
 import '../../../cubit/passenger/available_travels_state.dart';
+import '../../data/models/trip_model.dart';
+import '../../data/repositories/trip_repository_impl.dart';
 
 class AvailableTravelsTab extends StatelessWidget {
   const AvailableTravelsTab({super.key});
@@ -16,14 +17,43 @@ class AvailableTravelsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => AvailableTravelsCubit()..init(),
+      create: (context) => AvailableTravelsCubit(TripRepositoryImpl())..init(),
       child: const _AvailableTravelsView(),
     );
   }
 }
 
-class _AvailableTravelsView extends StatelessWidget {
+class _AvailableTravelsView extends StatefulWidget {
   const _AvailableTravelsView();
+
+  @override
+  State<_AvailableTravelsView> createState() => _AvailableTravelsViewState();
+}
+
+class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 200)) {
+      context.read<AvailableTravelsCubit>().fetchMoreTrips();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,18 +76,14 @@ class _AvailableTravelsView extends StatelessWidget {
       },
       builder: (context, state) {
         bool showOnlyNearby = false;
-        List<Map<String, dynamic>> trips = [];
+        List<ProcessedTrip> processedTrips = [];
         bool isLoading = state is AvailableTravelsInitial || state is AvailableTravelsLoading;
+        bool isFetchingMore = false;
 
         if (state is AvailableTravelsLoaded) {
           showOnlyNearby = state.showOnlyNearby;
-          String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-          
-          trips = state.trips.where((trip) {
-            var data = trip['data'] as Map<String, dynamic>? ?? {};
-            String tripOwnerId = data['userId'] ?? data['driverId'] ?? data['uid'] ?? '';
-            return tripOwnerId != currentUserId;
-          }).toList();
+          processedTrips = state.trips;
+          isFetchingMore = state.isFetchingMore;
         }
 
         return Column(
@@ -99,7 +125,13 @@ class _AvailableTravelsView extends StatelessWidget {
               LinearProgressIndicator(color: accentGold, backgroundColor: royalGreen.withOpacity(0.1), minHeight: 3.h),
 
             Expanded(
-              child: _buildTripsList(context, trips, isLoading, royalGreen, accentGold, darkSlate),
+              child: RefreshIndicator(
+                color: royalGreen,
+                onRefresh: () async {
+                  cubit.init(); // تحديث القائمة
+                },
+                child: _buildTripsList(context, processedTrips, isLoading, isFetchingMore, royalGreen, accentGold, darkSlate),
+              ),
             ),
           ],
         );
@@ -108,7 +140,7 @@ class _AvailableTravelsView extends StatelessWidget {
   }
 
   // 🟢 ديالوج اختيار عدد المقاعد
-  void _showBookingDialog(BuildContext context, Map<String, dynamic> trip, String driverId, int maxSeats, Color royalGreen) {
+  void _showBookingDialog(BuildContext context, String tripId, String driverId, int maxSeats, Color royalGreen) {
     int selectedSeats = 1;
     bool isSubmitting = false;
 
@@ -159,7 +191,7 @@ class _AvailableTravelsView extends StatelessWidget {
                 ),
                 onPressed: isSubmitting ? null : () async {
                   setState(() => isSubmitting = true);
-                  bool success = await context.read<AvailableTravelsCubit>().bookSeatInDriverPost(trip['docId'], driverId, selectedSeats);
+                  bool success = await context.read<AvailableTravelsCubit>().bookSeatInDriverPost(tripId, driverId, selectedSeats);
                   if (success && ctx.mounted) {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -180,51 +212,63 @@ class _AvailableTravelsView extends StatelessWidget {
     );
   }
 
-  Widget _buildTripsList(BuildContext context, List<Map<String, dynamic>> trips, bool isLoading, Color royalGreen, Color accentGold, Color darkSlate) {
-    if (isLoading && trips.isEmpty) {
+  Widget _buildTripsList(BuildContext context, List<ProcessedTrip> processedTrips, bool isLoading, bool isFetchingMore, Color royalGreen, Color accentGold, Color darkSlate) {
+    if (isLoading && processedTrips.isEmpty) {
       return Center(child: CircularProgressIndicator(color: royalGreen));
     }
 
-    if (trips.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.directions_car_filled_rounded, size: 80.sp, color: Colors.grey.shade300),
-            SizedBox(height: 16.h),
-            Text('لا توجد رحلات متاحة حالياً', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
-          ],
-        ),
+    if (processedTrips.isEmpty) {
+      return ListView( // استخدمنا ListView ليعمل الـ RefreshIndicator
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.directions_car_filled_rounded, size: 80.sp, color: Colors.grey.shade300),
+                SizedBox(height: 16.h),
+                Text('لا توجد رحلات متاحة حالياً', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
+      controller: _scrollController,
       padding: EdgeInsets.all(16.w),
-      itemCount: trips.length,
+      itemCount: processedTrips.length + (isFetchingMore ? 1 : 0),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
-        var trip = trips[index];
-        var data = trip['data'];
         
-        double dist = (trip['distance'] as num).toDouble();
-        String distanceText = dist != double.infinity ? 'يبعد: ${(dist / 1000).toStringAsFixed(1)} كم' : '';
-
-        String driverName = (data['driverName']?.toString().trim().isNotEmpty ?? false) ? data['driverName'] : 'كابتن لَمَّة';
-        String price = data['price']?.toString() ?? 'غير محدد';
-        String pickup = data['pickup'] ?? data['pickupAddress'] ?? data['fromCity'] ?? 'نقطة الانطلاق غير محددة';
-        String dropoff = data['destination'] ?? data['dropoffAddress'] ?? data['toCity'] ?? 'نقطة الوصول غير محددة';
-        int maxSeats = int.tryParse(data['availableSeats']?.toString() ?? '0') ?? 0;
-        
-        String timeString = 'غير محدد';
-        if (data['travelDate'] != null) {
-          DateTime dt = (data['travelDate'] as Timestamp).toDate();
-          timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
-        } else if (data['departureTime'] != null) {
-          DateTime dt = (data['departureTime'] as Timestamp).toDate();
-          timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
+        if (index >= processedTrips.length) {
+          return Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Center(child: CircularProgressIndicator(color: royalGreen)),
+          );
         }
 
-        String tripDriverId = data['driverId'] ?? data['userId'] ?? data['uid'] ?? '';
+        var processedTrip = processedTrips[index];
+        TripModel trip = processedTrip.trip;
+        
+        double dist = processedTrip.distance;
+        String distanceText = dist != double.infinity ? 'يبعد: ${(dist / 1000).toStringAsFixed(1)} كم' : '';
+
+        String driverName = (trip.driverName?.trim().isNotEmpty ?? false) ? trip.driverName! : 'كابتن لَمَّة';
+        String price = trip.price ?? 'غير محدد';
+        String pickup = trip.pickup ?? trip.fromCity ?? 'نقطة الانطلاق غير محددة';
+        String dropoff = trip.destination ?? trip.toCity ?? 'نقطة الوصول غير محددة';
+        int maxSeats = int.tryParse(trip.availableSeats ?? '0') ?? 0;
+        
+        String timeString = 'غير محدد';
+        if (trip.travelDate != null) {
+          timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(trip.travelDate!);
+        }
+
+        String tripDriverId = trip.driverId ?? '';
 
         return Card(
           elevation: 4, 
@@ -266,7 +310,7 @@ class _AvailableTravelsView extends StatelessWidget {
                 ),
                 SizedBox(height: 16.h),
                 
-                // خط السير (فخم زي شاشة الكابتن)
+                // خط السير 
                 Row(
                   children: [
                     Column(
@@ -313,7 +357,7 @@ class _AvailableTravelsView extends StatelessWidget {
                 
                 SizedBox(height: 16.h),
                 
-                // 🟢 تم إضافة شرط التحقق من عدد المقاعد هنا 🟢
+                // زر الحجز
                 maxSeats <= 0
                 ? SizedBox(
                     width: double.infinity, 
@@ -325,7 +369,7 @@ class _AvailableTravelsView extends StatelessWidget {
                         padding: EdgeInsets.symmetric(vertical: 12.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r))
                       ), 
-                      onPressed: null, // تعطيل الزر تماماً
+                      onPressed: null, 
                       icon: Icon(Icons.event_seat_rounded, size: 18.sp, color: Colors.white), 
                       label: Text('الرحلة مكتملة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.sp))
                     )
@@ -339,7 +383,7 @@ class _AvailableTravelsView extends StatelessWidget {
                         padding: EdgeInsets.symmetric(vertical: 12.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r))
                       ), 
-                      onPressed: () => _showBookingDialog(context, trip, tripDriverId, maxSeats, royalGreen), 
+                      onPressed: () => _showBookingDialog(context, trip.id ?? '', tripDriverId, maxSeats, royalGreen), 
                       icon: Icon(Icons.event_seat_rounded, size: 18.sp), 
                       label: Text('احجز مقعدك الآن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
                     )

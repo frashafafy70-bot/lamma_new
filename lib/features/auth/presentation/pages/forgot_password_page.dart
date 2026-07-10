@@ -4,10 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+// 🟢 استدعاء الـ AutoRoute
+import 'package:auto_route/auto_route.dart';
+import 'package:lamma_new/core/extensions/context_extension.dart';
+
 import '../../cubit/auth_cubit.dart';
 import '../../cubit/auth_state.dart';
 import 'reset_password_otp_page.dart';
 
+@RoutePage() // 🟢 الديكوريتور السحري
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
 
@@ -17,10 +22,10 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController(); // 🟢 حقل للإيميل
+  final _emailController = TextEditingController(); 
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedMethod = 'email'; // 🟢 email أو phone
+  String _selectedMethod = 'email'; 
 
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
@@ -44,11 +49,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     FocusScope.of(context).unfocus();
 
     if (_selectedMethod == 'email') {
-      // 🟢 الاعتماد على الإيميل (الطريقة الجديدة السريعة)
       String email = _emailController.text.trim();
       context.read<AuthCubit>().sendPasswordResetEmail(email: email);
     } else {
-      // 🟢 الاعتماد على التليفون (الطريقة القديمة OTP)
       String inputPhone = _phoneController.text.trim();
       String fullPhone = inputPhone.startsWith('+20') ? inputPhone : '+20${inputPhone.replaceFirst(RegExp(r'^0+'), '')}';
       context.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
@@ -86,9 +89,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             );
           } else if (state is AuthSuccess) {
-            // 🟢 في حالة الإيميل، بيظهر رسالة ويرجع خطوة للخلف
             _showFloatingSnackBar(state.message ?? 'تم الإرسال بنجاح', Colors.green);
-            Navigator.pop(context);
+            // 🟢 استخدام auto_route للرجوع بأمان
+            context.router.maybePop();
           } else if (state is AuthError) {
             _showFloatingSnackBar(state.message, Colors.red.shade800);
           }
@@ -118,7 +121,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                     SizedBox(height: 32.h),
                     
-                    // 🟢 أزرار التبديل الفخمة بين الإيميل والرقم
                     Row(
                       children: [
                         Expanded(
@@ -170,7 +172,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                     SizedBox(height: 24.h),
 
-                    // 🟢 التبديل بين حقل الإيميل وحقل الهاتف
                     if (_selectedMethod == 'email')
                       Container(
                         decoration: BoxDecoration(

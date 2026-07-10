@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/service_category_entity.dart';
@@ -19,6 +20,8 @@ class HomeRepositoryImpl implements HomeRepository {
   })  : _firestore = firestore,
         _auth = auth;
 
+  Box<ServiceCategoryModel> get _categoriesBox => Hive.box<ServiceCategoryModel>('categories_box');
+
   @override
   Future<Either<Failure, List<ServiceCategoryEntity>>> getServiceCategories() async {
     try {
@@ -27,9 +30,17 @@ class HomeRepositoryImpl implements HomeRepository {
       final categories = snapshot.docs
           .map((doc) => ServiceCategoryModel.fromJson(doc.data(), doc.id))
           .toList();
+
+      // تحديث الـ Hive
+      await _categoriesBox.clear();
+      await _categoriesBox.addAll(categories);
           
       return Right(categories);
     } catch (e) {
+      final cachedCategories = _categoriesBox.values.toList();
+      if (cachedCategories.isNotEmpty) {
+        return Right(cachedCategories);
+      }
       return Left(ServerFailure(message: 'حدث خطأ أثناء تحميل أقسام الخدمات.'));
     }
   }

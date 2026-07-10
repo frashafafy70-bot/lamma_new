@@ -3,81 +3,110 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../domain/repositories/trip_repository.dart'; // مسار الـ Repo
+import '../../data/models/trip_model.dart';
+import 'driver_history_state.dart';
 
-// --- States ---
-abstract class DriverHistoryState {}
-class DriverHistoryInitial extends DriverHistoryState {}
-class DriverHistoryLoading extends DriverHistoryState {}
-class DriverHistoryLoaded extends DriverHistoryState {
-  final List<QueryDocumentSnapshot> trips;
-  DriverHistoryLoaded(this.trips);
-}
-class DriverHistoryError extends DriverHistoryState {
-  final String message;
-  DriverHistoryError(this.message);
-}
-
-// --- Cubit ---
 class DriverHistoryCubit extends Cubit<DriverHistoryState> {
-  DriverHistoryCubit() : super(DriverHistoryInitial());
-
-  StreamSubscription? _historySubscription;
+  final TripRepository _repository; // الـ Dependency Injection (ممكن تستخدم UseCase لو حابب)
   
-  // ❌ السطر ده اتمسح من هنا عشان كان بيعلق الإيميل القديم
+  List<TripModel> _trips = [];
+  bool _hasReachedMax = false;
+  bool _isFetchingMore = false;
+  final int _limit = 15;
 
+  DriverHistoryCubit(this._repository) : super(DriverHistoryInitial());
+
+  // --------------------------------------------------
+  // 🔥 نظام الـ Pagination
+  // --------------------------------------------------
   void startListeningToHistoryTrips() {
-    // ✅ تم النقل هنا: عشان كل مرة تشتغل تجيب الإيميل اللي فاتح حالياً
-    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    
-    if (currentUserId.isEmpty) return;
-
-    if (state is! DriverHistoryLoaded) {
-      if (!isClosed) emit(DriverHistoryLoading());
-    }
-
-    _historySubscription?.cancel();
-
-    _historySubscription = FirebaseFirestore.instance
-        .collection('trips')
-        .where('driverId', isEqualTo: currentUserId)
-        .snapshots()
-        .listen((snapshot) {
-          
-      if (isClosed) return;
-
-      var historyTrips = snapshot.docs.where((doc) {
-        var data = doc.data(); 
-        bool isNotDeleted = data['isDeletedForDriver'] != true;
-        
-        String status = data['status'] ?? ''; 
-        
-        bool isHistoryStatus = status == 'completed' || status == 'canceled' || status == 'cancelled';
-                             
-        return isNotDeleted && isHistoryStatus;
-      }).toList();
-
-      historyTrips.sort((a, b) {
-        var dataA = a.data();
-        var dataB = b.data();
-        Timestamp? timeA = dataA['createdAt'];
-        Timestamp? timeB = dataB['createdAt'];
-        
-        if (timeA == null && timeB == null) return 0;
-        if (timeA == null) return 1;
-        if (timeB == null) return -1;
-        return timeB.compareTo(timeA); 
-      });
-
-      if (!isClosed) emit(DriverHistoryLoaded(historyTrips));
-      
-    }, onError: (error) {
-      if (!isClosed) emit(DriverHistoryError('حدث خطأ في تحميل السجل.'));
-    });
+    fetchInitialHistoryTrips();
   }
 
-  // =======================================================
-  // 🟢 دالة إلغاء الرحلة بالكامل (Soft Delete + تنظيف الحجوزات)
-  // =======================================================
+  Future<void> fetchInitialHistoryTrips() async {
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (currentUserId.isEmpty) return;
+
+    emit(DriverHistoryLoading());
+    
+    _trips.clear();
+    _hasReachedMax = false;
+    _isFetchingMore = false;
+
+    try {
+      final result = await _repository.getDriverHistoryTrips(uid: currentUserId, limit: _limit);
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) => emit(DriverHistoryError('حدث خطأ في تحميل السجل.')),
+        (trips) {
+          _trips = trips;
+          _hasReachedMax = trips.length < _limit;
+          emit(DriverHistoryLoaded(
+            trips: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      if (!isClosed) emit(DriverHistoryError('حدث خطأ غير متوقع'));
+    }
+  }
+
+  Future<void> fetchMoreHistoryTrips() async {
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (_hasReachedMax || _isFetchingMore || currentUserId.isEmpty) return;
+
+    _isFetchingMore = true;
+    if (state is DriverHistoryLoaded) {
+      emit((state as DriverHistoryLoaded).copyWith(isFetchingMore: true));
+    }
+
+    try {
+      final lastTrip = _trips.isNotEmpty ? _trips.last : null;
+      final result = await _repository.getDriverHistoryTrips(
+        uid: currentUserId, limit: _limit, lastTrip: lastTrip
+      );
+
+      if (isClosed) return;
+
+      result.fold(
+        (failure) {
+          _isFetchingMore = false;
+          if (state is DriverHistoryLoaded) {
+            emit((state as DriverHistoryLoaded).copyWith(isFetchingMore: false));
+          }
+        },
+        (newTrips) {
+          _isFetchingMore = false;
+          if (newTrips.isEmpty) {
+            _hasReachedMax = true;
+          } else {
+            _trips.addAll(newTrips);
+            _hasReachedMax = newTrips.length < _limit;
+          }
+          emit(DriverHistoryLoaded(
+            trips: List.from(_trips),
+            hasReachedMax: _hasReachedMax,
+            isFetchingMore: false,
+          ));
+        },
+      );
+    } catch (e) {
+      _isFetchingMore = false;
+      if (state is DriverHistoryLoaded && !isClosed) {
+        emit((state as DriverHistoryLoaded).copyWith(isFetchingMore: false));
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // 🔥 اللوجيك القديم الخاص بالسائق
+  // --------------------------------------------------
+  
   Future<void> cancelDriverTrip(String tripId) async {
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
@@ -100,6 +129,8 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
 
       await batch.commit();
       debugPrint('✅ تم إلغاء الرحلة وتنظيف الحجوزات المرتبطة بها بنجاح');
+      
+      fetchInitialHistoryTrips(); // تحديث القائمة
 
     } catch (e) {
       debugPrint('❌ خطأ في إلغاء رحلة الكابتن: $e');
@@ -107,24 +138,18 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
     }
   }
 
-  // =======================================================
-  // 🟢 دالة مسح الرحلة من السجل الشخصي للكابتن فقط
-  // =======================================================
   Future<void> deleteTripFromHistory(String docId) async {
     try {
       await FirebaseFirestore.instance.collection('trips').doc(docId).update({
         'isDeletedForDriver': true,
       });
       debugPrint('✅ تم إخفاء الرحلة من سجل الكابتن');
+      
+      fetchInitialHistoryTrips(); // تحديث القائمة
+
     } catch (e) {
       debugPrint('❌ خطأ في حذف الطلب من السجل: $e');
       if (!isClosed) emit(DriverHistoryError('حدث خطأ أثناء مسح الرحلة من السجل'));
     }
-  }
-
-  @override
-  Future<void> close() {
-    _historySubscription?.cancel();
-    return super.close();
   }
 }

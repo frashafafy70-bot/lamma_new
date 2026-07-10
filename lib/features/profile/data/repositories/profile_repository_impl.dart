@@ -3,7 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 🟢 إضافة SharedPreferences
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/constants/firebase_constants.dart';
@@ -30,7 +30,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
       User? user = _auth.currentUser;
       if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
-      // 🟢 جلب الداتا الأساسية، وممكن نخلي المصدر `Source.serverAndCache` لسرعة أكبر
       DocumentSnapshot doc = await _firestore
           .collection(FirebaseConstants.usersCollection)
           .doc(user.uid)
@@ -39,14 +38,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
       if (doc.exists) {
         var data = doc.data() as Map<String, dynamic>;
         
-        // 🟢 نقرا الـ Role من الكاش الأول عشان التطبيق يفتح أسرع لو النت بطيء
         final prefs = await SharedPreferences.getInstance();
         String? cachedRole = prefs.getString('cached_active_role');
         
         if (cachedRole != null) {
-           data['activeRole'] = cachedRole; // نعتمد على الكاش لو موجود
+           data['activeRole'] = cachedRole; 
         } else {
-           // لو مش موجود في الكاش، نحفظه
            await prefs.setString('cached_active_role', data['activeRole'] ?? 'client');
         }
 
@@ -73,7 +70,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
       String finalImageUrl = currentImageUrl;
 
-      // رفع الصورة لو اختار صورة جديدة
       if (newProfileImage != null) {
         Reference ref = _storage.ref().child('${FirebaseConstants.usersCollection}/${user.uid}/profile.jpg');
         UploadTask uploadTask = ref.putFile(newProfileImage);
@@ -81,7 +77,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
         finalImageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      // تحديث الداتابيز
       await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).update({
         'name': name,
         'phone': phone,
@@ -101,7 +96,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
       User? user = _auth.currentUser;
       if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
-      // 🟢 تحديث الكاش فوراً قبل حتى ما نكلم السيرفر (Optimistic Update)
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_active_role', newRole);
 
@@ -122,7 +116,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
       User? user = _auth.currentUser;
       if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
-      // 🟢 تحديث الكاش فوراً 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_active_role', role);
 
@@ -159,6 +152,29 @@ class ProfileRepositoryImpl implements ProfileRepository {
       return Right(url);
     } catch (e) {
       return Left(ServerFailure(message: 'حدث خطأ أثناء رفع المستند'));
+    }
+  }
+
+  // 🟢 إضافة كود الفايربيز الخاص بالدعم الفني هنا
+  @override
+  Future<Either<Failure, Unit>> sendSupportTicket({
+    required String name, 
+    required String email, 
+    required String message
+  }) async {
+    try {
+      String uid = _auth.currentUser?.uid ?? 'unknown';
+      await _firestore.collection('support_tickets').add({
+        'uid': uid,
+        'name': name,
+        'email': email,
+        'message': message,
+        'status': 'open',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      return const Right(unit);
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء إرسال الشكوى: $e'));
     }
   }
 }

@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
+
+import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
+import 'package:lamma_new/features/trips/domain/usecases/get_driver_active_trips_usecase.dart';
 
 import 'driver_radar_tab.dart';
 import 'driver_active_trips_tab.dart';
@@ -43,7 +47,6 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
             backgroundColor: const Color(0xFFF8FAFC),
             body: Column(
               children: [
-                // 👑 البار العلوي الموحد الفخم (Custom Header)
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.only(top: 50.h, bottom: 8.h),
@@ -64,7 +67,6 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                   ),
                   child: Column(
                     children: [
-                      // العنوان وزر الرجوع
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20.w),
                         child: Row(
@@ -84,12 +86,11 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(width: 28), // لضبط المنتصف والتوازن
+                            const SizedBox(width: 28), 
                           ],
                         ),
                       ),
                       SizedBox(height: 16.h),
-                      // الـ TabBar المدمج
                       TabBar(
                         controller: _driverTabController,
                         indicatorColor: const Color(0xFFD4AF37),
@@ -97,7 +98,7 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                         unselectedLabelColor: Colors.white70,
                         labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
                         indicatorWeight: 3,
-                        dividerColor: Colors.transparent, // إخفاء الخط السفلي الافتراضي
+                        dividerColor: Colors.transparent, 
                         tabs: [
                           Tab(
                             text: 'الرادار', 
@@ -130,14 +131,26 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                   ),
                 ),
                 
-                // محتوى التابات الداخلي
                 Expanded(
                   child: TabBarView(
                     controller: _driverTabController,
                     children: [
-                      DriverRadarTab(),
-                      BlocProvider(create: (context) => DriverActiveTripsCubit(), child: const DriverActiveTripsTab()),
-                      const DriverHistoryTab(),
+                      // 🟢 هنا خلينا showHeader = false عشان نمنع الدبل هيدر جوه لوحة التحكم
+                      const DriverRadarTab(showHeader: false),
+                      BlocProvider(
+                        create: (context) => DriverActiveTripsCubit(
+                          GetDriverActiveTripsUseCase(
+                            TripRepositoryImpl(
+                              firestore: FirebaseFirestore.instance,
+                              auth: FirebaseAuth.instance,
+                            )
+                          )
+                        ), 
+                        // 🟢 وهنا كمان false
+                        child: const DriverActiveTripsTab(showHeader: false)
+                      ),
+                      // 🟢 وهنا كمان false
+                      const DriverHistoryTab(showHeader: false),
                     ],
                   ),
                 ),

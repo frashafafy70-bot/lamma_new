@@ -7,7 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:audioplayers/audioplayers.dart'; // 🟢 مكتبة الصوت
+import 'package:audioplayers/audioplayers.dart'; 
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -19,7 +19,7 @@ class TripChatCubit extends Cubit<TripChatState> {
   
   StreamSubscription<RemoteMessage>? _notificationSubscription;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  final AudioPlayer _fcmAudioPlayer = AudioPlayer(); // 🟢 مشغل صوت إشعارات الـ FCM بالخلفية
+  final AudioPlayer _fcmAudioPlayer = AudioPlayer(); 
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   
   StreamSubscription? _chatSubscription;
@@ -39,6 +39,7 @@ class TripChatCubit extends Cubit<TripChatState> {
       var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
       if (isClosed) return; 
       if (!tripDoc.exists) return;
+      
       debugPrint("🔔 إرسال إشعار بمحتوى: $message");
       // الـ Backend هو اللي بيبعت الإشعار من هنا أو لو عامل Cloud Function
     } catch (e) {
@@ -60,13 +61,14 @@ class TripChatCubit extends Cubit<TripChatState> {
   Future<void> close() {
     _notificationSubscription?.cancel();
     _audioRecorder.dispose();
-    _fcmAudioPlayer.dispose(); // 🟢 تنظيف ذاكرة المشغل
+    _fcmAudioPlayer.dispose(); 
     _chatSubscription?.cancel();
     return super.close();
   }
 
   void loadChat(String tripId) {
     if (_messages.isEmpty) emit(TripChatLoading());
+    
     _chatSubscription?.cancel();
     _chatSubscription = chatRepository.getMessagesStream(tripId, _messageLimit).listen(
       (messages) {
@@ -130,8 +132,10 @@ class TripChatCubit extends Cubit<TripChatState> {
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
         String filePath = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        
         isRecording = true;
         if (!isClosed) emit(TripChatLoaded(List.from(_messages)));
+        
         await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: filePath);
       }
     } catch (e) {

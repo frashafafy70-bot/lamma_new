@@ -14,6 +14,11 @@ class HomeState {
   final String? successMessage;
   final String? pendingRegistrationRole;
 
+  // 🟢 المتغيرات الجديدة لحفظ أعداد البادجات لايف
+  final int radarBadgeCount;
+  final int activeTripsBadgeCount;
+  final int clientRequestsBadgeCount;
+
   HomeState({
     this.bottomNavIndex = 0,
     this.status = HomeStatus.initial,
@@ -23,9 +28,11 @@ class HomeState {
     this.errorMessage,
     this.successMessage,
     this.pendingRegistrationRole,
+    this.radarBadgeCount = 0,
+    this.activeTripsBadgeCount = 0,
+    this.clientRequestsBadgeCount = 0,
   });
 
-  // Getter ممتاز لاختصار الكود في الـ UI
   int get activeOrdersCount => activeOrders.length;
 
   HomeState copyWith({
@@ -37,6 +44,9 @@ class HomeState {
     String? errorMessage,
     String? successMessage,
     String? pendingRegistrationRole,
+    int? radarBadgeCount,
+    int? activeTripsBadgeCount,
+    int? clientRequestsBadgeCount,
   }) {
     return HomeState(
       bottomNavIndex: bottomNavIndex ?? this.bottomNavIndex,
@@ -44,10 +54,12 @@ class HomeState {
       actionStatus: actionStatus ?? this.actionStatus,
       categories: categories ?? this.categories,
       activeOrders: activeOrders ?? this.activeOrders,
-      // ترك هذه القيم بدون (??) ممتاز جداً لتفريغ الرسائل وعدم تكرار الـ SnackBar
       errorMessage: errorMessage,
       successMessage: successMessage,
       pendingRegistrationRole: pendingRegistrationRole,
+      radarBadgeCount: radarBadgeCount ?? this.radarBadgeCount,
+      activeTripsBadgeCount: activeTripsBadgeCount ?? this.activeTripsBadgeCount,
+      clientRequestsBadgeCount: clientRequestsBadgeCount ?? this.clientRequestsBadgeCount,
     );
   }
 }

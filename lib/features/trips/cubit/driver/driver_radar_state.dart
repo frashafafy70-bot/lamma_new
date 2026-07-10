@@ -5,11 +5,31 @@ import '../../data/models/trip_model.dart';
 abstract class DriverRadarState {}
 
 class DriverRadarInitial extends DriverRadarState {}
+
 class DriverRadarLoading extends DriverRadarState {}
 
 class DriverRadarLoaded extends DriverRadarState {
   final List<TripModel> radarTrips; 
-  DriverRadarLoaded(this.radarTrips);
+  final bool hasReachedMax;     
+  final bool isFetchingMore;    
+
+  DriverRadarLoaded({
+    required this.radarTrips,
+    this.hasReachedMax = false,
+    this.isFetchingMore = false,
+  });
+
+  DriverRadarLoaded copyWith({
+    List<TripModel>? radarTrips,
+    bool? hasReachedMax,
+    bool? isFetchingMore,
+  }) {
+    return DriverRadarLoaded(
+      radarTrips: radarTrips ?? this.radarTrips,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+      isFetchingMore: isFetchingMore ?? this.isFetchingMore,
+    );
+  }
 }
 
 class DriverRadarError extends DriverRadarState {

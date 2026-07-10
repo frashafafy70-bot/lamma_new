@@ -5,19 +5,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+
+// 🟢 استدعاءات AutoRoute 
+import 'package:auto_route/auto_route.dart';
+import 'package:lamma_new/core/routes/app_router.dart';
+import 'package:lamma_new/core/extensions/context_extension.dart';
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
 
-import 'package:lamma_new/features/notifications/presentation/cubit/notification_state.dart';
-import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:lamma_new/features/profile/presentation/cubit/profile_state.dart';
+import 'package:lamma_new/features/notifications/presentation/cubit/notification_state.dart' as notif;
 import 'package:lamma_new/features/notifications/presentation/cubit/notification_cubit.dart';
+
+import 'package:lamma_new/features/profile/presentation/cubit/profile_state.dart' as prof;
+import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
+
 import 'package:lamma_new/features/auth/cubit/auth_cubit.dart'; 
 import 'package:lamma_new/features/auth/cubit/auth_state.dart'; 
 
-import 'package:lamma_new/features/auth/presentation/pages/login_page.dart'; 
 import 'package:lamma_new/features/profile/edit_profile_page.dart'; 
 import 'package:lamma_new/features/auth/presentation/pages/reset_password_otp_page.dart'; 
 
@@ -26,12 +31,11 @@ import 'package:lamma_new/features/home/views/search_view.dart';
 import 'package:lamma_new/features/home/views/orders_view.dart';
 import 'package:lamma_new/features/home/views/profile_view.dart';
 
-import 'package:lamma_new/core/shared_widgets/premium_toast.dart';
-
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
 
+@RoutePage() 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -51,21 +55,21 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _homeCubit = context.read<HomeCubit>();
-    // 🟢 تم إزالة _homeCubit.changeTab(0); لمنع إعادة تصفير التاب عند عمل ريفريش للشاشة
-    context.read<ProfileCubit>().loadUserProfile();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      
+      if (currentUserId.isNotEmpty) {
+        _homeCubit.startListeningToBadges(currentUserId);
+        context.read<NotificationCubit>().startListeningToNotifications(currentUserId);
+      }
+      
+      _homeCubit.fetchHomeDashboardData();
+      context.read<ProfileCubit>().loadUserProfile();
+    });
   }
 
   void _openNotifications(BuildContext context) {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-    
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('جاري تحميل بياناتك، يرجى المحاولة بعد قليل...', style: TextStyle(fontFamily: 'Cairo')),
-        backgroundColor: Colors.orange,
-      ));
-      return;
-    }
-
     context.read<NotificationCubit>().markAllNotificationsAsRead();
 
     showModalBottomSheet(
@@ -75,7 +79,7 @@ class _HomePageState extends State<HomePage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
       builder: (bottomSheetContext) {
         return SizedBox(
-          height: MediaQuery.of(bottomSheetContext).size.height * 0.65, 
+          height: bottomSheetContext.height * 0.65, 
           child: Padding(
             padding: EdgeInsets.all(16.w),
             child: Column(
@@ -89,23 +93,26 @@ class _HomePageState extends State<HomePage> {
                 Text('الإشعارات', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy, fontFamily: 'Cairo')),
                 const Divider(),
                 Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection('users').doc(userId).collection('notifications').orderBy('timestamp', descending: true).snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  child: BlocBuilder<NotificationCubit, notif.NotificationState>(
+                    builder: (context, state) {
+                      if (state.status == notif.NotificationStatus.loading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (state.notifications.isEmpty) {
                         return Center(child: Text('لا توجد إشعارات حالياً 🔕', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp)));
                       }
                       return ListView.builder(
-                        itemCount: snapshot.data!.docs.length,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: state.notifications.length,
                         itemBuilder: (context, index) {
-                          var notif = snapshot.data!.docs[index];
+                          var notify = state.notifications[index];
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: goldAccent.withOpacity(0.2), 
-                              child: Icon(Icons.notifications_active, color: goldAccent)
+                              child: const Icon(Icons.notifications_active, color: Color(0xFFD4AF37))
                             ), 
-                            title: Text(notif['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
-                            subtitle: Text(notif['body'] ?? '', style: const TextStyle(fontFamily: 'Cairo')),
+                            title: Text(notify['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
+                            subtitle: Text(notify['body'] ?? '', style: const TextStyle(fontFamily: 'Cairo')),
                           );
                         },
                       );
@@ -124,71 +131,97 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _homeCubit,
-      child: BlocListener<AuthCubit, AuthState>(
-        listener: (context, state) {
-          if (state is AuthOtpSent) {
-            String phone = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ResetPasswordOtpPage(
-                  verificationId: state.verificationId,
-                  phone: phone,
-                ),
-              ),
-            );
-          } 
-          else if (state is AuthSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message ?? 'تمت العملية بنجاح', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-              )
-            );
-          } 
-          else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message ?? 'حدث خطأ', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-                backgroundColor: Colors.red.shade800,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-              )
-            );
-          }
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<AuthCubit, AuthState>(
+            listener: (context, state) {
+              if (state is AuthOtpSent) {
+                String phone = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ResetPasswordOtpPage(
+                      verificationId: state.verificationId,
+                      phone: phone,
+                    ),
+                  ),
+                );
+              } 
+              else if (state is AuthSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message ?? 'تمت العملية بنجاح', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                  )
+                );
+              } 
+              else if (state is AuthError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message ?? 'حدث خطأ', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                    backgroundColor: Colors.red.shade800,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                  )
+                );
+              }
+            },
+          ),
+          BlocListener<ProfileCubit, prof.ProfileState>(
+            listenWhen: (previous, current) => previous.actionStatus != current.actionStatus,
+            listener: (context, state) {
+              if (state.actionStatus == prof.ProfileActionStatus.success && state.successMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.successMessage!, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                  ),
+                );
+              } else if (state.actionStatus == prof.ProfileActionStatus.error && state.errorMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.errorMessage!, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                    backgroundColor: Colors.red.shade800,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
         child: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, homeState) {
-            return BlocBuilder<ProfileCubit, ProfileState>(
+            return BlocBuilder<ProfileCubit, prof.ProfileState>(
               builder: (context, profileState) {
-                return BlocBuilder<NotificationCubit, NotificationState>(
+                return BlocBuilder<NotificationCubit, notif.NotificationState>(
                   builder: (context, notifState) {
                     
                     Widget bodyContent;
                     final bool isDriver = profileState.activeRole == 'driver';
 
-                    // 🟢 قمنا بتعريف الشاشة الرئيسية مرة واحدة لتمريرها بمرونة
                     final homeMainView = HomeMainView(
                       userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...', 
                       activeRole: profileState.activeRole, 
                       profileImageUrl: profileState.profileImageUrl, 
                       unreadCount: notifState.unreadNotificationsCount, 
                       activeOrdersCount: homeState.activeOrders.length, 
+                      clientRequestsBadgeCount: homeState.clientRequestsBadgeCount,
                       onOpenNotifications: () => _openNotifications(context)
                     );
 
-                    // 🟢 التعديل الجذري: استخدام IndexedStack بدلاً من الـ Switch
-                    // ده بيضمن إن شاشة الرادار والشاشات التانية تفضل محتفظة بحالتها بدون تهنيج أو إعادة تحميل
                     if (isDriver) {
                       bodyContent = IndexedStack(
                         index: homeState.bottomNavIndex,
                         children: [
                           homeMainView,
-                          const DriverRadarTab(),
-                          const DriverActiveTripsTab(),
-                          const DriverHistoryTab(),
+                          const DriverRadarTab(showHeader: true), 
+                          const DriverActiveTripsTab(showHeader: true),
+                          const DriverHistoryTab(showHeader: true),
                         ],
                       );
                     } else {
@@ -200,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                           OrdersView(activeRole: profileState.activeRole),
                           ProfileView(
                             activeRole: profileState.activeRole,
-                            isLoadingProfile: profileState.status == ProfileStatus.loading,
+                            isLoadingProfile: profileState.status == prof.ProfileStatus.loading,
                             profileImageUrl: profileState.profileImageUrl,
                             userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...',
                             userEmail: profileState.userEmail,
@@ -210,10 +243,11 @@ class _HomePageState extends State<HomePage> {
                               String email = FirebaseAuth.instance.currentUser?.email ?? profileState.userEmail;
                               _confirmPasswordReset(context, phone, email);
                             },
-                            onSupport: () => _showSupportDialog(context, profileState.userName, profileState.userEmail),
+                            onSupport: () => _showSupportDialog(context),
                             onLogout: () async {
                               await FirebaseAuth.instance.signOut();
-                              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
+                              // 🟢 التوجيه باستخدام AutoRoute مع const
+                              context.router.replaceAll([const LoginRoute()]);
                             },
                           ),
                         ],
@@ -316,52 +350,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState homeState, ProfileState profileState, NotificationState notifState) {
+  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState homeState, prof.ProfileState profileState, notif.NotificationState notifState) {
     bool isSelected = homeState.bottomNavIndex == index;
-    
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    Stream<QuerySnapshot>? badgeStream;
-    int Function(QuerySnapshot) calculateCount = (snap) => 0;
+    int count = 0;
 
     if (label == 'الرادار') {
-      badgeStream = FirebaseFirestore.instance.collection('trips')
-          .where('isDriverPost', isEqualTo: false)
-          .snapshots();
-          
-      calculateCount = (snap) => snap.docs.where((doc) {
-        var d = doc.data() as Map<String, dynamic>? ?? {};
-        if (d['isDeletedForDriver'] == true) return false;
-        
-        String status = d['status'] ?? '';
-        String driverId = d['driverId'] ?? '';
-        String ownerId = d['userId'] ?? d['passengerId'] ?? '';
-        
-        bool isPending = status == 'pending';
-        bool isNegotiatingWithAnother = status == 'negotiating' && driverId != currentUserId;
-        
-        return (isPending || isNegotiatingWithAnother) && ownerId != currentUserId;
-      }).length;
-    } 
-    else if (label == 'النشطة') {
-      badgeStream = FirebaseFirestore.instance.collection('trip_bookings')
-          .where('driverId', isEqualTo: currentUserId)
-          .snapshots();
-          
-      calculateCount = (snap) => snap.docs.where((doc) {
-        var d = doc.data() as Map<String, dynamic>? ?? {};
-        return d['status'] == 'pending';
-      }).length;
-    } 
-    else if (label == 'الطلبات') {
-      badgeStream = FirebaseFirestore.instance.collection('trips')
-          .where('isDriverPost', isEqualTo: true)
-          .snapshots();
-          
-      calculateCount = (snap) => snap.docs.where((doc) {
-        var d = doc.data() as Map<String, dynamic>? ?? {};
-        return d['status'] == 'available' && (d['driverId'] ?? '') != currentUserId;
-      }).length;
+      count = homeState.radarBadgeCount;
+    } else if (label == 'النشطة') {
+      count = homeState.activeTripsBadgeCount;
+    } else if (label == 'الطلبات') {
+      count = homeState.clientRequestsBadgeCount + homeState.activeOrdersCount;
     }
+
+    bool showBadge = count > 0 || (label != 'الرادار' && notifState.hasNewNotification);
 
     return GestureDetector(
       onTap: () {
@@ -381,27 +382,12 @@ class _HomePageState extends State<HomePage> {
               transform: Matrix4.translationValues(0, isSelected ? -2.h : 0, 0),
               padding: EdgeInsets.all(6.w), 
               decoration: BoxDecoration(color: isSelected ? goldAccent : Colors.transparent, shape: BoxShape.circle),
-              child: badgeStream != null
-                ? StreamBuilder<QuerySnapshot>(
-                    stream: badgeStream,
-                    builder: (context, snapshot) {
-                      int count = 0;
-                      if (snapshot.hasData && !snapshot.hasError) {
-                        count = calculateCount(snapshot.data!);
-                      }
-                      if (label == 'الطلبات') count += homeState.activeOrders.length;
-                      
-                      bool showBadge = count > 0 || (label != 'الرادار' && notifState.hasNewNotification);
-
-                      return Badge(
-                        isLabelVisible: showBadge, 
-                        label: count > 0 ? Text(count.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
-                        backgroundColor: Colors.redAccent,
-                        child: Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
-                      );
-                    }
-                  )
-                : Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
+              child: Badge(
+                isLabelVisible: showBadge, 
+                label: count > 0 ? Text(count.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
+                backgroundColor: Colors.redAccent,
+                child: Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
+              ),
             ),
             SizedBox(height: 2.h),
             Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold, color: isSelected ? goldAccent : Colors.white.withOpacity(0.6)), maxLines: 1),
@@ -445,7 +431,7 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.email_outlined),
               label: const Text('إرسال رابط للبريد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
               onPressed: () {
-                Navigator.pop(ctx);
+                ctx.pop(); 
                 if (email.isNotEmpty) {
                   pageContext.read<AuthCubit>().sendPasswordResetEmail(email: email);
                 } else {
@@ -464,7 +450,7 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.phone_android_rounded),
               label: const Text('إرسال كود للهاتف', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
               onPressed: () {
-                Navigator.pop(ctx);
+                ctx.pop(); 
                 if (phone.isNotEmpty) {
                   String fullPhone = phone.startsWith('+20') ? phone : '+20${phone.replaceFirst(RegExp(r'^0+'), '')}';
                   pageContext.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
@@ -477,7 +463,7 @@ class _HomePageState extends State<HomePage> {
         ), 
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx), 
+            onPressed: () => ctx.pop(), 
             child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))
           ), 
         ],
@@ -485,7 +471,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showSupportDialog(BuildContext pageContext, String currentUserName, String currentUserEmail) {
+  void _showSupportDialog(BuildContext pageContext) {
     final TextEditingController complaintCtrl = TextEditingController();
     showDialog(
       context: pageContext, 
@@ -511,26 +497,13 @@ class _HomePageState extends State<HomePage> {
           ),
         ), 
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
+          TextButton(onPressed: () => ctx.pop(), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), 
-            onPressed: () async { 
+            onPressed: () { 
               if (complaintCtrl.text.trim().isEmpty) return; 
-              Navigator.pop(ctx); 
-              try { 
-                User? user = FirebaseAuth.instance.currentUser; 
-                await FirebaseFirestore.instance.collection('support_tickets').add({
-                  'uid': user?.uid, 
-                  'name': currentUserName, 
-                  'email': currentUserEmail, 
-                  'message': complaintCtrl.text.trim(), 
-                  'status': 'open', 
-                  'timestamp': FieldValue.serverTimestamp()
-                }); 
-                ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('تم إرسال رسالتك للدعم الفني بنجاح ✅', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green)); 
-              } catch(e) { 
-                ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('حدث خطأ أثناء الإرسال ❌', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red)); 
-              } 
+              ctx.pop(); 
+              pageContext.read<ProfileCubit>().sendSupportTicket(message: complaintCtrl.text.trim());
             }, 
             child: const Text('إرسال الدعم', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
           ),

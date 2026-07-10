@@ -9,7 +9,6 @@ import '../../domain/entities/place_search_entity.dart';
 import '../../domain/repositories/map_repository.dart';
 
 class MapRepositoryImpl implements MapRepository {
-  // 🟢 شلنا late وحطينا قيمة افتراضية لمنع الكراش
   String _googleApiKey = ''; 
   BitmapDescriptor? _carMarker;
   BitmapDescriptor? _bikeMarker;
@@ -31,7 +30,6 @@ class MapRepositoryImpl implements MapRepository {
   Future<void> initMapResources({required String apiKey}) async {
     _googleApiKey = apiKey;
     
-    // تحميل أيقونات الخريطة في الذاكرة
     const ImageConfiguration config = ImageConfiguration(size: Size(48, 48));
     try {
       _carMarker = await BitmapDescriptor.asset(config, 'assets/images/car_3d.png');
@@ -42,7 +40,6 @@ class MapRepositoryImpl implements MapRepository {
     }
   }
 
-  // دالة مساعدة داخلية لتنظيف النصوص
   String _cleanAddress(String address) {
     String cleaned = address.replaceAll(RegExp(r'\b[A-Z0-9]{2,8}\+[A-Z0-9]{2,4}\b\s*[,،]?\s*'), '');
     cleaned = cleaned.replaceAll(RegExp(r'Unnamed Road\s*[,،]?\s*', caseSensitive: false), '');
@@ -97,7 +94,6 @@ class MapRepositoryImpl implements MapRepository {
   @override
   Future<List<PlaceSearchEntity>> searchPlaces(String input) async {
     if (input.isEmpty) return [];
-    // 🟢 تم إضافة دعم الكويت (kw) ومصر (eg) في البحث
     String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_googleApiKey&language=ar&components=country:kw|country:eg";
     try {
       var response = await http.get(Uri.parse(url));

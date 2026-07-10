@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dartz/dartz.dart';
+import '../../../../core/errors/failures.dart';
 import '../../data/models/trip_model.dart';
 
 abstract class TripRepository {
@@ -21,4 +23,35 @@ abstract class TripRepository {
   
   /// ستريم لحساب طلبات العميل النشطة بالكامل
   Stream<int> getPassengerActiveOrdersCountStream(String uid);
+
+  // =======================================================
+  // 🔥 دوال الـ Pagination لجميع قوائم التطبيق
+  // =======================================================
+  
+  /// 1. جلب قائمة رحلات السائق النشطة
+  Future<Either<Failure, List<TripModel>>> getDriverActiveTrips({
+    required String uid,
+    required int limit,
+    TripModel? lastTrip, 
+  });
+
+  /// 2. جلب قائمة طلبات العميل النشطة
+  Future<Either<Failure, List<TripModel>>> getPassengerActiveTrips({
+    required String uid,
+    required int limit,
+    TripModel? lastTrip, 
+  });
+
+  /// 3. جلب سجل رحلات السائق (المكتملة والملغية)
+  Future<Either<Failure, List<TripModel>>> getDriverHistoryTrips({
+    required String uid,
+    required int limit,
+    TripModel? lastTrip, 
+  });
+
+  /// 4. جلب الرحلات المتاحة (التي ينشرها السائقون للركاب)
+  Future<Either<Failure, List<TripModel>>> getAvailableTravels({
+    required int limit,
+    TripModel? lastTrip, 
+  });
 }

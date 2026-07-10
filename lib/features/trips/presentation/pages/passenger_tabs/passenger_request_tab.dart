@@ -1,8 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:convert';
 import 'dart:io'; 
-import 'package:http/http.dart' as http; 
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,7 +21,6 @@ import 'package:lamma_new/core/theme/app_colors.dart';
 
 import 'package:lamma_new/features/trips/domain/entities/place_search_entity.dart';
 
-// 🟢 استدعاء ملفات الفورم المنفصلة
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/buy_orders_service_form.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/ride_service_form.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/travel_service_form.dart';
@@ -69,8 +66,6 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   final double _closeZoom = 16.5; 
 
-  static const Color _lighterNavy = Color(0xFF2C3E50);
-
   @override
   void initState() {
     super.initState();
@@ -102,7 +97,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)), 
-        backgroundColor: isError ? AppColors.error : AppColors.royalGreen,
+        backgroundColor: isError ? AppColors.error : AppColors.primaryDark,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
       ),
@@ -126,46 +121,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text('إلغاء', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontSize: 14.sp))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.royalGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
             onPressed: () { Geolocator.openAppSettings(); Navigator.pop(context); },
-            child: Text('فتح الإعدادات', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+            child: Text('فتح الإعدادات', style: TextStyle(color: AppColors.accentGold, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
           ),
         ],
       ),
     );
-  }
-
-  Future<List<LatLng>> _getRouteCoordinates(LatLng origin, LatLng destination) async {
-    String apiKey = AppConstants.googleMapsApiKey; 
-    String url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$apiKey';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['routes'] != null && data['routes'].isNotEmpty) {
-          String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
-          return _decodePolyline(encodedPolyline);
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching route: $e");
-    }
-    return [];
-  }
-
-  List<LatLng> _decodePolyline(String encoded) {
-    List<LatLng> points = [];
-    int index = 0, len = encoded.length, lat = 0, lng = 0;
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1)); lat += dlat;
-      shift = 0; result = 0;
-      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1)); lng += dlng;
-      points.add(LatLng(lat / 1E5, lng / 1E5));
-    }
-    return points;
   }
 
   Future<void> _updateRoutePolyline() async {
@@ -174,19 +136,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       setState(() {
         _polylines.add(Polyline(
           polylineId: const PolylineId('trip_route_temp'), points: [_pickupLocation!, _destinationLocation!],
-          color: AppColors.royalGreen.withValues(alpha: 0.5), width: 4, patterns: [PatternItem.dash(15), PatternItem.gap(10)], endCap: Cap.roundCap, startCap: Cap.roundCap,
+          color: AppColors.primaryDark.withValues(alpha: 0.5), width: 4, patterns: [PatternItem.dash(15), PatternItem.gap(10)], endCap: Cap.roundCap, startCap: Cap.roundCap,
         ));
       });
-      List<LatLng> routePoints = await _getRouteCoordinates(_pickupLocation!, _destinationLocation!);
-      if (routePoints.isNotEmpty && mounted) {
-        setState(() {
-          _polylines.removeWhere((p) => p.polylineId.value == 'trip_route_temp'); 
-          _polylines.add(Polyline(
-            polylineId: const PolylineId('trip_route'), points: routePoints, color: AppColors.royalGreen, width: 5, patterns: [PatternItem.dash(15), PatternItem.gap(10)], endCap: Cap.roundCap, startCap: Cap.roundCap,
-          ));
-        });
-        _fitMapToMarkers();
-      }
+      _requestCubit.fetchRoute(_pickupLocation!, _destinationLocation!);
     }
   }
 
@@ -271,7 +224,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CircularProgressIndicator(color: AppColors.royalGreen), SizedBox(height: 20.h),
+                  const CircularProgressIndicator(color: AppColors.primaryDark), SizedBox(height: 20.h),
                   Text('جاري إرسال طلبك...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
                 ],
               ),
@@ -338,7 +291,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           destinationController: _destinationController,
           priceController: _priceController,
           priceFocusNode: _priceFocusNode,
-          primaryGreen: AppColors.royalGreen,
+          primaryGreen: AppColors.primaryDark, // تم استبدال الأخضر بالكحلي
           accentGold: AppColors.accentGold,
           onOpenMapSelection: _openMapSelection,
           onAudioRecorded: (file) => setState(() => _orderAudioFile = file),
@@ -353,21 +306,21 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           destinationController: _destinationController,
           priceController: _priceController,
           priceFocusNode: _priceFocusNode,
-          primaryGreen: AppColors.royalGreen,
+          primaryGreen: AppColors.primaryDark,
           accentGold: AppColors.accentGold,
           onOpenMapSelection: _openMapSelection,
           onSubmit: _submitTrip,
         );
       case 'سفر':
         return TravelServiceForm(
-          vehicleType: _vehicleType, // 🟢 تم إضافة المتغير هنا لحل الخطأ
-          onVehicleChanged: (veh) => setState(() => _vehicleType = veh), // 🟢 وتم إضافة دالة التحديث
+          vehicleType: _vehicleType, 
+          onVehicleChanged: (veh) => setState(() => _vehicleType = veh), 
           isSubmittingTrip: isSubmitting,
           pickupController: _pickupController,
           destinationController: _destinationController,
           priceController: _priceController,
           priceFocusNode: _priceFocusNode,
-          primaryGreen: AppColors.royalGreen,
+          primaryGreen: AppColors.primaryDark,
           accentGold: AppColors.accentGold,
           onOpenMapSelection: _openMapSelection,
           onSubmit: _submitTrip,
@@ -377,6 +330,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     }
   }
 
+  // 🟢 التعديل الجديد للتابات السفلية: خلفية كحلي ونص دهبي
   Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
     bool isSelected = _tripCategory == logicTitle;
     return Expanded(
@@ -390,14 +344,21 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           duration: const Duration(milliseconds: 250),
           padding: EdgeInsets.symmetric(vertical: 12.h),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.accentGold.withValues(alpha: 0.15) : Colors.transparent,
+            color: isSelected ? AppColors.primaryDark : Colors.transparent, 
             borderRadius: BorderRadius.circular(25.r),
-            border: Border.all(color: isSelected ? AppColors.accentGold : Colors.transparent, width: 1.5),
+            border: Border.all(
+              color: isSelected ? AppColors.primaryDark : Colors.grey.shade300, 
+              width: 1.5
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18.sp, color: isSelected ? _lighterNavy : Colors.grey.shade400),
+              Icon(
+                icon, 
+                size: 18.sp, 
+                color: isSelected ? AppColors.accentGold : Colors.grey.shade400 
+              ),
               SizedBox(width: 8.w),
               Text(
                 displayTitle,
@@ -405,7 +366,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   fontFamily: 'Cairo',
                   fontSize: 14.sp,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  color: isSelected ? _lighterNavy : Colors.grey.shade400,
+                  color: isSelected ? AppColors.accentGold : Colors.grey.shade400, 
                 ),
               ),
             ],
@@ -453,6 +414,22 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
             widget.tabController.animateTo(2); 
           } else if (state is TripSubmitError) {
             Navigator.of(context, rootNavigator: true).pop(); _showSnackBar(state.message);
+          } 
+          else if (state is RouteCoordinatesLoaded) {
+            if (state.routePoints.isNotEmpty && mounted) {
+              setState(() {
+                _polylines.removeWhere((p) => p.polylineId.value == 'trip_route_temp'); 
+                _polylines.add(Polyline(
+                  polylineId: const PolylineId('trip_route'), 
+                  points: state.routePoints, 
+                  color: AppColors.primaryDark, // الخط اترسم كحلي بدل أخضر
+                  width: 5,
+                  endCap: Cap.roundCap, 
+                  startCap: Cap.roundCap,
+                ));
+              });
+              _fitMapToMarkers();
+            }
           }
         },
         builder: (context, state) {
@@ -490,7 +467,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                   if (isPickingMap)
                     MapSelectionOverlay(
                       mapSearchController: _mapSearchController, placePredictions: _placePredictions.cast<dynamic>(), 
-                      isReverseGeocoding: _isReverseGeocoding, primaryGreen: AppColors.royalGreen, accentGold: AppColors.accentGold,
+                      isReverseGeocoding: _isReverseGeocoding, primaryGreen: AppColors.primaryDark, accentGold: AppColors.accentGold,
                       onSearch: (input) => _requestCubit.searchForPlaces(input), onSelectPlace: (placeId, desc) => _requestCubit.fetchPlaceDetails(placeId, desc), 
                       onCancel: () {
                         setState(() { _mapSelectionMode = 'none'; _isMapFullscreen = false; _placePredictions = []; }); FocusScope.of(context).unfocus(); _fitMapToMarkers(); 
@@ -503,7 +480,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                       bottom: 30.h, left: 30.w, right: 30.w,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.royalGreen, foregroundColor: AppColors.accentGold, shadowColor: AppColors.royalGreen.withValues(alpha: 0.4), elevation: 10, padding: EdgeInsets.symmetric(vertical: 14.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r))
+                          backgroundColor: AppColors.primaryDark, foregroundColor: AppColors.accentGold, shadowColor: AppColors.primaryDark.withValues(alpha: 0.4), elevation: 10, padding: EdgeInsets.symmetric(vertical: 14.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r))
                         ),
                         onPressed: () { setState(() => _isMapFullscreen = false); _fitMapToMarkers(); }, icon: Icon(Icons.check_circle_rounded, size: 24.sp), label: Text('تأكيد الموقع 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
                       ),
@@ -532,9 +509,9 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                               child: Container(
                                 padding: EdgeInsets.all(4.w),
                                 decoration: BoxDecoration(
-                                  color: AppColors.backgroundLight,
+                                  color: Colors.white, // تم تغيير الخلفية للأبيض لتباين أفضل
                                   borderRadius: BorderRadius.circular(30.r),
-                                  border: Border.all(color: _lighterNavy.withValues(alpha: 0.1)),
+                                  border: Border.all(color: Colors.grey.shade200),
                                 ),
                                 child: Row(
                                   children: [
