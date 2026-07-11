@@ -120,7 +120,7 @@ Future<void> initDI() async {
 
   sl.registerLazySingleton(() => GetDriverActiveTripsUseCase(sl()));
 
-  sl.registerFactory(() => DriverActiveTripsCubit(sl()));
+  sl.registerFactory(() => DriverActiveTripsCubit(sl(), sl()));
   sl.registerFactory(() => TripChatCubit(chatRepository: sl()));
   sl.registerFactory(() => TripActionsCubit());
 }

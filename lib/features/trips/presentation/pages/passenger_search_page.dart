@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:auto_route/auto_route.dart'; 
+// 🟢 استدعاء التخزين المحلي لتهيئة الـ Repository
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 import '../../data/repositories/trip_booking_repository_impl.dart';
 import '../../cubit/passenger/trip_booking_cubit.dart';
@@ -15,9 +17,38 @@ class PassengerSearchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => TripBookingCubit(TripBookingRepositoryImpl()),
-      child: const _PassengerSearchView(),
+    // 🟢 استخدام FutureBuilder لتهيئة SharedPreferences قبل بناء الشاشة
+    return FutureBuilder<SharedPreferences>(
+      future: SharedPreferences.getInstance(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF1B4332)),
+            ),
+          );
+        }
+        
+        if (snapshot.hasData) {
+          return BlocProvider(
+            create: (context) => TripBookingCubit(
+              // 🟢 تمرير الـ prefs هنا ليعمل الكاش بشكل سليم
+              TripBookingRepositoryImpl(prefs: snapshot.data!), 
+            ),
+            child: const _PassengerSearchView(),
+          );
+        }
+
+        return const Scaffold(
+          body: Center(
+            child: Text(
+              'حدث خطأ في تحميل البيانات الأساسية', 
+              style: TextStyle(fontFamily: 'Cairo')
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -43,12 +74,38 @@ class _PassengerSearchViewState extends State<_PassengerSearchView> {
     super.dispose();
   }
 
+  // 🟢 دالة موحدة لعرض التنبيهات بشكل أنيق وعائم
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(bottom: 20.h, left: 20.w, right: 20.w),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   void _onSearch() {
     FocusScope.of(context).unfocus();
-    context.read<TripBookingCubit>().searchForRides(
-      _fromController.text.trim(),
-      _toController.text.trim(),
-    );
+    
+    final from = _fromController.text.trim();
+    final to = _toController.text.trim();
+
+    // 🟢 التحقق من المدخلات (Validation) بصرامة
+    if (from.isEmpty) {
+      _showSnackBar('برجاء تحديد مدينة الانطلاق', Colors.orange.shade800);
+      return;
+    }
+    if (to.isEmpty) {
+      _showSnackBar('برجاء تحديد مدينة الوصول', Colors.orange.shade800);
+      return;
+    }
+
+    context.read<TripBookingCubit>().searchForRides(from, to);
   }
 
   @override
@@ -62,7 +119,6 @@ class _PassengerSearchViewState extends State<_PassengerSearchView> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: royalGreen),
-          // 🟢 تم التغيير إلى maybePop
           onPressed: () => context.router.maybePop(), 
         ),
       ),
@@ -84,13 +140,21 @@ class _PassengerSearchViewState extends State<_PassengerSearchView> {
                 SizedBox(
                   width: double.infinity,
                   height: 48.h,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: royalGreen,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                    ),
-                    onPressed: _onSearch,
-                    child: Text('بحث الآن', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: BlocBuilder<TripBookingCubit, TripBookingState>(
+                    builder: (context, state) {
+                      bool isLoading = state is TripSearchLoading;
+                      return ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: royalGreen,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                        ),
+                        // 🟢 تعطيل الزر أثناء البحث لمنع الطلبات المكررة
+                        onPressed: isLoading ? null : _onSearch,
+                        child: isLoading
+                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : Text('بحث الآن', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -101,13 +165,9 @@ class _PassengerSearchViewState extends State<_PassengerSearchView> {
             child: BlocConsumer<TripBookingCubit, TripBookingState>(
               listener: (context, state) {
                 if (state is TripBookingSuccess) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green),
-                  );
+                  _showSnackBar(state.message, Colors.green);
                 } else if (state is TripBookingError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red.shade700),
-                  );
+                  _showSnackBar(state.message, Colors.red.shade700);
                 }
               },
               builder: (context, state) {
@@ -115,7 +175,16 @@ class _PassengerSearchViewState extends State<_PassengerSearchView> {
                   return Center(child: CircularProgressIndicator(color: royalGreen));
                 } 
                 else if (state is TripSearchError) {
-                  return Center(child: Text(state.message, style: TextStyle(fontFamily: 'Cairo', color: Colors.red.shade700, fontSize: 16.sp)));
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      child: Text(
+                        state.message, 
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontFamily: 'Cairo', color: Colors.red.shade700, fontSize: 16.sp, fontWeight: FontWeight.w600)
+                      ),
+                    )
+                  );
                 } 
                 else if (state is TripSearchLoaded) {
                   if (state.trips.isEmpty) {

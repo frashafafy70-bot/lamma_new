@@ -34,6 +34,52 @@ class TripChatCubit extends Cubit<TripChatState> {
     _listenToChatNotifications();
   }
 
+  // 🟢 دالة جديدة لجلب بيانات الطرف الآخر لعزل الواجهة عن Firestore
+  Future<Map<String, String>> getOtherPartyInfo(String tripId) async {
+    try {
+      var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
+      String otherUserId = '';
+
+      if (tripDoc.exists) {
+        var tripData = tripDoc.data() as Map<String, dynamic>;
+        String driverId = tripData['driverId'] ?? '';
+        String passengerId = tripData['passengerId'] ?? tripData['userId'] ?? '';
+
+        if (currentUserId == driverId) {
+          if (passengerId.isNotEmpty) {
+            otherUserId = passengerId;
+          } else {
+            var bookings = await FirebaseFirestore.instance.collection('trip_bookings')
+                .where('tripId', isEqualTo: tripId)
+                .where('driverId', isEqualTo: currentUserId)
+                .limit(1)
+                .get();
+            if (bookings.docs.isNotEmpty) {
+              otherUserId = bookings.docs.first.data()['passengerId'] ?? '';
+            }
+          }
+        } else {
+          otherUserId = driverId;
+        }
+      }
+
+      if (otherUserId.isNotEmpty) {
+         var userDoc = await FirebaseFirestore.instance.collection('users').doc(otherUserId).get();
+         if (userDoc.exists) {
+            var userData = userDoc.data() as Map<String, dynamic>;
+            return {
+              'name': userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر',
+              'phone': userData['phone'] ?? userData['phoneNumber'] ?? '',
+            };
+         }
+      }
+      return {'name': 'مستخدم لَمَّة', 'phone': ''};
+    } catch (e) {
+      debugPrint("خطأ في جلب بيانات الطرف الآخر: $e");
+      return {'name': 'غير معروف', 'phone': ''};
+    }
+  }
+
   Future<void> sendNotificationToOtherParty({required String tripId, required String message}) async {
     try {
       var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
@@ -41,7 +87,6 @@ class TripChatCubit extends Cubit<TripChatState> {
       if (!tripDoc.exists) return;
       
       debugPrint("🔔 إرسال إشعار بمحتوى: $message");
-      // الـ Backend هو اللي بيبعت الإشعار من هنا أو لو عامل Cloud Function
     } catch (e) {
       debugPrint("Error sending notification: $e");
     }
@@ -51,7 +96,6 @@ class TripChatCubit extends Cubit<TripChatState> {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.data['type'] == 'chat') {
         debugPrint("💬 [TripChatCubit] رسالة جديدة وصلت لايف في الخلفية الأمامية");
-        // 🟢 هيشغل صوت التنبيه القوي لو المستخدم برة الشات بس فاتح التطبيق
         _fcmAudioPlayer.play(AssetSource('sounds/chat_receive.mp3'), mode: PlayerMode.lowLatency);
       }
     });

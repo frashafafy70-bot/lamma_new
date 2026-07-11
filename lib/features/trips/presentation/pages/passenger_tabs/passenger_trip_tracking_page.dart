@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async'; 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +15,19 @@ import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart'
 import 'package:lamma_new/features/trips/presentation/widgets/negotiation_widget.dart'; 
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart'; 
 import 'package:lamma_new/core/services/navigation_service.dart';
+
+// 🟢 كلاس مساعد لعمل انسيابية في حركة السيارة على الخريطة
+class LatLngTween extends Tween<LatLng> {
+  LatLngTween({required super.begin, required super.end});
+
+  @override
+  LatLng lerp(double t) {
+    return LatLng(
+      begin!.latitude + (end!.latitude - begin!.latitude) * t,
+      begin!.longitude + (end!.longitude - begin!.longitude) * t,
+    );
+  }
+}
 
 class PassengerTripTrackingPage extends StatefulWidget {
   final String tripId;
@@ -29,7 +43,7 @@ class PassengerTripTrackingPage extends StatefulWidget {
   State<PassengerTripTrackingPage> createState() => _PassengerTripTrackingPageState();
 }
 
-class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
+class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
   bool _hasShownRatingDialog = false; 
@@ -38,16 +52,34 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
   StreamSubscription<DocumentSnapshot>? _tripStatusSubscription;
   final AudioPlayer _audioPlayer = AudioPlayer();
   String _previousStatus = ''; 
+
+  // 🟢 متغيرات الأنيميشن وحركة السيارة
+  AnimationController? _animationController;
+  LatLng? _currentDriverPosition;
+  double _markerRotation = 0.0;
+
+  final String _premiumMapStyle = '''[
+    {"elementType": "geometry", "stylers": [{"color": "#f5f5f5"}]},
+    {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
+    {"elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
+    {"elementType": "labels.text.stroke", "stylers": [{"color": "#f5f5f5"}]},
+    {"featureType": "road", "elementType": "geometry", "stylers": [{"color": "#ffffff"}]}
+  ]''';
   
   @override
   void initState() {
     super.initState();
     
+    // 🟢 تهيئة متحكم الأنيميشن
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500), // مدة الحركة بين النقطتين
+    );
+
     _tripLiveStream = FirebaseFirestore.instance.collection('trips').doc(widget.tripId).snapshots();
 
     _tripStatusSubscription = _tripLiveStream.listen((snapshot) {
       if (snapshot.exists) {
-        // 🟢 تم حل مشكلة الـ Casting هنا
         var data = snapshot.data() as Map<String, dynamic>?;
         String currentStatus = data?['status'] ?? '';
         
@@ -78,30 +110,79 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
 
   @override
   void dispose() {
+    _animationController?.dispose();
     _tripStatusSubscription?.cancel();
     _audioPlayer.dispose();
+    _mapController?.dispose();
     super.dispose();
+  }
+
+  // 🟢 حساب زاوية دوران السيارة بناءً على الإحداثيات القديمة والجديدة
+  double _getBearing(LatLng begin, LatLng end) {
+    double lat1 = begin.latitude * math.pi / 180.0;
+    double lon1 = begin.longitude * math.pi / 180.0;
+    double lat2 = end.latitude * math.pi / 180.0;
+    double lon2 = end.longitude * math.pi / 180.0;
+
+    double dLon = lon2 - lon1;
+    double y = math.sin(dLon) * math.cos(lat2);
+    double x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    double bearing = math.atan2(y, x) * 180.0 / math.pi;
+    return (bearing + 360.0) % 360.0;
   }
 
   void _updateDriverMarker(GeoPoint? driverLocation) {
     if (driverLocation == null) return;
     
-    LatLng driverPos = LatLng(driverLocation.latitude, driverLocation.longitude);
+    LatLng newDriverPos = LatLng(driverLocation.latitude, driverLocation.longitude);
     
-    setState(() {
-      _markers.removeWhere((m) => m.markerId.value == 'driver_car');
+    // 🟢 لو ده أول مرة يظهر فيها الكابتن
+    if (_currentDriverPosition == null) {
+      setState(() {
+        _currentDriverPosition = newDriverPos;
+        _drawMarkers();
+      });
+      _mapController?.animateCamera(CameraUpdate.newLatLng(newDriverPos));
+      return;
+    }
+
+    // 🟢 لو الكابتن اتحرك، نحسب الزاوية ونعمل أنيميشن
+    if (_currentDriverPosition != newDriverPos) {
+      _markerRotation = _getBearing(_currentDriverPosition!, newDriverPos);
+
+      Animation<LatLng> animation = LatLngTween(
+        begin: _currentDriverPosition,
+        end: newDriverPos,
+      ).animate(CurvedAnimation(parent: _animationController!, curve: Curves.linear));
+
+      animation.addListener(() {
+        setState(() {
+          _currentDriverPosition = animation.value;
+          _drawMarkers();
+        });
+      });
+
+      _animationController?.forward(from: 0.0);
+
+      // تحريك الكاميرا ببطء لتتبع السائق
+      _mapController?.animateCamera(CameraUpdate.newLatLng(newDriverPos));
+    }
+  }
+
+  void _drawMarkers() {
+    _markers.removeWhere((m) => m.markerId.value == 'driver_car');
+    
+    if (_currentDriverPosition != null) {
       _markers.add(
         Marker(
           markerId: const MarkerId('driver_car'),
-          position: driverPos,
+          position: _currentDriverPosition!,
+          rotation: _markerRotation, // 🟢 توجيه مقدمة السيارة
+          anchor: const Offset(0.5, 0.5), // 🟢 تثبيت مركز الدوران
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'السائق'),
         ),
       );
-    });
-
-    if (_mapController != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLng(driverPos));
     }
   }
 
@@ -248,7 +329,7 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
             var tripData = snapshot.data!.data() as Map<String, dynamic>;
             TripModel trip = TripModel.fromMap(tripData, snapshot.data!.id);
             
-            if (trip.status == 'in_progress' || trip.status == 'arrived') {
+            if (trip.status == 'in_progress' || trip.status == 'arrived' || trip.status == 'accepted') {
                WidgetsBinding.instance.addPostFrameCallback((_) {
                  _updateDriverMarker(tripData['driverLocation']);
                });
@@ -270,9 +351,11 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
                       target: LatLng(trip.pickupLocation?.latitude ?? 30.0, trip.pickupLocation?.longitude ?? 31.0),
                       zoom: 15,
                     ),
+                    style: _premiumMapStyle, // 🟢 إضافة الثيم الموحد
                     markers: _markers,
                     onMapCreated: (controller) => _mapController = controller,
                     zoomControlsEnabled: false,
+                    myLocationEnabled: true,
                   ),
                 ),
 
@@ -314,10 +397,11 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
                               currentUserId: widget.passengerId,
                             ),
 
-                          if (trip.status == 'in_progress' || trip.status == 'arrived') ...[
+                          if (trip.status == 'in_progress' || trip.status == 'arrived' || trip.status == 'accepted') ...[
                              Center(
                                child: Text(
-                                 trip.status == 'arrived' ? 'السائق بالخارج' : 'السائق في الطريق إليك...',
+                                 trip.status == 'arrived' ? 'السائق بالخارج' : 
+                                 trip.status == 'in_progress' ? 'الرحلة جارية الآن...' : 'السائق في الطريق إليك...',
                                  style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.primaryDark, fontWeight: FontWeight.bold),
                                ),
                              ),
@@ -326,12 +410,15 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> {
                                width: double.infinity,
                                height: 50.h,
                                child: ElevatedButton.icon(
-                                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.info),
+                                 style: ElevatedButton.styleFrom(
+                                   backgroundColor: AppColors.info,
+                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
+                                 ),
                                  onPressed: () {
                                    NavigationService.navigateToTripChat(widget.tripId);
                                  },
                                  icon: const Icon(Icons.chat, color: Colors.white),
-                                 label: const Text('محادثة السائق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                                 label: const Text('محادثة السائق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold)),
                                ),
                              ),
                           ],

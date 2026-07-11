@@ -8,9 +8,19 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 🟢 إضافة SharedPreferences
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+  final FirebaseMessaging _messaging;
+
+  // 🟢 التعديل هنا: الـ Constructor بقى بيقبل الفايربيز من بره (للاختبارات)
+  // ولو متبعتلوش حاجة (في التطبيق العادي) بيستخدم الـ instance الافتراضي
+  AuthService({
+    FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
+    FirebaseMessaging? messaging,
+  })  : _auth = firebaseAuth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _messaging = messaging ?? FirebaseMessaging.instance;
 
   // 🟢 دالة مساعدة لحفظ الـ Role محلياً
   Future<void> _cacheUserRole(String role) async {

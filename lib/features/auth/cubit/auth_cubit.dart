@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'auth_state.dart';
 
@@ -27,12 +28,29 @@ class AuthCubit extends Cubit<AuthState> {
     required this.authRepository, 
   }) : super(AuthInitial());
 
+  String _mapFirebaseAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found': return 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
+      case 'wrong-password': return 'كلمة المرور غير صحيحة.';
+      case 'email-already-in-use': return 'هذا البريد الإلكتروني مسجل مسبقاً.';
+      case 'weak-password': return 'كلمة المرور ضعيفة جداً.';
+      case 'invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة.';
+      case 'network-request-failed': return 'يرجى التحقق من اتصالك بالإنترنت.';
+      case 'invalid-credential': return 'بيانات الدخول غير صحيحة.';
+      default: return 'حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.';
+    }
+  }
+
   Future<void> login({required String email, required String password}) async {
     emit(AuthLoading());
     try {
       final user = await loginUseCase.call(email: email, password: password);
-      if (isClosed) return; // 🟢 حماية من الكراش لو الشاشة أغلقت
-      emit(AuthSuccess('تم تسجيل الدخول بنجاح! 🎉', uid: user.uid, role: (user as dynamic).role));
+      if (isClosed) return;
+      final role = (user as dynamic).role;
+      emit(AuthSuccess('تم تسجيل الدخول بنجاح! 🎉', uid: user.uid, role: role));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError(_mapFirebaseAuthError(e)));
     } catch (e) {
       if (isClosed) return;
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
@@ -45,6 +63,9 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await signUpUseCase.call(email: email, password: password, name: name, phone: phone);
       if (isClosed) return;
       emit(AuthSuccess('تم إنشاء الحساب بنجاح! 🚀', uid: user.uid));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError(_mapFirebaseAuthError(e)));
     } catch (e) {
       if (isClosed) return;
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
@@ -57,6 +78,9 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await loginWithGoogleUseCase.call();
       if (isClosed) return;
       emit(AuthSuccess('تم تسجيل الدخول بجوجل بنجاح! 🎉', uid: user.uid));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError('فشل تسجيل الدخول: ${_mapFirebaseAuthError(e)}'));
     } catch (e) {
       if (isClosed) return;
       emit(AuthError('فشل تسجيل الدخول بجوجل ❌: ${e.toString().replaceAll('Exception: ', '')}'));
@@ -116,6 +140,9 @@ class AuthCubit extends Cubit<AuthState> {
       
       if (isClosed) return;
       emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError('خطأ أثناء التفعيل: ${_mapFirebaseAuthError(e)}'));
     } catch (e) {
       if (isClosed) return;
       emit(const AuthError('كود الـ OTP المدخل غير صحيح أو حدث خطأ ❌'));
@@ -132,7 +159,8 @@ class AuthCubit extends Cubit<AuthState> {
       
       if (isClosed) return;
       if (userEntity != null) {
-        emit(AuthSuccess('تم تسجيل الدخول بنجاح', uid: userEntity.uid, role: (userEntity as dynamic).role));
+        final role = (userEntity as dynamic).role;
+        emit(AuthSuccess('تم تسجيل الدخول بنجاح', uid: userEntity.uid, role: role));
       } else {
         emit(const AuthNeedsPasswordAndProfile());
       }
@@ -160,6 +188,9 @@ class AuthCubit extends Cubit<AuthState> {
       
       if (isClosed) return;
       emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError(_mapFirebaseAuthError(e)));
     } catch (e) {
       if (isClosed) return;
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
@@ -203,6 +234,9 @@ class AuthCubit extends Cubit<AuthState> {
       await authRepository.resetPassword(email);
       if (isClosed) return;
       emit(const AuthSuccess('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح 📧'));
+    } on FirebaseAuthException catch (e) {
+      if (isClosed) return;
+      emit(AuthError(_mapFirebaseAuthError(e)));
     } catch (e) {
       if (isClosed) return;
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));

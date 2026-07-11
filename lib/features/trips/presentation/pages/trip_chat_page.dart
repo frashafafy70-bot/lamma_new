@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:audioplayers/audioplayers.dart'; // 🟢 مكتبة الصوت
+import 'package:audioplayers/audioplayers.dart'; 
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_chat_cubit.dart'; 
@@ -31,10 +30,10 @@ class _TripChatPageState extends State<TripChatPage> {
   bool isLoadingInfo = true;
   
   final ScrollController _scrollController = ScrollController();
-  final AudioPlayer _audioPlayer = AudioPlayer(); // 🟢 مشغل صوت الـ Pop
+  final AudioPlayer _audioPlayer = AudioPlayer(); 
   
   bool _isLoadingMore = false;
-  int _previousMessageCount = 0; // 🟢 لمراقبة نزول رسائل جديدة
+  int _previousMessageCount = 0; 
 
   @override
   void initState() {
@@ -48,7 +47,7 @@ class _TripChatPageState extends State<TripChatPage> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    _audioPlayer.dispose(); // 🟢 تنظيف الذاكرة
+    _audioPlayer.dispose(); 
     super.dispose();
   }
 
@@ -62,55 +61,16 @@ class _TripChatPageState extends State<TripChatPage> {
     }
   }
 
+  // 🟢 الواجهة بتكلم الكيوبت بس عشان تجيب الداتا من غير أي Firebase مباشر
   Future<void> _fetchOtherPartyInfo() async {
-    try {
-      var tripDoc = await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).get();
-      String otherUserId = '';
-
-      if (tripDoc.exists) {
-        var tripData = tripDoc.data() as Map<String, dynamic>;
-        String driverId = tripData['driverId'] ?? '';
-        String passengerId = tripData['passengerId'] ?? tripData['userId'] ?? '';
-
-        if (currentUserId == driverId) {
-          if (passengerId.isNotEmpty) {
-            otherUserId = passengerId;
-          } else {
-            var bookings = await FirebaseFirestore.instance.collection('trip_bookings')
-                .where('tripId', isEqualTo: widget.tripId)
-                .where('driverId', isEqualTo: currentUserId)
-                .limit(1)
-                .get();
-            if (bookings.docs.isNotEmpty) {
-              otherUserId = bookings.docs.first.data()['passengerId'] ?? '';
-            }
-          }
-        } else {
-          otherUserId = driverId;
-        }
-      }
-
-      if (otherUserId.isNotEmpty) {
-         var userDoc = await FirebaseFirestore.instance.collection('users').doc(otherUserId).get();
-         if (userDoc.exists) {
-            var userData = userDoc.data() as Map<String, dynamic>;
-            if (mounted) {
-              setState(() {
-                 otherUserName = userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر';
-                 otherUserPhone = userData['phone'] ?? userData['phoneNumber'] ?? '';
-              });
-            }
-         } else {
-           if (mounted) setState(() => otherUserName = 'مستخدم غير متوفر');
-         }
-      } else {
-        if (mounted) setState(() => otherUserName = 'مستخدم لَمَّة');
-      }
-    } catch (e) {
-      debugPrint("خطأ في جلب بيانات الطرف الآخر: $e");
-      if (mounted) setState(() => otherUserName = 'غير معروف');
-    } finally {
-      if (mounted) setState(() => isLoadingInfo = false);
+    final info = await context.read<TripChatCubit>().getOtherPartyInfo(widget.tripId);
+    
+    if (mounted) {
+      setState(() {
+        otherUserName = info['name'] ?? 'الطرف الآخر';
+        otherUserPhone = info['phone'] ?? '';
+        isLoadingInfo = false;
+      });
     }
   }
 
@@ -154,11 +114,9 @@ class _TripChatPageState extends State<TripChatPage> {
           child: Column(
             children: [
               Expanded(
-                // 🟢 تم التحويل لـ BlocConsumer عشان نسمع التغيير ونشغل الصوت
                 child: BlocConsumer<TripChatCubit, TripChatState>(
                   listener: (context, state) {
                     if (state is TripChatLoaded) {
-                      // لو عدد الرسائل زاد وأحدث رسالة مش أنا اللي باعتها -> شغل صوت الـ Pop
                       if (state.messages.length > _previousMessageCount) {
                         if (state.messages.isNotEmpty && state.messages.first.senderId != currentUserId) {
                           _audioPlayer.play(AssetSource('sounds/pop.mp3'), mode: PlayerMode.lowLatency);

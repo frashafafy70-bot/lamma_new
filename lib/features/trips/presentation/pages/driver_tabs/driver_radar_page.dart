@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+
+// 🟢 استدعاء الـ GetIt
+import 'package:lamma_new/core/di/injection_container.dart'; 
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
-
-import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
-import 'package:lamma_new/features/trips/domain/usecases/get_driver_active_trips_usecase.dart';
 
 import 'driver_radar_tab.dart';
 import 'driver_active_trips_tab.dart';
@@ -135,21 +134,14 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                   child: TabBarView(
                     controller: _driverTabController,
                     children: [
-                      // 🟢 هنا خلينا showHeader = false عشان نمنع الدبل هيدر جوه لوحة التحكم
                       const DriverRadarTab(showHeader: false),
+                      
+                      // 🟢 الحل السحري: استخدام sl() مباشرة لحقن الكيوبت وكل ما يحتاجه
                       BlocProvider(
-                        create: (context) => DriverActiveTripsCubit(
-                          GetDriverActiveTripsUseCase(
-                            TripRepositoryImpl(
-                              firestore: FirebaseFirestore.instance,
-                              auth: FirebaseAuth.instance,
-                            )
-                          )
-                        ), 
-                        // 🟢 وهنا كمان false
+                        create: (context) => sl<DriverActiveTripsCubit>(), 
                         child: const DriverActiveTripsTab(showHeader: false)
                       ),
-                      // 🟢 وهنا كمان false
+                      
                       const DriverHistoryTab(showHeader: false),
                     ],
                   ),

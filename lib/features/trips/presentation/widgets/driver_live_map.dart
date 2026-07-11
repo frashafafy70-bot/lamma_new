@@ -2,14 +2,15 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// استدعاء الألوان والثوابت المركزية
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/core/constants/app_constants.dart'; // 👈 استدعاء الثوابت
+import 'package:lamma_new/core/constants/app_constants.dart'; 
+// 🟢 استدعاء الـ Cubit
+import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
 class DriverLiveMap extends StatefulWidget {
   final String tripId;
@@ -31,7 +32,6 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
   GoogleMapController? _mapController;
   StreamSubscription<Position>? _positionStream;
   
-  // 👈 التعديل هنا لربطها بملف الثوابت
   LatLng _currentDriverPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
   bool _isLoading = true;
   bool _isFollowingDriver = true; 
@@ -92,7 +92,7 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 5, 
+        distanceFilter: 5, // ممتاز لمنع استهلاك الباقة والسيرفر
       ),
     ).listen((Position position) {
       _updateDriverLocation(position);
@@ -127,18 +127,8 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
       );
     }
 
-    _syncLocationToFirebase(newPos);
-  }
-
-  Future<void> _syncLocationToFirebase(LatLng pos) async {
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(widget.tripId).update({
-        'driverLocation': GeoPoint(pos.latitude, pos.longitude),
-        'lastLocationUpdate': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint("خطأ في تحديث موقع السائق: $e");
-    }
+    // 🟢 استدعاء الـ Cubit بدلاً من Firestore المباشر
+    context.read<DriverActiveTripsCubit>().syncLocation(widget.tripId, newPos.latitude, newPos.longitude);
   }
 
   void _showError(String msg) {

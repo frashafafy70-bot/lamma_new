@@ -1,4 +1,4 @@
-import '../../domain/entities/user_entity.dart'; // 🟢 تم تصحيح حرف الـ i
+import '../../domain/entities/user_entity.dart';
 
 class UserModel extends UserEntity {
   UserModel({
@@ -10,21 +10,17 @@ class UserModel extends UserEntity {
     required super.activeRole,
   });
 
-  // الدالة دي بتاخد البيانات اللي راجعة من Firestore وتحولها للموديل بتاعنا
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
-      // بنعمل كاستنج للـ List عشان الفايربيس بيرجعها dynamic
-      // 🟢 خلينا الافتراضي passenger عشان يطابق اختيارات الواجهة بدلاً من client
       roles: List<String>.from(json['roles'] ?? ['passenger']),
       activeRole: json['activeRole'] ?? 'passenger',
     );
   }
 
-  // الدالة دي لو حبينا نرفع الموديل للفايربيس في أي وقت
   Map<String, dynamic> toJson() {
     return {
       'uid': uid,

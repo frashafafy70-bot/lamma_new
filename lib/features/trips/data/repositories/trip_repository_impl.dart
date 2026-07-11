@@ -63,6 +63,30 @@ class TripRepositoryImpl implements TripRepository {
     }
   }
 
+  // 🟢 الدالة الجديدة لجلب الرحلات كـ Stream (تم نقلها من الكيوبت)
+  @override
+  Stream<List<TripModel>> getTripsStream(String userId, {bool isPassenger = true}) {
+    try {
+      Query query = _firestore.collection('trips');
+
+      if (isPassenger) {
+        query = query.where('passengerId', isEqualTo: userId);
+      } else {
+        query = query.where('driverId', isEqualTo: userId);
+      }
+
+      query = query.orderBy('createdAt', descending: true);
+
+      return query.snapshots().map((snapshot) {
+        return snapshot.docs.map((doc) {
+          return TripModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
+      });
+    } catch (e) {
+      throw Exception('حدث خطأ أثناء جلب الرحلات: $e');
+    }
+  }
+
   @override
   Stream<int> getDriverActiveOrdersCountStream(String uid) {
     var bookingsStream = _firestore
@@ -74,7 +98,7 @@ class TripRepositoryImpl implements TripRepository {
     var tripsStream = _firestore
         .collection('trips')
         .where('driverId', isEqualTo: uid)
-        .where('status', whereIn: ['available', 'accepted', 'negotiating', 'arrived', 'started'])
+        .where('status', whereIn: ['available', 'accepted', 'negotiating', 'arrived', 'started', 'in_progress'])
         .snapshots();
 
     return Rx.combineLatest2(
@@ -122,12 +146,10 @@ class TripRepositoryImpl implements TripRepository {
     TripModel? lastTrip,
   }) async {
     try {
-      // 🟢 شيلنا الـ orderBy اللي بتعمل مشكلة الفهرس
       Query query = _firestore
           .collection('trips')
           .where('driverId', isEqualTo: uid)
-          .where('status', whereIn: ['available', 'accepted', 'negotiating', 'arrived', 'started']);
-          // .limit(limit); شلناها مؤقتاً عشان نرتب كل الداتا عندنا صح
+          .where('status', whereIn: ['available', 'accepted', 'negotiating', 'arrived', 'started', 'in_progress']);
 
       final snapshot = await query.get();
       
@@ -136,19 +158,11 @@ class TripRepositoryImpl implements TripRepository {
         return TripModel.fromMap(data, doc.id); 
       }).toList();
 
-      // 🟢 الترتيب بيتم محلياً عن طريق الدارت (من الأحدث للأقدم)
       trips.sort((a, b) {
         if (a.createdAt == null) return 1;
         if (b.createdAt == null) return -1;
         return b.createdAt!.compareTo(a.createdAt!);
       });
-
-      // 🟢 تطبيق الـ Pagination محلياً لو عايز
-      // int start = 0;
-      // if (lastTrip != null) {
-      //   start = trips.indexWhere((t) => t.id == lastTrip.id) + 1;
-      // }
-      // trips = trips.skip(start).take(limit).toList();
 
       return Right(trips);
     } catch (e) {
@@ -163,12 +177,10 @@ class TripRepositoryImpl implements TripRepository {
     TripModel? lastTrip,
   }) async {
     try {
-      // 🟢 شيلنا الـ orderBy اللي بتعمل مشكلة الفهرس
       Query query = _firestore
           .collection('trips')
           .where('passengerId', isEqualTo: uid)
           .where('isDriverPost', isEqualTo: false);
-          // .limit(limit);
 
       final snapshot = await query.get();
       
@@ -185,7 +197,6 @@ class TripRepositoryImpl implements TripRepository {
         }
       }
 
-      // 🟢 الترتيب بيتم محلياً عن طريق الدارت (من الأحدث للأقدم)
       trips.sort((a, b) {
         if (a.createdAt == null) return 1;
         if (b.createdAt == null) return -1;
@@ -205,7 +216,6 @@ class TripRepositoryImpl implements TripRepository {
     TripModel? lastTrip,
   }) async {
     try {
-      // 🟢 شيلنا الـ orderBy اللي بتعمل مشكلة الفهرس
       Query query = _firestore
           .collection('trips')
           .where('driverId', isEqualTo: uid)
@@ -222,7 +232,6 @@ class TripRepositoryImpl implements TripRepository {
         historyTrips.add(TripModel.fromMap(data, doc.id));
       }
 
-      // 🟢 الترتيب بيتم محلياً عن طريق الدارت (من الأحدث للأقدم)
       historyTrips.sort((a, b) {
         if (a.createdAt == null) return 1;
         if (b.createdAt == null) return -1;
@@ -241,7 +250,6 @@ class TripRepositoryImpl implements TripRepository {
     TripModel? lastTrip,
   }) async {
     try {
-      // 🟢 شيلنا الـ orderBy اللي بتعمل مشكلة الفهرس
       Query query = _firestore
           .collection('trips')
           .where('isDriverPost', isEqualTo: true)
@@ -255,7 +263,6 @@ class TripRepositoryImpl implements TripRepository {
         availableTrips.add(TripModel.fromMap(data, doc.id));
       }
 
-      // 🟢 الترتيب بيتم محلياً عن طريق الدارت (من الأحدث للأقدم)
       availableTrips.sort((a, b) {
         if (a.createdAt == null) return 1;
         if (b.createdAt == null) return -1;
@@ -265,6 +272,136 @@ class TripRepositoryImpl implements TripRepository {
       return Right(availableTrips);
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ: ${e.toString()}')); 
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> acceptPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required int seatsToDeduct,
+  }) async {
+    try {
+      final tripRef = _firestore.collection('trips').doc(tripId);
+      final bookingRef = _firestore.collection('trip_bookings').doc(bookingId);
+
+      await _firestore.runTransaction((transaction) async {
+        final tripSnapshot = await transaction.get(tripRef);
+        if (!tripSnapshot.exists) throw Exception('الرحلة غير موجودة');
+
+        var tripData = tripSnapshot.data() as Map<String, dynamic>;
+        int currentSeats = int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
+
+        if (currentSeats < seatsToDeduct) {
+          throw Exception('لا يوجد مقاعد كافية متاحة الآن');
+        }
+
+        int newSeats = currentSeats - seatsToDeduct;
+        
+        transaction.update(bookingRef, {'status': 'accepted'});
+        transaction.update(tripRef, {'availableSeats': newSeats.toString()});
+      });
+
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> rejectPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required String passengerId,
+  }) async {
+    try {
+      await _firestore.collection('trip_bookings').doc(bookingId).delete();
+      await _firestore.collection('trips').doc(tripId).update({
+        'bookedPassengersIds': FieldValue.arrayRemove([passengerId])
+      });
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء الرفض: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> cancelPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required String passengerId,
+    required int seatsToReturn,
+    required bool wasAccepted,
+  }) async {
+    try {
+      await _firestore.collection('trip_bookings').doc(bookingId).delete();
+
+      if (wasAccepted) {
+        await _firestore.runTransaction((transaction) async {
+          final tripRef = _firestore.collection('trips').doc(tripId);
+          final tripSnapshot = await transaction.get(tripRef);
+          
+          if (tripSnapshot.exists) {
+             var tripData = tripSnapshot.data() as Map<String, dynamic>;
+             int currentSeats = int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
+             transaction.update(tripRef, {
+                'availableSeats': (currentSeats + seatsToReturn).toString(),
+                'bookedPassengersIds': FieldValue.arrayRemove([passengerId])
+             });
+          }
+        });
+      } else {
+        await _firestore.collection('trips').doc(tripId).update({
+          'bookedPassengersIds': FieldValue.arrayRemove([passengerId]),
+        });
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء الإلغاء: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> activateDriverTripFunction(String tripId, String driverId) async {
+    try {
+      await _firestore.collection('trips').doc(tripId).update({
+        'status': 'in_progress',
+        'driverActiveTripEnabled': true, 
+        'startedAt': FieldValue.serverTimestamp(),
+      });
+      
+      await _firestore.collection('users').doc(driverId).update({
+        'isBusy': true,
+      });
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء التفعيل: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateTripStatus(String tripId, String status) async {
+    try {
+      await _firestore.collection('trips').doc(tripId).update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: 'خطأ في تحديث حالة الرحلة: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> syncDriverLocation(String tripId, GeoPoint location) async {
+    try {
+      await _firestore.collection('trips').doc(tripId).update({
+        'driverLocation': location,
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+      });
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: 'خطأ في مزامنة الموقع: $e'));
     }
   }
 }

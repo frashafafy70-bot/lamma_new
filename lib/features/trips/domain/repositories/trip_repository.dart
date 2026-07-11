@@ -4,10 +4,8 @@ import '../../../../core/errors/failures.dart';
 import '../../data/models/trip_model.dart';
 
 abstract class TripRepository {
-  /// دالة لإنشاء طلب رحلة جديد باستخدام Map (كما يطلب الكيوبت الحالي)
   Future<void> createNewTripRequest(Map<String, dynamic> tripData);
   
-  /// دالة بديلة لإرسال طلب الرحلة بالمتغيرات المباشرة (احتياطية)
   Future<void> submitTripRequest({
     required String pickupAddress,
     required String dropoffAddress,
@@ -15,43 +13,62 @@ abstract class TripRepository {
     required GeoPoint pickupLocation,
   });
   
-  /// دالة إضافة رحلة السفر باستخدام الـ Model
   Future<void> addTravelTrip(TripModel trip);
   
-  /// ستريم لحساب طلبات السائق النشطة بالكامل
+  // 🟢 الدالة الجديدة المُضافة للواجهة
+  Stream<List<TripModel>> getTripsStream(String userId, {bool isPassenger = true});
+
   Stream<int> getDriverActiveOrdersCountStream(String uid);
   
-  /// ستريم لحساب طلبات العميل النشطة بالكامل
   Stream<int> getPassengerActiveOrdersCountStream(String uid);
-
-  // =======================================================
-  // 🔥 دوال الـ Pagination لجميع قوائم التطبيق
-  // =======================================================
   
-  /// 1. جلب قائمة رحلات السائق النشطة
   Future<Either<Failure, List<TripModel>>> getDriverActiveTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip, 
+    TripModel? lastTrip,
   });
-
-  /// 2. جلب قائمة طلبات العميل النشطة
+  
   Future<Either<Failure, List<TripModel>>> getPassengerActiveTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip, 
+    TripModel? lastTrip,
   });
-
-  /// 3. جلب سجل رحلات السائق (المكتملة والملغية)
+  
   Future<Either<Failure, List<TripModel>>> getDriverHistoryTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip, 
+    TripModel? lastTrip,
   });
-
-  /// 4. جلب الرحلات المتاحة (التي ينشرها السائقون للركاب)
+  
   Future<Either<Failure, List<TripModel>>> getAvailableTravels({
     required int limit,
-    TripModel? lastTrip, 
+    TripModel? lastTrip,
   });
+
+  Future<Either<Failure, void>> acceptPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required int seatsToDeduct,
+  });
+
+  Future<Either<Failure, void>> rejectPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required String passengerId,
+  });
+
+  Future<Either<Failure, void>> cancelPassengerBooking({
+    required String bookingId,
+    required String tripId,
+    required String passengerId,
+    required int seatsToReturn,
+    required bool wasAccepted,
+  });
+
+  Future<Either<Failure, void>> activateDriverTripFunction(String tripId, String driverId);
+
+  // الدوال الخاصة بالخريطة والتتبع الحي
+  Future<Either<Failure, void>> updateTripStatus(String tripId, String status);
+  
+  Future<Either<Failure, void>> syncDriverLocation(String tripId, GeoPoint location);
 }

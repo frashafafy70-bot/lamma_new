@@ -7,24 +7,25 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:audioplayers/audioplayers.dart'; 
 
 import '../../domain/usecases/get_driver_active_trips_usecase.dart'; 
+import '../../domain/repositories/trip_repository.dart';
 import '../../data/models/trip_model.dart';
 import 'driver_active_trips_state.dart';
 
 class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   final GetDriverActiveTripsUseCase _getDriverActiveTripsUseCase;
+  final TripRepository _repository; 
   
   StreamSubscription<RemoteMessage>? _notificationSubscription;
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // 🟢 متغيرات التحكم في الـ Pagination
   List<TripModel> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   final int _limit = 15;
 
-  DriverActiveTripsCubit(this._getDriverActiveTripsUseCase) : super(DriverActiveTripsInitial()) {
+  DriverActiveTripsCubit(this._getDriverActiveTripsUseCase, this._repository) : super(DriverActiveTripsInitial()) {
     _listenToForegroundNotifications(); 
   }
 
@@ -146,30 +147,61 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     }
   }
 
+  Future<void> acceptBooking(String bookingId, String tripId, int seatsToDeduct) async {
+    emit(DriverActiveTripsActionLoading());
+    final result = await _repository.acceptPassengerBooking(bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (_) => emit(DriverActiveTripsActionSuccess('تم قبول الحجز بنجاح!'))
+    );
+    fetchInitialActiveTrips(); 
+  }
+
+  Future<void> rejectBooking(String bookingId, String tripId, String passengerId) async {
+    emit(DriverActiveTripsActionLoading());
+    final result = await _repository.rejectPassengerBooking(bookingId: bookingId, tripId: tripId, passengerId: passengerId);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (_) => emit(DriverActiveTripsActionSuccess('تم رفض الطلب بنجاح'))
+    );
+  }
+
+  Future<void> cancelBooking(String bookingId, String tripId, String passengerId, int seatsToReturn, bool wasAccepted) async {
+    emit(DriverActiveTripsActionLoading());
+    final result = await _repository.cancelPassengerBooking(bookingId: bookingId, tripId: tripId, passengerId: passengerId, seatsToReturn: seatsToReturn, wasAccepted: wasAccepted);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (_) => emit(DriverActiveTripsActionSuccess('تم إلغاء الحجز بنجاح'))
+    );
+    fetchInitialActiveTrips();
+  }
+
+  Future<void> activateDriverTripFunction(String tripId) async {
+    emit(DriverActiveTripsActionLoading());
+    final result = await _repository.activateDriverTripFunction(tripId, currentUserId);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (_) {
+        emit(DriverActiveTripsActionSuccess('تم تفعيل الرحلة بنجاح!'));
+        fetchInitialActiveTrips();
+      }
+    );
+  }
+
   Future<bool> checkHasActiveTrip() async {
     if (currentUserId.isEmpty) return false;
-
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('trips')
-          .where('driverId', isEqualTo: currentUserId)
-          .get();
-
+      final snapshot = await FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).get();
       if (isClosed) return false; 
-
       for (var doc in snapshot.docs) {
         final data = doc.data();
         bool isNotDeleted = data['isDeletedForDriver'] != true;
-        
-        bool isActiveStatus = data['status'] == 'available' || 
-                              data['status'] == 'negotiating' || 
-                              data['status'] == 'accepted' || 
-                              data['status'] == 'arrived' ||
-                              data['status'] == 'in_progress';
-
-        if (isNotDeleted && isActiveStatus) {
-          return true; 
-        }
+        bool isActiveStatus = data['status'] == 'available' || data['status'] == 'negotiating' || data['status'] == 'accepted' || data['status'] == 'arrived' || data['status'] == 'in_progress';
+        if (isNotDeleted && isActiveStatus) return true; 
       }
       return false; 
     } catch (e) {
@@ -177,23 +209,18 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     }
   }
 
-  Future<void> activateDriverTripFunction(String tripId) async {
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-        'status': 'in_progress',
-        'driverActiveTripEnabled': true, 
-        'startedAt': FieldValue.serverTimestamp(),
-      });
-      
-      await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
-        'isBusy': true,
-      });
+  Future<void> updateTripState(String tripId, String status) async {
+    emit(DriverActiveTripsActionLoading());
+    final result = await _repository.updateTripStatus(tripId, status);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (_) => emit(DriverActiveTripsActionSuccess('تم تحديث حالة الرحلة بنجاح'))
+    );
+  }
 
-      fetchInitialActiveTrips();
-    } catch (e) {
-      if (isClosed) return; 
-      emit(DriverActiveTripsError('حدث خطأ أثناء تفعيل وظيفة الرحلة النشطة.'));
-    }
+  Future<void> syncLocation(String tripId, double lat, double lng) async {
+    await _repository.syncDriverLocation(tripId, GeoPoint(lat, lng));
   }
 
   @override

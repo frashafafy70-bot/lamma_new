@@ -7,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:intl/intl.dart' hide TextDirection; 
 
-// 🟢 استدعاء الألوان والـ Extensions
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/extensions/context_extension.dart';
 
@@ -56,34 +55,16 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> with Automa
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () async {
+            onPressed: () {
               ctx.pop();
               var bookingData = bookingDoc.data() as Map<String, dynamic>;
               int seatsToReturn = bookingData['seats'] ?? 1;
               String tripId = bookingData['tripId'];
               String passengerId = bookingData['passengerId'];
+              bool wasAccepted = bookingData['status'] == 'accepted';
 
-              await bookingDoc.reference.delete(); 
-
-              if (bookingData['status'] == 'accepted') {
-                DocumentSnapshot tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
-                int currentSeats = 0;
-                if (tripDoc.exists && tripDoc.data() != null) {
-                  var tData = tripDoc.data() as Map<String, dynamic>;
-                  currentSeats = int.tryParse(tData['availableSeats']?.toString() ?? '0') ?? 0;
-                }
-                await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-                  'availableSeats': currentSeats + seatsToReturn,
-                  'bookedPassengersIds': FieldValue.arrayRemove([passengerId]),
-                });
-              } else {
-                await FirebaseFirestore.instance.collection('trips').doc(tripId).update({
-                  'bookedPassengersIds': FieldValue.arrayRemove([passengerId]),
-                });
-              }
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء الحجز بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
-              }
+              // 🟢 نقلنا المنطق للـ Cubit
+              context.read<DriverActiveTripsCubit>().cancelBooking(bookingDoc.id, tripId, passengerId, seatsToReturn, wasAccepted);
             },
             child: const Text('نعم، إلغاء', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: Colors.white)),
           ),
@@ -104,7 +85,16 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> with Automa
             const PremiumTabHeader(title: 'الرحلات النشطة'),
           
           Expanded(
-            child: BlocBuilder<DriverActiveTripsCubit, DriverActiveTripsState>(
+            // 🟢 استخدام Consumer للاستماع لرسائل النجاح/الفشل
+            child: BlocConsumer<DriverActiveTripsCubit, DriverActiveTripsState>(
+              listener: (context, state) {
+                if (state is DriverActiveTripsActionSuccess) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
+                } else if (state is DriverActiveTripsActionError) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+                }
+              },
+              buildWhen: (previous, current) => current is! DriverActiveTripsActionLoading && current is! DriverActiveTripsActionSuccess && current is! DriverActiveTripsActionError,
               builder: (context, state) {
                 if (state is DriverActiveTripsLoading) {
                   return const Center(child: CircularProgressIndicator(color: AppColors.accentGold)); 
@@ -190,20 +180,11 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> with Automa
                                                         style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)), padding: EdgeInsets.symmetric(vertical: 10.h)),
                                                         icon: Icon(Icons.check_circle_rounded, size: 18.sp, color: Colors.white),
                                                         label: Text('قبول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13.sp, fontWeight: FontWeight.bold)),
-                                                        onPressed: () async {
+                                                        onPressed: () {
                                                           int seatsToDeduct = data['seats'] ?? 1;
                                                           String tripId = data['tripId'];
-                                                          DocumentSnapshot tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
-                                                          int currentSeats = 0;
-                                                          if (tripDoc.exists && tripDoc.data() != null) {
-                                                            var tData = tripDoc.data() as Map<String, dynamic>;
-                                                            currentSeats = int.tryParse(tData['availableSeats']?.toString() ?? '0') ?? 0;
-                                                          }
-                                                          int newSeats = currentSeats - seatsToDeduct;
-                                                          if (newSeats < 0) newSeats = 0;
-                                                          await booking.reference.update({'status': 'accepted'});
-                                                          await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'availableSeats': newSeats});
-                                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم قبول الحجز بنجاح!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
+                                                          // 🟢 الاتصال بالـ Cubit
+                                                          context.read<DriverActiveTripsCubit>().acceptBooking(booking.id, tripId, seatsToDeduct);
                                                         },
                                                       ),
                                                     ),
@@ -213,12 +194,11 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> with Automa
                                                         style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)), padding: EdgeInsets.symmetric(vertical: 10.h)),
                                                         icon: Icon(Icons.close_rounded, size: 18.sp),
                                                         label: Text('رفض', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold)),
-                                                        onPressed: () async {
+                                                        onPressed: () {
                                                           String tripId = data['tripId'];
                                                           String passengerId = data['passengerId'];
-                                                          await booking.reference.delete(); 
-                                                          await FirebaseFirestore.instance.collection('trips').doc(tripId).update({'bookedPassengersIds': FieldValue.arrayRemove([passengerId])});
-                                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفض الطلب بنجاح', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+                                                          // 🟢 الاتصال بالـ Cubit
+                                                          context.read<DriverActiveTripsCubit>().rejectBooking(booking.id, tripId, passengerId);
                                                         },
                                                       ),
                                                     ),
@@ -460,7 +440,10 @@ class _DriverActiveTripsTabState extends State<DriverActiveTripsTab> with Automa
                                               style: ElevatedButton.styleFrom(backgroundColor: AppColors.royalGreen, foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 12.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r))),
                                               icon: Icon(Icons.play_circle_fill_rounded, size: 20.sp),
                                               label: Text('تفعيل الرحلة النشطة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
-                                              onPressed: () => context.read<DriverActiveTripsCubit>().activateDriverTripFunction(tripId),
+                                              onPressed: () {
+                                                // 🟢 الاتصال بالـ Cubit بدلاً من Firestore
+                                                context.read<DriverActiveTripsCubit>().activateDriverTripFunction(tripId);
+                                              },
                                             ),
                                           ),
                                           SizedBox(height: 12.h),
