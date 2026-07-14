@@ -8,13 +8,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart' hide TextDirection; 
 
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/di/injection_container.dart'; // 🟢
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_state.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/my_request_trip_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
-import 'package:lamma_new/features/trips/data/models/trip_model.dart'; // 🟢 إضافة موديل الرحلة
+import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
+
+// 🟢
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
 class PassengerMyRequestsTab extends StatefulWidget {
   const PassengerMyRequestsTab({super.key});
@@ -28,7 +33,6 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
   final Set<String> _navigatedTripIds = {};
   final Set<String> _completedTripIds = {}; 
   
-  // 🟢 إضافة متحكم التمرير للـ Pagination
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -93,272 +97,297 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
     super.build(context);
     final Color primaryNavy = const Color(0xFF0F172A);
 
-    return Container(
-      color: AppColors.backgroundLight,
-      child: BlocListener<PassengerMyRequestsCubit, PassengerMyRequestsState>(
-        listener: (context, state) async {
-          if (state is PassengerMyRequestsLoaded) {
-            for (TripModel trip in state.requests) {
-              final tripId = trip.id ?? '';
-              final status = trip.status;
-              
-              if (status == 'accepted' && !_navigatedTripIds.contains(tripId)) {
-                _navigatedTripIds.add(tripId); 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)),
-                );
-              }
+    return BlocProvider(
+      create: (context) => sl<TripActionsCubit>(), // 🟢 توفير الكيوبت
+      child: Container(
+        color: AppColors.backgroundLight,
+        // 🟢 الاستماع للأكشنز لعرض التحميل والنجاح للتقييم
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<TripActionsCubit, TripActionsState>(
+              listener: (context, state) {
+                if (state is TripActionsLoading) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.royalGreen)),
+                  );
+                } else if (state is TripActionsSuccess) {
+                  Navigator.of(context).pop(); 
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
+                } else if (state is TripActionsError) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+                }
+              },
+            ),
+            BlocListener<PassengerMyRequestsCubit, PassengerMyRequestsState>(
+              listener: (context, state) async {
+                if (state is PassengerMyRequestsLoaded) {
+                  for (TripModel trip in state.requests) {
+                    final tripId = trip.id ?? '';
+                    final status = trip.status;
+                    
+                    if (status == 'accepted' && !_navigatedTripIds.contains(tripId)) {
+                      _navigatedTripIds.add(tripId); 
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)),
+                      );
+                    }
 
-              // 🟢 ملاحظة هندسية: TripModel لا يحتوي حالياً على حقل 'passengerRatingForDriver'.
-              // كحل جذري لحين إضافتك للحقل في الموديل، سنتحقق منه مباشرة من Firestore إذا كانت الرحلة مكتملة
-              if (status == 'completed' && !_completedTripIds.contains(tripId)) {
-                _completedTripIds.add(tripId); 
-                
-                final doc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
-                if (doc.exists && doc.data()?['passengerRatingForDriver'] == null) {
-                  if (context.mounted) {
-                    TripDialogsHelper.showRatingDialog(
-                      context: context,
-                      docId: tripId,
-                      royalGreen: AppColors.royalGreen, 
-                      isDriver: false,
-                    );
+                    if (status == 'completed' && !_completedTripIds.contains(tripId)) {
+                      _completedTripIds.add(tripId); 
+                      
+                      final doc = await FirebaseFirestore.instance.collection('trips').doc(tripId).get();
+                      if (doc.exists && doc.data()?['passengerRatingForDriver'] == null) {
+                        if (context.mounted) {
+                          // 🟢 استدعاء الهيلبر النظيف ثم تمرير النتيجة للكيوبت
+                          final stars = await TripDialogsHelper.showRatingDialog(
+                            context: context,
+                            royalGreen: AppColors.royalGreen, 
+                          );
+                          if (stars != null && context.mounted) {
+                            context.read<TripActionsCubit>().submitRating(
+                              tripId: tripId, 
+                              rating: stars.toDouble(), 
+                              comment: '', // يمكن تعديل الديالوج مستقبلاً لإرجاع تعليق أيضاً
+                            );
+                          }
+                        }
+                      }
+                    }
                   }
                 }
-              }
-            }
-          }
-        },
-        child: BlocBuilder<PassengerMyRequestsCubit, PassengerMyRequestsState>(
-          builder: (context, state) {
-            if (state is PassengerMyRequestsLoading || state is PassengerMyRequestsInitial) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
-            } 
-            
-            if (state is PassengerMyRequestsError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline_rounded, color: AppColors.error, size: 60.sp),
-                    SizedBox(height: 16.h),
-                    Text(state.message, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.textDark)),
-                    SizedBox(height: 16.h),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.royalGreen,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
-                      ),
-                      onPressed: () => context.read<PassengerMyRequestsCubit>().startListeningToMyRequests(),
-                      icon: Icon(Icons.refresh_rounded, color: Colors.white, size: 20.sp),
-                      label: Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14.sp)),
-                    )
-                  ],
-                ),
-              );
-            } 
-            
-            if (state is PassengerMyRequestsLoaded) {
-              final requests = state.requests;
+              },
+            ),
+          ],
+          child: BlocBuilder<PassengerMyRequestsCubit, PassengerMyRequestsState>(
+            builder: (context, state) {
+              if (state is PassengerMyRequestsLoading || state is PassengerMyRequestsInitial) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.royalGreen));
+              } 
               
-              return RefreshIndicator(
-                color: AppColors.royalGreen,
-                onRefresh: () async {
-                  await context.read<PassengerMyRequestsCubit>().fetchInitialPassengerTrips();
-                },
-                child: SingleChildScrollView(
-                  controller: _scrollController, // 🟢 ربط الـ ScrollController هنا للـ Pagination
-                  physics: const AlwaysScrollableScrollPhysics(),
+              if (state is PassengerMyRequestsError) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 🟢 جزء الحجوزات (Trip Bookings) كما هو دون تعديل
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('trip_bookings')
-                            .where('passengerId', isEqualTo: currentUserId)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
-                          
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
-                                child: Text('حجوزات السفر الخاصة بي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.royalGreen)),
-                              ),
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                                itemCount: snapshot.data!.docs.length,
-                                itemBuilder: (context, index) {
-                                  var booking = snapshot.data!.docs[index];
-                                  var data = booking.data() as Map<String, dynamic>;
-                                  bool isAccepted = data['status'] == 'accepted';
-                                  
-                                  String timeString = 'غير محدد';
-                                  if (data['createdAt'] != null) {
-                                    DateTime dt = (data['createdAt'] as Timestamp).toDate();
-                                    timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
-                                  }
-                                  
-                                  return Card(
-                                    elevation: 3,
-                                    margin: EdgeInsets.only(bottom: 16.h),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16.r), 
-                                      side: BorderSide(color: isAccepted ? Colors.green.withValues(alpha: 0.4) : Colors.orange.withValues(alpha: 0.4), width: 1.5)
-                                    ),
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16.w),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 20.r,
-                                                backgroundColor: isAccepted ? Colors.green.shade50 : Colors.orange.shade50, 
-                                                child: Icon(Icons.directions_bus_filled_rounded, color: isAccepted ? Colors.green : Colors.orange, size: 22.sp)
-                                              ),
-                                              SizedBox(width: 12.w),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(data['seats'] == 1 && data['tripType'] == 'full_car' ? 'حجز رحلة كاملة' : 'حجز مقاعد سفر', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: primaryNavy)),
-                                                    SizedBox(height: 4.h),
-                                                    Text(
-                                                      isAccepted ? '✅ تم القبول - حجزت ${data['seats']} مقاعد' : '⏳ قيد الانتظار - طلبت ${data['seats']} مقاعد', 
-                                                      style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: isAccepted ? Colors.green.shade700 : Colors.orange.shade700)
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          
-                                          SizedBox(height: 12.h),
-                                          
-                                          Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-                                            decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8.r)),
-                                            child: Row(
+                      Icon(Icons.error_outline_rounded, color: AppColors.error, size: 60.sp),
+                      SizedBox(height: 16.h),
+                      Text(state.message, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.textDark)),
+                      SizedBox(height: 16.h),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.royalGreen,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))
+                        ),
+                        onPressed: () => context.read<PassengerMyRequestsCubit>().startListeningToMyRequests(),
+                        icon: Icon(Icons.refresh_rounded, color: Colors.white, size: 20.sp),
+                        label: Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14.sp)),
+                      )
+                    ],
+                  ),
+                );
+              } 
+              
+              if (state is PassengerMyRequestsLoaded) {
+                final requests = state.requests;
+                
+                return RefreshIndicator(
+                  color: AppColors.royalGreen,
+                  onRefresh: () async {
+                    await context.read<PassengerMyRequestsCubit>().fetchInitialPassengerTrips();
+                  },
+                  child: SingleChildScrollView(
+                    controller: _scrollController, 
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('trip_bookings')
+                              .where('passengerId', isEqualTo: currentUserId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+                            
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
+                                  child: Text('حجوزات السفر الخاصة بي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.royalGreen)),
+                                ),
+                                ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                                  itemCount: snapshot.data!.docs.length,
+                                  itemBuilder: (context, index) {
+                                    var booking = snapshot.data!.docs[index];
+                                    var data = booking.data() as Map<String, dynamic>;
+                                    bool isAccepted = data['status'] == 'accepted';
+                                    
+                                    String timeString = 'غير محدد';
+                                    if (data['createdAt'] != null) {
+                                      DateTime dt = (data['createdAt'] as Timestamp).toDate();
+                                      timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
+                                    }
+                                    
+                                    return Card(
+                                      elevation: 3,
+                                      margin: EdgeInsets.only(bottom: 16.h),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16.r), 
+                                        side: BorderSide(color: isAccepted ? Colors.green.withValues(alpha: 0.4) : Colors.orange.withValues(alpha: 0.4), width: 1.5)
+                                      ),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16.w),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
                                               children: [
-                                                Icon(Icons.access_time_filled_rounded, size: 16.sp, color: Colors.grey.shade500),
-                                                SizedBox(width: 8.w),
-                                                Text('وقت الطلب: $timeString', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                                                CircleAvatar(
+                                                  radius: 20.r,
+                                                  backgroundColor: isAccepted ? Colors.green.shade50 : Colors.orange.shade50, 
+                                                  child: Icon(Icons.directions_bus_filled_rounded, color: isAccepted ? Colors.green : Colors.orange, size: 22.sp)
+                                                ),
+                                                SizedBox(width: 12.w),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(data['seats'] == 1 && data['tripType'] == 'full_car' ? 'حجز رحلة كاملة' : 'حجز مقاعد سفر', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: primaryNavy)),
+                                                      SizedBox(height: 4.h),
+                                                      Text(
+                                                        isAccepted ? '✅ تم القبول - حجزت ${data['seats']} مقاعد' : '⏳ قيد الانتظار - طلبت ${data['seats']} مقاعد', 
+                                                        style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: isAccepted ? Colors.green.shade700 : Colors.orange.shade700)
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
                                               ],
                                             ),
-                                          ),
+                                            
+                                            SizedBox(height: 12.h),
+                                            
+                                            Container(
+                                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                                              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8.r)),
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.access_time_filled_rounded, size: 16.sp, color: Colors.grey.shade500),
+                                                  SizedBox(width: 8.w),
+                                                  Text('وقت الطلب: $timeString', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                                                ],
+                                              ),
+                                            ),
 
-                                          Padding(padding: EdgeInsets.symmetric(vertical: 12.h), child: const Divider(height: 1)),
+                                            Padding(padding: EdgeInsets.symmetric(vertical: 12.h), child: const Divider(height: 1)),
 
-                                          Row(
-                                            children: [
-                                              if (isAccepted) ...[
+                                            Row(
+                                              children: [
+                                                if (isAccepted) ...[
+                                                  Expanded(
+                                                    child: ElevatedButton.icon(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: primaryNavy,
+                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                                                        padding: EdgeInsets.symmetric(vertical: 10.h)
+                                                      ),
+                                                      icon: Icon(Icons.chat_bubble_rounded, size: 18.sp, color: Colors.white),
+                                                      label: Text('مراسلة السائق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13.sp, fontWeight: FontWeight.bold)),
+                                                      onPressed: () {
+                                                        Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: data['tripId'])));
+                                                      },
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 10.w),
+                                                ],
                                                 Expanded(
-                                                  child: ElevatedButton.icon(
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: primaryNavy,
+                                                  child: OutlinedButton.icon(
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor: Colors.redAccent,
+                                                      side: BorderSide(color: Colors.redAccent.shade200),
                                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
                                                       padding: EdgeInsets.symmetric(vertical: 10.h)
                                                     ),
-                                                    icon: Icon(Icons.chat_bubble_rounded, size: 18.sp, color: Colors.white),
-                                                    label: Text('مراسلة السائق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13.sp, fontWeight: FontWeight.bold)),
-                                                    onPressed: () {
-                                                      Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: data['tripId'])));
-                                                    },
+                                                    icon: Icon(Icons.delete_outline_rounded, size: 18.sp),
+                                                    label: Text('إلغاء الحجز', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold)),
+                                                    onPressed: () => _showCancelBookingDialog(context, booking.reference),
                                                   ),
                                                 ),
-                                                SizedBox(width: 10.w),
                                               ],
-                                              Expanded(
-                                                child: OutlinedButton.icon(
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: Colors.redAccent,
-                                                    side: BorderSide(color: Colors.redAccent.shade200),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                                                    padding: EdgeInsets.symmetric(vertical: 10.h)
-                                                  ),
-                                                  icon: Icon(Icons.delete_outline_rounded, size: 18.sp),
-                                                  label: Text('إلغاء الحجز', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold)),
-                                                  onPressed: () => _showCancelBookingDialog(context, booking.reference),
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        ],
+                                            )
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                                child: const Divider(thickness: 1.5),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-
-                      // 🟢 جزء الطلبات النشطة للعميل
-                      if (requests.isEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(top: 100.h),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.inbox_rounded, color: AppColors.textMuted.shade300, size: 80.sp),
-                                SizedBox(height: 16.h),
-                                Text('لا توجد طلبات نشطة حالياً', style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: AppColors.textMuted.shade600, fontWeight: FontWeight.bold)),
+                                    );
+                                  },
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                                  child: const Divider(thickness: 1.5),
+                                ),
                               ],
-                            ),
-                          ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true, 
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-                          itemCount: requests.length,
-                          itemBuilder: (context, index) {
-                            final trip = requests[index];
-                            
-                            // 🟢 تحويل الـ TripModel لـ Map وإضافة الـ id عشان ويدجت MyRequestTripCard يشتغل بدون مشاكل
-                            Map<String, dynamic> tripDataMap = trip.toMap();
-                            tripDataMap['id'] = trip.id;
-                            
-                            return MyRequestTripCard(
-                              docId: trip.id ?? '',
-                              data: tripDataMap,
-                              royalGreen: AppColors.royalGreen,
                             );
                           },
                         ),
-                        
-                      // 🟢 مؤشر التحميل في أسفل القائمة
-                      if (state.isFetchingMore)
-                        Padding(
-                          padding: EdgeInsets.all(16.w),
-                          child: const Center(
-                            child: CircularProgressIndicator(color: AppColors.royalGreen),
+
+                        if (requests.isEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(top: 100.h),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.inbox_rounded, color: AppColors.textMuted.shade300, size: 80.sp),
+                                  SizedBox(height: 16.h),
+                                  Text('لا توجد طلبات نشطة حالياً', style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: AppColors.textMuted.shade600, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true, 
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                            itemCount: requests.length,
+                            itemBuilder: (context, index) {
+                              final trip = requests[index];
+                              
+                              Map<String, dynamic> tripDataMap = trip.toMap();
+                              tripDataMap['id'] = trip.id;
+                              
+                              return MyRequestTripCard(
+                                docId: trip.id ?? '',
+                                data: tripDataMap,
+                                royalGreen: AppColors.royalGreen,
+                              );
+                            },
                           ),
-                        ),
-                        
-                      SizedBox(height: 100.h),
-                    ],
+                          
+                        if (state.isFetchingMore)
+                          Padding(
+                            padding: EdgeInsets.all(16.w),
+                            child: const Center(
+                              child: CircularProgressIndicator(color: AppColors.royalGreen),
+                            ),
+                          ),
+                          
+                        SizedBox(height: 100.h),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );

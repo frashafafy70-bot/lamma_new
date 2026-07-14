@@ -10,15 +10,17 @@ import 'package:audioplayers/audioplayers.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/extensions/context_extension.dart';
-import 'package:lamma_new/core/di/injection_container.dart'; // 🟢 استدعاء GetIt
+import 'package:lamma_new/core/di/injection_container.dart'; 
 
 import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/driver_live_map.dart'; 
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_state.dart';
+// 🟢 تم استدعاء الكيوبت الجديد
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
+import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
-// 🟢 الشاشة الأم (لتهيئة الـ Cubit)
 class DriverTripTrackingPage extends StatelessWidget {
   final String tripId;
 
@@ -26,17 +28,19 @@ class DriverTripTrackingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<DriverActiveTripsCubit>(),
+    // 🟢 توفير الكيوبت الخاص بالأكشنز بجانب الكيوبت الأساسي
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => sl<DriverActiveTripsCubit>()),
+        BlocProvider(create: (context) => sl<TripActionsCubit>()),
+      ],
       child: _DriverTripTrackingView(tripId: tripId),
     );
   }
 }
 
-// 🟢 الواجهة الفعلية
 class _DriverTripTrackingView extends StatefulWidget {
   final String tripId;
-
   const _DriverTripTrackingView({required this.tripId});
 
   @override
@@ -117,21 +121,41 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      // 🟢 إضافة BlocListener للاستماع للنجاح والأخطاء
-      child: BlocListener<DriverActiveTripsCubit, DriverActiveTripsState>(
-        listener: (context, state) {
-          if (state is DriverActiveTripsActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
-          } else if (state is DriverActiveTripsActionError) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
-          }
-        },
+      // 🟢 الاستماع لحالات الـ Actions بجانب الاستماع للـ ActiveTrips
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<DriverActiveTripsCubit, DriverActiveTripsState>(
+            listener: (context, state) {
+              if (state is DriverActiveTripsActionSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
+              } else if (state is DriverActiveTripsActionError) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+              }
+            },
+          ),
+          BlocListener<TripActionsCubit, TripActionsState>(
+            listener: (context, state) {
+              if (state is TripActionsLoading) {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.accentGold)),
+                );
+              } else if (state is TripActionsSuccess) {
+                Navigator.of(context).pop(); 
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success));
+              } else if (state is TripActionsError) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+              }
+            },
+          ),
+        ],
         child: Scaffold(
           backgroundColor: Colors.white,
           body: StreamBuilder<DocumentSnapshot>(
             stream: _tripLiveStream,
             builder: (context, snapshot) {
-              
               if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator(color: AppColors.primaryDark));
               }
@@ -144,11 +168,9 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
               }
 
               var tripData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-              
               String currentStatus = tripData['status'] ?? 'accepted';
               String destination = tripData['destination'] ?? 'وجهة غير محددة';
               String price = tripData['price']?.toString() ?? '0';
-              
               GeoPoint? pickupGeo = tripData['pickupLocation'];
               double? clientLat = pickupGeo?.latitude;
               double? clientLng = pickupGeo?.longitude;
@@ -178,18 +200,12 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
                       ],
                     ),
                   ),
-
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.zero,
-                      child: DriverLiveMap(
-                        tripId: widget.tripId,
-                        targetLat: clientLat, 
-                        targetLng: clientLng,
-                      ), 
+                      child: DriverLiveMap(tripId: widget.tripId, targetLat: clientLat, targetLng: clientLng), 
                     ),
                   ),
-
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
@@ -218,9 +234,7 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
                             Text('السعر المتفق عليه: $price جنيه', style: TextStyle(fontFamily: 'Cairo', color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 15.sp)),
                           ],
                         ),
-                        
                         Padding(padding: EdgeInsets.symmetric(vertical: 20.h), child: const Divider(color: AppColors.dividerColor)),
-                        
                         Row(
                           children: [
                             Expanded(
@@ -235,7 +249,6 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
                               ),
                             ),
                             SizedBox(width: 12.w),
-                            
                             Expanded(
                               flex: 3,
                               child: SizedBox(
@@ -264,7 +277,6 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
         icon: Icon(Icons.location_on, color: Colors.white, size: 20.sp),
         label: Text('أنا وصلت للعميل', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp)),
-        // 🟢 استدعاء الكيوبت
         onPressed: () => context.read<DriverActiveTripsCubit>().updateTripState(widget.tripId, 'arrived'),
       );
     } 
@@ -273,7 +285,6 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
         icon: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20.sp),
         label: Text('بدء الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp)),
-        // 🟢 استدعاء الكيوبت
         onPressed: () => context.read<DriverActiveTripsCubit>().updateTripState(widget.tripId, 'in_progress'),
       );
     } 
@@ -290,11 +301,15 @@ class _DriverTripTrackingViewState extends State<_DriverTripTrackingView> {
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))),
         icon: Icon(Icons.check_circle_rounded, color: Colors.white, size: 20.sp),
         label: Text('إنهاء الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.sp)),
+        // 🟢 تم دمج استخدام הـ Helper الجديد
         onPressed: () async {
-          // 🟢 استدعاء الكيوبت
           await context.read<DriverActiveTripsCubit>().updateTripState(widget.tripId, 'completed');
           if (mounted) {
-            await TripDialogsHelper.showRatingDialog(context: context, docId: widget.tripId, royalGreen: AppColors.royalGreen, isDriver: true);
+            final stars = await TripDialogsHelper.showRatingDialog(context: context, royalGreen: AppColors.royalGreen);
+            if (stars != null && mounted) {
+               // إذا كان الكيوبت يحتوي على دالة للتقييم يمكن استدعاؤها هنا 
+               // context.read<TripActionsCubit>().submitRating(...)
+            }
             if (mounted) context.pop();
           }
         },

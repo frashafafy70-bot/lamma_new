@@ -71,4 +71,25 @@ abstract class TripRepository {
   Future<Either<Failure, void>> updateTripStatus(String tripId, String status);
   
   Future<Either<Failure, void>> syncDriverLocation(String tripId, GeoPoint location);
+
+  // ==========================================
+  // 🌟 الدوال الجديدة (Clean Architecture 10/10)
+  // ==========================================
+  
+  Future<Either<Failure, void>> cancelTrip({
+    required String tripId, 
+    required bool isDriver,
+  });
+
+  Future<Either<Failure, void>> updateBookingSeats({
+    required String bookingId,
+    required int newSeats,
+    required DateTime travelDate,
+  });
+
+  Future<Either<Failure, void>> submitNegotiation({
+    required String docId,
+    required double offerPrice,
+    required bool isDriver,
+  });
 }

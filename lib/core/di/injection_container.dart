@@ -41,6 +41,11 @@ import 'package:lamma_new/features/trips/data/repositories/chat_repository_impl.
 import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
 import 'package:lamma_new/features/trips/domain/usecases/get_driver_active_trips_usecase.dart';
 
+// 🌟 استدعاءات الـ Use Cases الجديدة الخاصة بالرحلات (لاحظ استخدمت اسم الملف بتاعك بحرف e)
+import 'package:lamma_new/features/trips/domain/usecases/cancel_trip_use_case.dart';
+import 'package:lamma_new/features/trips/domain/usecases/update_booking_seats_use_case.dart';
+import 'package:lamma_new/features/trips/domain/usecases/submit_negotiation_use_case.dart';
+
 final sl = GetIt.instance; // sl = Service Locator
 
 Future<void> initDI() async {
@@ -119,8 +124,20 @@ Future<void> initDI() async {
   sl.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl());
 
   sl.registerLazySingleton(() => GetDriverActiveTripsUseCase(sl()));
+  
+  // 🌟 تسجيل الـ Use Cases الجديدة
+  sl.registerLazySingleton(() => CancelTripUseCase(sl())); 
+  sl.registerLazySingleton(() => UpdateBookingSeatsUseCase(sl())); 
+  sl.registerLazySingleton(() => SubmitNegotiationUseCase(sl())); 
 
   sl.registerFactory(() => DriverActiveTripsCubit(sl(), sl()));
   sl.registerFactory(() => TripChatCubit(chatRepository: sl()));
-  sl.registerFactory(() => TripActionsCubit());
+  
+  // 🌟 تحديث تسجيل الـ Cubit عشان ياخد المتطلبات بتاعته
+  sl.registerFactory(() => TripActionsCubit(
+    tripRepository: sl(),
+    cancelTripUseCase: sl(),
+    updateBookingSeatsUseCase: sl(),
+    submitNegotiationUseCase: sl(),
+  ));
 }

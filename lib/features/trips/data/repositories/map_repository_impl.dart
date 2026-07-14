@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/place_search_entity.dart';
 import '../../domain/repositories/map_repository.dart';
 
@@ -56,7 +58,7 @@ class MapRepositoryImpl implements MapRepository {
   }
 
   @override
-  Future<String> getAddressFromCoordinates(LatLng latLng) async {
+  Future<Either<Failure, String>> getAddressFromCoordinates(LatLng latLng) async {
     if (_googleApiKey.isNotEmpty) {
       final String url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=${latLng.latitude},${latLng.longitude}&key=$_googleApiKey&language=ar";
       try {
@@ -65,11 +67,12 @@ class MapRepositoryImpl implements MapRepository {
           final data = json.decode(response.body);
           if (data['status'] == 'OK' && data['results'] != null && data['results'].isNotEmpty) {
             String formattedAddress = data['results'][0]['formatted_address'];
-            return _cleanAddress(formattedAddress);
+            return Right(_cleanAddress(formattedAddress));
           }
         }
       } catch (e) {
         debugPrint("Google API Error: $e");
+        // عند فشل Google API، سنكمل لمحاولة استخدام Native Geocoding بدلاً من الإرجاع مباشرة
       }
     }
 
@@ -82,83 +85,115 @@ class MapRepositoryImpl implements MapRepository {
         if (place.subLocality != null && place.subLocality!.isNotEmpty) address += '${place.subLocality}، ';
         if (place.locality != null && place.locality!.isNotEmpty) address += '${place.locality}';
         
-        return _cleanAddress(address);
+        return Right(_cleanAddress(address));
       }
+      return Right("إحداثيات: ${latLng.latitude.toStringAsFixed(4)}, ${latLng.longitude.toStringAsFixed(4)}");
     } catch (e) {
       debugPrint("Native Geocoding Error: $e");
+      return Left(ServerFailure(message: 'فشل في جلب العنوان الحالي، تأكد من اتصالك بالإنترنت'));
     }
-
-    return "إحداثيات: ${latLng.latitude.toStringAsFixed(4)}, ${latLng.longitude.toStringAsFixed(4)}";
   }
 
   @override
-  Future<List<PlaceSearchEntity>> searchPlaces(String input) async {
-    if (input.isEmpty) return [];
+  Future<Either<Failure, List<PlaceSearchEntity>>> searchPlaces(String input) async {
+    if (input.isEmpty) return const Right([]);
+    
     String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_googleApiKey&language=ar&components=country:kw|country:eg";
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final List<dynamic> predictions = json.decode(response.body)['predictions'] ?? [];
-        return predictions.map((json) => PlaceSearchEntity(
-          placeId: json['place_id'],
-          description: json['description'],
-        )).toList();
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final List<dynamic> predictions = data['predictions'] ?? [];
+          final places = predictions.map((json) => PlaceSearchEntity(
+            placeId: json['place_id'],
+            description: json['description'],
+          )).toList();
+          return Right(places);
+        } else {
+          return Left(ServerFailure(message: 'فشل في البحث: ${data['status']}'));
+        }
+      } else {
+        return Left(ServerFailure(message: 'حدث خطأ في الخادم أثناء البحث'));
       }
     } catch (e) {
       debugPrint("Error searching places: $e");
+      return Left(ServerFailure(message: 'تأكد من اتصالك بالإنترنت وحاول مجدداً'));
     }
-    return [];
   }
 
   @override
-  Future<LatLng?> getPlaceCoordinates(String placeId) async {
+  Future<Either<Failure, LatLng>> getPlaceCoordinates(String placeId) async {
     String url = "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleApiKey";
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        var location = json.decode(response.body)['result']['geometry']['location'];
-        return LatLng(location['lat'], location['lng']);
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          var location = data['result']['geometry']['location'];
+          return Right(LatLng(location['lat'], location['lng']));
+        } else {
+          return Left(ServerFailure(message: 'فشل في جلب تفاصيل الموقع'));
+        }
+      } else {
+        return Left(ServerFailure(message: 'حدث خطأ في الخادم'));
       }
     } catch (e) {
       debugPrint("Error getting place details: $e");
+      return Left(ServerFailure(message: 'تأكد من اتصالك بالإنترنت وحاول مجدداً'));
     }
-    return null;
   }
 
   @override
-  Future<Position> getUserCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) throw 'GPS_DISABLED';
+  Future<Either<Failure, Position>> getUserCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return Left(ServerFailure(message: 'خدمة الـ GPS معطلة، يرجى تفعيلها'));
+      }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) throw 'PERMISSION_DENIED';
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return Left(ServerFailure(message: 'تم رفض صلاحية الوصول للموقع'));
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return Left(ServerFailure(message: 'تم رفض صلاحية الوصول للموقع نهائياً، يرجى تفعيلها من الإعدادات'));
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation),
+      );
+      return Right(position);
+    } catch (e) {
+      debugPrint('Location Error: $e');
+      return Left(ServerFailure(message: 'فشل في تحديد موقعك الحالي'));
     }
-
-    if (permission == LocationPermission.deniedForever) throw 'PERMISSION_DENIED_FOREVER';
-
-    return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.bestForNavigation),
-    );
   }
 
   @override
-  Future<List<LatLng>> getRouteCoordinates(LatLng origin, LatLng destination) async {
+  Future<Either<Failure, List<LatLng>>> getRouteCoordinates(LatLng origin, LatLng destination) async {
     String url = "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$_googleApiKey";
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         var data = json.decode(response.body);
-        if (data['routes'] != null && data['routes'].isNotEmpty) {
+        if (data['status'] == 'OK' && data['routes'] != null && data['routes'].isNotEmpty) {
           String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
-          return _decodePolyline(encodedPolyline);
+          return Right(_decodePolyline(encodedPolyline));
+        } else {
+          return Left(ServerFailure(message: 'لم يتم العثور على مسار متاح'));
         }
+      } else {
+        return Left(ServerFailure(message: 'حدث خطأ في الخادم أثناء جلب المسار'));
       }
     } catch (e) {
       debugPrint("Error getting directions: $e");
+      return Left(ServerFailure(message: 'فشل في جلب المسار، تأكد من اتصالك بالإنترنت'));
     }
-    return [];
   }
 
   List<LatLng> _decodePolyline(String encoded) {

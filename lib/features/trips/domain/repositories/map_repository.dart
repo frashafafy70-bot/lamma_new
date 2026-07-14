@@ -1,5 +1,7 @@
+import 'package:dartz/dartz.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../../core/errors/failures.dart';
 import '../entities/place_search_entity.dart';
 
 abstract class MapRepository {
@@ -13,17 +15,17 @@ abstract class MapRepository {
   Future<void> initMapResources({required String apiKey});
 
   /// تحويل الإحداثيات إلى عنوان مقروء ونظيف
-  Future<String> getAddressFromCoordinates(LatLng latLng);
+  Future<Either<Failure, String>> getAddressFromCoordinates(LatLng latLng);
 
   /// البحث عن الأماكن (Autocomplete)
-  Future<List<PlaceSearchEntity>> searchPlaces(String input);
+  Future<Either<Failure, List<PlaceSearchEntity>>> searchPlaces(String input);
 
   /// جلب الإحداثيات الدقيقة لمكان معين بناءً على الـ placeId
-  Future<LatLng?> getPlaceCoordinates(String placeId);
+  Future<Either<Failure, LatLng>> getPlaceCoordinates(String placeId);
 
   /// جلب الموقع الحالي للمستخدم (مع معالجة الصلاحيات)
-  Future<Position> getUserCurrentLocation();
+  Future<Either<Failure, Position>> getUserCurrentLocation();
 
   /// جلب إحداثيات المسار (Polyline) بين نقطتين
-  Future<List<LatLng>> getRouteCoordinates(LatLng origin, LatLng destination);
+  Future<Either<Failure, List<LatLng>>> getRouteCoordinates(LatLng origin, LatLng destination);
 }

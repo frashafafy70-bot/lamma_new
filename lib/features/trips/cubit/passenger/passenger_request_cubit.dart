@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:geolocator/geolocator.dart'; // 🟢 تم إضافتها عشان كلاس Position
 
 import '../../domain/repositories/map_repository.dart';
 import '../../domain/repositories/trip_repository.dart';
@@ -24,40 +25,38 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     if (isClosed) return; 
     emit(LocationLoading());
     
-    try {
-      final position = await mapRepository.getUserCurrentLocation();
-      if (isClosed) return; 
-      emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
-
-    } catch (e) {
-      if (isClosed) return; 
-      String errorMessage = 'حدث خطأ أثناء جلب الموقع.';
-      
-      if (e.toString().contains('GPS_DISABLED')) {
-        errorMessage = 'خدمة الموقع مقفولة، يرجى تفعيلها من إعدادات الهاتف.';
-      } else if (e.toString().contains('PERMISSION_DENIED_FOREVER')) {
-        emit(LocationPermissionDenied());
-        return;
-      } else if (e.toString().contains('PERMISSION_DENIED')) {
-        errorMessage = 'تم رفض صلاحية الموقع.';
+    // 🟢 التعديل: استخدام fold للتعامل مع Either
+    final result = await mapRepository.getUserCurrentLocation();
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) {
+        if (failure.message.contains('نهائياً')) {
+          emit(LocationPermissionDenied());
+        } else {
+          emit(LocationError(failure.message));
+        }
+      },
+      (position) {
+        emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
       }
-      
-      emit(LocationError(errorMessage));
-    }
+    );
   }
 
   Future<void> getAddressFromLatLng(LatLng latLng) async {
     if (isClosed) return;
     emit(AddressLoading());
-    try {
-      String address = await mapRepository.getAddressFromCoordinates(latLng);
-      if (isClosed) return;
-      emit(AddressLoaded(address));
-    } catch (e) {
-      debugPrint("💥 الخطأ الحقيقي في جلب العنوان: $e"); 
-      if (isClosed) return;
-      emit(AddressError("حدث خطأ أثناء جلب العنوان"));
-    }
+    
+    // 🟢 التعديل: استخدام fold للتعامل مع Either
+    final result = await mapRepository.getAddressFromCoordinates(latLng);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => emit(AddressError(failure.message)),
+      (address) => emit(AddressLoaded(address))
+    );
   }
 
   Future<void> searchForPlaces(String input) async {
@@ -66,38 +65,42 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
       emit(PlacesSearchLoaded([]));
       return;
     }
-    try {
-      List<PlaceSearchEntity> results = await mapRepository.searchPlaces(input);
-      if (isClosed) return;
-      emit(PlacesSearchLoaded(results));
-    } catch (e) {
-      if (isClosed) return;
-      emit(PlacesSearchLoaded([]));
-    }
+    
+    // 🟢 التعديل: استخدام fold للتعامل مع Either
+    final result = await mapRepository.searchPlaces(input);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => emit(PlacesSearchLoaded([])), // نرجع قائمة فارغة في حال الخطأ
+      (results) => emit(PlacesSearchLoaded(results))
+    );
   }
 
   Future<void> fetchPlaceDetails(String placeId, String description) async {
-    try {
-      LatLng? location = await mapRepository.getPlaceCoordinates(placeId);
-      if (location != null) {
-        if (isClosed) return;
-        emit(PlaceDetailsLoaded(location, description));
-      }
-    } catch (e) {
-      debugPrint("Error fetching place details: $e");
-    }
+    // 🟢 التعديل: استخدام fold للتعامل مع Either
+    final result = await mapRepository.getPlaceCoordinates(placeId);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => debugPrint("Error fetching place details: ${failure.message}"),
+      (location) => emit(PlaceDetailsLoaded(location, description))
+    );
   }
 
-  // 🟢 الدالة الجديدة لجلب نقاط المسار من الـ Repository
   Future<void> fetchRoute(LatLng origin, LatLng destination) async {
     if (isClosed) return;
-    try {
-      final points = await mapRepository.getRouteCoordinates(origin, destination);
-      if (isClosed) return;
-      emit(RouteCoordinatesLoaded(points));
-    } catch (e) {
-      debugPrint("Error fetching route from Cubit: $e");
-    }
+    
+    // 🟢 التعديل: استخدام fold للتعامل مع Either
+    final result = await mapRepository.getRouteCoordinates(origin, destination);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => debugPrint("Error fetching route from Cubit: ${failure.message}"),
+      (points) => emit(RouteCoordinatesLoaded(points))
+    );
   }
 
   Future<void> submitTripRequest({

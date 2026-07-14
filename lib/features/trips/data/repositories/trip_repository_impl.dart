@@ -63,7 +63,6 @@ class TripRepositoryImpl implements TripRepository {
     }
   }
 
-  // 🟢 الدالة الجديدة لجلب الرحلات كـ Stream (تم نقلها من الكيوبت)
   @override
   Stream<List<TripModel>> getTripsStream(String userId, {bool isPassenger = true}) {
     try {
@@ -402,6 +401,109 @@ class TripRepositoryImpl implements TripRepository {
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في مزامنة الموقع: $e'));
+    }
+  }
+
+  // ==========================================
+  // 🌟 الدوال الجديدة (Clean Architecture 10/10)
+  // ==========================================
+
+  @override
+  Future<Either<Failure, void>> cancelTrip({
+    required String tripId, 
+    required bool isDriver,
+  }) async {
+    try {
+      List<WriteBatch> batches = [];
+      WriteBatch currentBatch = _firestore.batch();
+      int operationCount = 0;
+
+      DocumentReference tripRef = _firestore.collection('trips').doc(tripId);
+      currentBatch.update(tripRef, {
+        'status': 'cancelled',
+        'cancelledBy': isDriver ? 'driver' : 'passenger',
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+      operationCount++;
+
+      if (isDriver) {
+        QuerySnapshot bookingsSnapshot = await _firestore
+            .collection('trip_bookings')
+            .where('tripId', isEqualTo: tripId)
+            .get();
+
+        for (var doc in bookingsSnapshot.docs) {
+          if (operationCount >= 500) {
+            batches.add(currentBatch);
+            currentBatch = _firestore.batch();
+            operationCount = 0;
+          }
+          currentBatch.update(doc.reference, {
+            'status': 'canceled_by_driver',
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+          operationCount++;
+        }
+      }
+
+      batches.add(currentBatch);
+      for (var batch in batches) {
+        await batch.commit();
+      }
+
+      return const Right(null);
+    } on FirebaseException catch (e) {
+      return Left(ServerFailure(message: e.message ?? 'حدث خطأ في قاعدة البيانات'));
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء إلغاء الرحلة: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateBookingSeats({
+    required String bookingId,
+    required int newSeats,
+    required DateTime travelDate,
+  }) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        DocumentReference bookingRef = _firestore.collection('trip_bookings').doc(bookingId);
+        transaction.update(bookingRef, {
+          'requestedSeats': newSeats,
+          'travelDate': Timestamp.fromDate(travelDate),
+        });
+      });
+      return const Right(null);
+    } on FirebaseException catch (e) {
+      return Left(ServerFailure(message: e.message ?? 'حدث خطأ في الخادم'));
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء تعديل الحجز: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> submitNegotiation({
+    required String docId,
+    required double offerPrice,
+    required bool isDriver,
+  }) async {
+    try {
+      Map<String, dynamic> updates = {
+        'status': 'negotiating',
+        'negotiationPrice': offerPrice,
+        'lastNegotiator': isDriver ? 'driver' : 'passenger'
+      };
+      
+      if (isDriver) {
+        updates['driverId'] = _auth.currentUser?.uid ?? '';
+      }
+      
+      await _firestore.collection('trips').doc(docId).update(updates);
+      return const Right(null);
+    } on FirebaseException catch (e) {
+      return Left(ServerFailure(message: e.message ?? 'حدث خطأ في الخادم'));
+    } catch (e) {
+      return Left(ServerFailure(message: 'حدث خطأ أثناء التفاوض: $e'));
     }
   }
 }

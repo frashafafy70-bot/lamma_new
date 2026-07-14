@@ -96,19 +96,29 @@ class _TripMapState extends State<TripMap> {
     });
 
     final mapRepository = MapRepositoryImpl(); 
-    List<LatLng> routePoints = await mapRepository.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
+    
+    // 🟢 التعديل: استقبال Either واستخدام fold للتعامل الآمن مع مسار الخريطة
+    final routeResult = await mapRepository.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
 
-    if (routePoints.isNotEmpty && mounted) {
-      setState(() {
-        _polylines.add(Polyline(
-          polylineId: const PolylineId('trip_route'),
-          points: routePoints,
-          color: AppColors.primaryDark,
-          width: 5,
-          geodesic: true,
-        ));
-      });
-    }
+    routeResult.fold(
+      (failure) {
+        debugPrint("Error fetching route: ${failure.message}");
+        // يمكنك إظهار رسالة خطأ هنا إذا أردت
+      },
+      (routePoints) {
+        if (routePoints.isNotEmpty && mounted) {
+          setState(() {
+            _polylines.add(Polyline(
+              polylineId: const PolylineId('trip_route'),
+              points: routePoints,
+              color: AppColors.primaryDark,
+              width: 5,
+              geodesic: true,
+            ));
+          });
+        }
+      }
+    );
   }
 
   Future<void> _getCurrentUserLocation() async {
