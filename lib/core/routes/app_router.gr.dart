@@ -10,25 +10,6 @@
 part of 'app_router.dart';
 
 /// generated route for
-/// [AuthWrapper]
-class AuthWrapperRoute extends PageRouteInfo<void> {
-  const AuthWrapperRoute({List<PageRouteInfo>? children})
-      : super(
-          AuthWrapperRoute.name,
-          initialChildren: children,
-        );
-
-  static const String name = 'AuthWrapperRoute';
-
-  static PageInfo page = PageInfo(
-    name,
-    builder: (data) {
-      return const AuthWrapper();
-    },
-  );
-}
-
-/// generated route for
 /// [ForgotPasswordPage]
 class ForgotPasswordRoute extends PageRouteInfo<void> {
   const ForgotPasswordRoute({List<PageRouteInfo>? children})

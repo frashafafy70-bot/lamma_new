@@ -1,11 +1,11 @@
+import 'package:lamma_new/features/notifications/domain/entities/notification_entity.dart';
+
 enum NotificationStatus { initial, loading, loaded, error }
 
 class NotificationState {
   final int unreadNotificationsCount;
   final bool hasNewNotification;
-  
-  // 🟢 المتغيرات الجديدة الخاصة بلستة الإشعارات
-  final List<Map<String, dynamic>> notifications;
+  final List<NotificationEntity> notifications; 
   final NotificationStatus status;
   final String? errorMessage;
 
@@ -20,7 +20,7 @@ class NotificationState {
   NotificationState copyWith({
     int? unreadNotificationsCount,
     bool? hasNewNotification,
-    List<Map<String, dynamic>>? notifications,
+    List<NotificationEntity>? notifications,
     NotificationStatus? status,
     String? errorMessage,
   }) {
@@ -29,7 +29,7 @@ class NotificationState {
       hasNewNotification: hasNewNotification ?? this.hasNewNotification,
       notifications: notifications ?? this.notifications,
       status: status ?? this.status,
-      errorMessage: errorMessage, // بدون ?? عشان نقدر نصفره
+      errorMessage: errorMessage,
     );
   }
 }

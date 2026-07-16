@@ -219,13 +219,12 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         return;
                       }
 
-                      // 🟢 الفحص الجديد: هل السائق عنده رحلة نشطة؟
-                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip();
+                      final String driverId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip(driverId);
                       
                       if (!context.mounted) return;
 
                       if (hasActiveTrip) {
-                        // لو عنده رحلة نشطة، نطلع رسالة ونمنع الإرسال
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('عفواً، لا يمكنك نشر رحلة جديدة لوجود رحلة نشطة بالفعل.', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
@@ -236,12 +235,12 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         return; 
                       }
                       
-                      // لو معندوش، نقفل الـ BottomSheet ونكمل الإرسال عادي
                       Navigator.pop(context); 
                       
                       final newTrip = TripModel(
                         isDriverPost: true,
-                        driverId: FirebaseAuth.instance.currentUser?.uid,
+                        // 🟢 تأمين الداتا لتتوافق مع الموديل
+                        driverId: FirebaseAuth.instance.currentUser?.uid ?? '',
                         driverName: widget.userName,
                         pickup: fromCtrl.text.trim(),
                         destination: toCtrl.text.trim(),
@@ -249,11 +248,11 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         price: priceCtrl.text.trim(),
                         tripCategory: 'سفر',
                         tripType: isFullCar ? 'full_car' : 'seats',
+                        // 🟢 التحويل هنا بقى آمن جداً
                         availableSeats: isFullCar ? '1' : availableSeats.toString(),
                         status: 'available',
                       );
 
-                      // 🟢 توجيه الأمر لـ TripActionsCubit بدلاً من HomeCubit
                       context.read<TripActionsCubit>().addTravelTrip(trip: newTrip);
                     },
                     child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),

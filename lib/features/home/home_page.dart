@@ -6,6 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// 🟢 استدعاء الـ GetIt لحقن الـ Cubit
+import 'package:lamma_new/core/di/injection_container.dart';
+
 // 🟢 استدعاءات AutoRoute 
 import 'package:auto_route/auto_route.dart';
 import 'package:lamma_new/core/routes/app_router.dart';
@@ -35,6 +38,7 @@ import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_r
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
 
+
 @RoutePage() 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -54,7 +58,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _homeCubit = context.read<HomeCubit>();
+    // 🟢 إنشاء نسخة جديدة من HomeCubit عبر GetIt بدلاً من البحث عنها في الـ context
+    _homeCubit = sl<HomeCubit>();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -111,8 +116,9 @@ class _HomePageState extends State<HomePage> {
                               backgroundColor: goldAccent.withOpacity(0.2), 
                               child: const Icon(Icons.notifications_active, color: Color(0xFFD4AF37))
                             ), 
-                            title: Text(notify['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
-                            subtitle: Text(notify['body'] ?? '', style: const TextStyle(fontFamily: 'Cairo')),
+                            // 🟢 التعديل هنا: قراءة البيانات من الـ Entity
+                            title: Text(notify.title, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
+                            subtitle: Text(notify.body, style: const TextStyle(fontFamily: 'Cairo')),
                           );
                         },
                       );
@@ -129,8 +135,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _homeCubit,
+    // 🟢 استخدام BlocProvider لضمان إغلاق الـ Cubit عند خروج المستخدم من الشاشة
+    return BlocProvider(
+      create: (context) => _homeCubit,
       child: MultiBlocListener(
         listeners: [
           BlocListener<AuthCubit, AuthState>(

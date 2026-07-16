@@ -1,40 +1,34 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/repositories/trip_booking_repository.dart';
+import '../../domain/repositories/booking_repository.dart';
 import 'trip_booking_state.dart';
 
 class TripBookingCubit extends Cubit<TripBookingState> {
-  final TripBookingRepository _repository;
+  // 🟢 بنعتمد على الـ BookingRepository النظيف
+  final BookingRepository _repository;
 
   TripBookingCubit(this._repository) : super(TripBookingInitial());
 
-  Future<void> searchForRides(String fromCity, String toCity) async {
-    emit(TripSearchLoading());
-    
-    if(fromCity.isEmpty || toCity.isEmpty) {
-      emit(const TripSearchError("يرجى تحديد مدينة الانطلاق والوصول"));
-      return;
-    }
-
-    final result = await _repository.searchTrips(fromCity: fromCity, toCity: toCity);
-
-    result.fold(
-      (failure) => emit(TripSearchError(failure.message ?? "حدث خطأ غير متوقع")),
-      (trips) => emit(TripSearchLoaded(trips)),
-    );
-  }
-
+  // ==========================================
+  // 🎟️ حجز مقعد في رحلة
+  // ==========================================
   Future<void> bookSelectedTrip({
     required String tripId,
     required String driverId,
+    required String passengerId, // 🟢 ضفنا المتغير هنا عشان الـ UI ميزعلش
     required int requestedSeats,
   }) async {
+    if (isClosed) return;
     emit(TripBookingLoading());
 
-    final result = await _repository.bookTripSeat(
+    // 🟢 استدعاء الدالة الصحيحة من الـ Repo
+    final result = await _repository.bookSeatInDriverPost(
       tripId: tripId,
       driverId: driverId,
-      requestedSeats: requestedSeats,
+      passengerId: passengerId,
+      seatsToBook: requestedSeats,
     );
+
+    if (isClosed) return;
 
     result.fold(
       (failure) => emit(TripBookingError(failure.message ?? "فشل الحجز")),

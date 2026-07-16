@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
 
-@immutable
 abstract class PassengerMyRequestsState {}
 
 class PassengerMyRequestsInitial extends PassengerMyRequestsState {}
@@ -15,8 +13,8 @@ class PassengerMyRequestsLoaded extends PassengerMyRequestsState {
 
   PassengerMyRequestsLoaded({
     required this.requests,
-    this.hasReachedMax = false,
-    this.isFetchingMore = false,
+    required this.hasReachedMax,
+    required this.isFetchingMore,
   });
 
   PassengerMyRequestsLoaded copyWith({

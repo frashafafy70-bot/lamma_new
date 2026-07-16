@@ -3,11 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:geolocator/geolocator.dart'; // 🟢 تم إضافتها عشان كلاس Position
 
+// 🟢 لا يوجد أي أثر لفايربيز هنا! (Clean Architecture 100%)
 import '../../domain/repositories/map_repository.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../../domain/entities/place_search_entity.dart';
@@ -25,9 +22,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     if (isClosed) return; 
     emit(LocationLoading());
     
-    // 🟢 التعديل: استخدام fold للتعامل مع Either
     final result = await mapRepository.getUserCurrentLocation();
-    
     if (isClosed) return;
     
     result.fold(
@@ -48,9 +43,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     if (isClosed) return;
     emit(AddressLoading());
     
-    // 🟢 التعديل: استخدام fold للتعامل مع Either
     final result = await mapRepository.getAddressFromCoordinates(latLng);
-    
     if (isClosed) return;
     
     result.fold(
@@ -66,21 +59,17 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
       return;
     }
     
-    // 🟢 التعديل: استخدام fold للتعامل مع Either
     final result = await mapRepository.searchPlaces(input);
-    
     if (isClosed) return;
     
     result.fold(
-      (failure) => emit(PlacesSearchLoaded([])), // نرجع قائمة فارغة في حال الخطأ
+      (failure) => emit(PlacesSearchLoaded([])), 
       (results) => emit(PlacesSearchLoaded(results))
     );
   }
 
   Future<void> fetchPlaceDetails(String placeId, String description) async {
-    // 🟢 التعديل: استخدام fold للتعامل مع Either
     final result = await mapRepository.getPlaceCoordinates(placeId);
-    
     if (isClosed) return;
     
     result.fold(
@@ -92,9 +81,7 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   Future<void> fetchRoute(LatLng origin, LatLng destination) async {
     if (isClosed) return;
     
-    // 🟢 التعديل: استخدام fold للتعامل مع Either
     final result = await mapRepository.getRouteCoordinates(origin, destination);
-    
     if (isClosed) return;
     
     result.fold(
@@ -119,49 +106,32 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     if (isClosed) return;
     emit(TripSubmitting());
 
-    try {
-      String? audioUrl;
-      
-      if (orderAudioFile != null) {
-        final String fileName = 'trips_audio/${DateTime.now().millisecondsSinceEpoch}.m4a';
-        final Reference ref = FirebaseStorage.instance.ref().child(fileName);
-        await ref.putFile(orderAudioFile);
-        audioUrl = await ref.getDownloadURL();
-        debugPrint("✅ تم رفع الريكورد: $audioUrl");
-      }
-
-      final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final String currentUserName = FirebaseAuth.instance.currentUser?.displayName ?? 'عميل';
-      bool isErrand = tripCategory == 'طلبات';
-
-      Map<String, dynamic> tripData = {
-        'isDriverPost': false,
-        'passengerId': currentUserId,
-        'passengerName': currentUserName,
-        'tripCategory': tripCategory,
-        'vehicleType': isErrand ? 'موتوسيكل' : vehicleType,
-        'pickup': pickup,
-        'destination': destination,
-        'suggestedPrice': price,
-        'price': price,
-        'errandDetails': isErrand ? errandDetails : null,
-        'errandCost': isErrand ? errandCost : null,
-        'audioUrl': audioUrl, 
-        'pickupLocation': pickupLocation != null ? GeoPoint(pickupLocation.latitude, pickupLocation.longitude) : null,
-        'destinationLocation': destinationLocation != null ? GeoPoint(destinationLocation.latitude, destinationLocation.longitude) : null,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await tripRepository.createNewTripRequest(tripData);
-      
-      if (isClosed) return; 
-      emit(TripSubmitSuccess());
-    } catch (e) {
-      debugPrint("❌ خطأ الإرسال: $e");
-      if (isClosed) return;
-      emit(TripSubmitError("حدث خطأ أثناء إرسال الطلب."));
-    }
+    // 🟢 الـ Repository هو اللي بيتصرف في كل حاجة دلوقتي
+    final result = await tripRepository.createPassengerTrip(
+      tripCategory: tripCategory,
+      vehicleType: vehicleType,
+      pickup: pickup,
+      destination: destination,
+      price: price,
+      errandDetails: errandDetails,
+      errandCost: errandCost,
+      orderAudioFile: orderAudioFile,
+      pickupLat: pickupLocation?.latitude,
+      pickupLng: pickupLocation?.longitude,
+      destinationLat: destinationLocation?.latitude,
+      destinationLng: destinationLocation?.longitude,
+    );
+    
+    if (isClosed) return; 
+    
+    result.fold(
+      (failure) {
+        debugPrint("❌ خطأ الإرسال: ${failure.message}");
+        emit(TripSubmitError(failure.message));
+      },
+      // 🟢 تم التعديل هنا: استقبال الـ tripId وتمريره للحالة
+      (tripId) => emit(TripSubmitSuccess(tripId))
+    );
   }
 
   @override

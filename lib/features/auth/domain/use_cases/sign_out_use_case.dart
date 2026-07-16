@@ -1,3 +1,4 @@
+import 'package:dartz/dartz.dart';
 import '../repositories/auth_repository.dart';
 
 class SignOutUseCase {
@@ -5,7 +6,7 @@ class SignOutUseCase {
 
   SignOutUseCase(this.repository);
 
-  Future<void> call() {
-    return repository.signOut();
+  Future<Either<String, void>> call() async {
+    return await repository.signOut();
   }
 }

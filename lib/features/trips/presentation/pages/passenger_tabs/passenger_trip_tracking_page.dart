@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:audioplayers/audioplayers.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
@@ -100,7 +101,7 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
         await _audioPlayer.play(AssetSource('audio/cancell.mp3')); 
       } else if (status == 'completed') {
         await _audioPlayer.play(AssetSource('audio/notification.mp3')); 
-      } else if (status == 'accepted' || status == 'arrived') {
+      } else if (status == 'accepted' || status == 'arrived' || status == 'on_the_way') {
         await _audioPlayer.play(AssetSource('audio/edite.mp3'));
       }
     } catch (e) {
@@ -117,7 +118,6 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
     super.dispose();
   }
 
-  // 🟢 حساب زاوية دوران السيارة بناءً على الإحداثيات القديمة والجديدة
   double _getBearing(LatLng begin, LatLng end) {
     double lat1 = begin.latitude * math.pi / 180.0;
     double lon1 = begin.longitude * math.pi / 180.0;
@@ -136,7 +136,6 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
     
     LatLng newDriverPos = LatLng(driverLocation.latitude, driverLocation.longitude);
     
-    // 🟢 لو ده أول مرة يظهر فيها الكابتن
     if (_currentDriverPosition == null) {
       setState(() {
         _currentDriverPosition = newDriverPos;
@@ -146,7 +145,6 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
       return;
     }
 
-    // 🟢 لو الكابتن اتحرك، نحسب الزاوية ونعمل أنيميشن
     if (_currentDriverPosition != newDriverPos) {
       _markerRotation = _getBearing(_currentDriverPosition!, newDriverPos);
 
@@ -163,8 +161,6 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
       });
 
       _animationController?.forward(from: 0.0);
-
-      // تحريك الكاميرا ببطء لتتبع السائق
       _mapController?.animateCamera(CameraUpdate.newLatLng(newDriverPos));
     }
   }
@@ -177,12 +173,40 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
         Marker(
           markerId: const MarkerId('driver_car'),
           position: _currentDriverPosition!,
-          rotation: _markerRotation, // 🟢 توجيه مقدمة السيارة
-          anchor: const Offset(0.5, 0.5), // 🟢 تثبيت مركز الدوران
+          rotation: _markerRotation,
+          anchor: const Offset(0.5, 0.5),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'السائق'),
         ),
       );
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'pending': return 'جاري البحث عن كابتن...';
+      case 'negotiating': return 'جاري التفاوض على السعر...';
+      case 'accepted': return 'تم قبول الطلب، الكابتن يتجهز...';
+      case 'on_the_way': return 'الكابتن في الطريق إليك...';
+      case 'arrived': return 'الكابتن بالخارج!';
+      case 'in_progress': return 'الرحلة جارية الآن...';
+      case 'completed': return 'وصلت بالسلامة!';
+      case 'cancelled': return 'تم إلغاء الرحلة';
+      default: return 'جاري التحميل...';
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+      case 'negotiating': return Colors.orange;
+      case 'accepted':
+      case 'on_the_way': return Colors.blueAccent;
+      case 'arrived':
+      case 'in_progress':
+      case 'completed': return AppColors.royalGreen;
+      case 'cancelled': return Colors.redAccent;
+      default: return AppColors.primaryDark;
     }
   }
 
@@ -308,7 +332,7 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: AppColors.primaryDark,
-          title: Text('رحلتي', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp)),
+          title: Text('تتبع الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18.sp)),
           centerTitle: true,
           iconTheme: const IconThemeData(color: Colors.white),
         ),
@@ -329,7 +353,9 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
             var tripData = snapshot.data!.data() as Map<String, dynamic>;
             TripModel trip = TripModel.fromMap(tripData, snapshot.data!.id);
             
-            if (trip.status == 'in_progress' || trip.status == 'arrived' || trip.status == 'accepted') {
+            bool driverAssigned = trip.driverId != null && trip.driverId!.isNotEmpty;
+            
+            if (trip.status == 'in_progress' || trip.status == 'arrived' || trip.status == 'accepted' || trip.status == 'on_the_way') {
                WidgetsBinding.instance.addPostFrameCallback((_) {
                  _updateDriverMarker(tripData['driverLocation']);
                });
@@ -342,16 +368,17 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
               });
             }
 
-            return Column(
+            return Stack(
               children: [
-                Expanded(
-                  flex: 5,
+                // الخريطة
+                Positioned.fill(
+                  bottom: trip.status == 'negotiating' ? 300.h : 260.h,
                   child: GoogleMap(
                     initialCameraPosition: CameraPosition(
                       target: LatLng(trip.pickupLocation?.latitude ?? 30.0, trip.pickupLocation?.longitude ?? 31.0),
                       zoom: 15,
                     ),
-                    style: _premiumMapStyle, // 🟢 إضافة الثيم الموحد
+                    style: _premiumMapStyle, 
                     markers: _markers,
                     onMapCreated: (controller) => _mapController = controller,
                     zoomControlsEnabled: false,
@@ -359,80 +386,193 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
                   ),
                 ),
 
-                Expanded(
-                  flex: 4,
+                // الكارت السفلي الفخم (معدل ليتناسب مع الثلاث ملفات)
+                Align(
+                  alignment: Alignment.bottomCenter,
                   child: Container(
                     width: double.infinity,
-                    padding: EdgeInsets.all(20.w),
+                    padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08), 
-                          blurRadius: 15, 
+                          color: Colors.black.withValues(alpha: 0.1), 
+                          blurRadius: 20, 
+                          spreadRadius: 2,
                           offset: const Offset(0, -5),
                         )
                       ],
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
                     ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'إلى: ${trip.destination}', 
-                            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp),
-                          ),
-                          SizedBox(height: 8.h),
-                          Text(
-                            'السعر: ${trip.finalPrice ?? trip.price ?? 'غير محدد'} ج.م', 
-                            style: TextStyle(fontFamily: 'Cairo', color: AppColors.success, fontSize: 15.sp, fontWeight: FontWeight.bold),
-                          ),
-                          const Divider(height: 30),
-
-                          if (trip.status == 'negotiating')
-                            NegotiationWidget(
-                              trip: trip, 
-                              isDriver: false, 
-                              currentUserId: widget.passengerId,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // مؤشر السحب
+                        Center(
+                          child: Container(
+                            width: 40.w,
+                            height: 5.h,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(10.r),
                             ),
+                          ),
+                        ),
+                        SizedBox(height: 16.h),
 
-                          if (trip.status == 'in_progress' || trip.status == 'arrived' || trip.status == 'accepted') ...[
-                             Center(
-                               child: Text(
-                                 trip.status == 'arrived' ? 'السائق بالخارج' : 
-                                 trip.status == 'in_progress' ? 'الرحلة جارية الآن...' : 'السائق في الطريق إليك...',
-                                 style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.primaryDark, fontWeight: FontWeight.bold),
-                               ),
-                             ),
-                             SizedBox(height: 20.h),
-                             SizedBox(
-                               width: double.infinity,
-                               height: 50.h,
-                               child: ElevatedButton.icon(
-                                 style: ElevatedButton.styleFrom(
-                                   backgroundColor: AppColors.info,
-                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
-                                 ),
-                                 onPressed: () {
-                                   NavigationService.navigateToTripChat(widget.tripId);
-                                 },
-                                 icon: const Icon(Icons.chat, color: Colors.white),
-                                 label: const Text('محادثة السائق', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold)),
-                               ),
-                             ),
+                        // مؤشر حالة الرحلة
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8.w),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(trip.status ?? '').withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.info_outline, color: _getStatusColor(trip.status ?? ''), size: 24.sp),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: Text(
+                                _getStatusText(trip.status ?? ''),
+                                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                              ),
+                            ),
                           ],
-                          
-                          if (trip.status == 'completed') ...[
-                            Center(
-                               child: Text(
-                                 'وصلت بالسلامة! الرحلة انتهت.',
-                                 style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: AppColors.royalGreen, fontWeight: FontWeight.bold),
-                               ),
-                             ),
-                          ]
+                        ),
+                        
+                        const Divider(height: 24, thickness: 1),
+
+                        // تفاصيل السائق إذا تم تعيينه
+                        if (driverAssigned && trip.status != 'negotiating') ...[
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 28.r,
+                                backgroundColor: Colors.grey.shade200,
+                                backgroundImage: tripData['driverImage'] != null ? NetworkImage(tripData['driverImage']) : null,
+                                child: tripData['driverImage'] == null ? Icon(Icons.person, color: Colors.grey.shade500, size: 30.sp) : null,
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      trip.driverName ?? 'كابتن لَمّة',
+                                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      '${tripData['carModel'] ?? 'سيارة'} • ${tripData['carPlate'] ?? 'بدون لوحة'}',
+                                      style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  // زر الشات
+                                  GestureDetector(
+                                    onTap: () => NavigationService.navigateToTripChat(widget.tripId),
+                                    child: Container(
+                                      padding: EdgeInsets.all(12.w),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.info.withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(Icons.chat_bubble_outline, color: AppColors.info, size: 22.sp),
+                                    ),
+                                  ),
+                                  SizedBox(width: 10.w),
+                                  // زر الاتصال
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final phone = tripData['driverPhone'] ?? '';
+                                      if (phone.isNotEmpty) {
+                                        final url = Uri.parse('tel:$phone');
+                                        if (await canLaunchUrl(url)) {
+                                          await launchUrl(url);
+                                        }
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(12.w),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.success.withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(Icons.phone_in_talk, color: AppColors.success, size: 22.sp),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                          const Divider(height: 24, thickness: 1),
                         ],
-                      ),
+
+                        // تفاصيل مسار الرحلة والسعر
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('إلى:', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade500)),
+                                SizedBox(
+                                  width: 200.w,
+                                  child: Text(
+                                    trip.destination ?? 'الوجهة',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('السعر:', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade500)),
+                                Text(
+                                  '${trip.finalPrice ?? trip.price ?? '--'} ج.م',
+                                  style: TextStyle(fontFamily: 'Cairo', color: AppColors.royalGreen, fontSize: 16.sp, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+
+                        // مسار التفاوض
+                        if (trip.status == 'negotiating') ...[
+                          SizedBox(height: 16.h),
+                          NegotiationWidget(
+                            trip: trip, 
+                            isDriver: false, 
+                            currentUserId: widget.passengerId,
+                          ),
+                        ],
+
+                        // أزرار سريعة للإلغاء أو الانتظار
+                        if (trip.status == 'pending' || trip.status == 'accepted') ...[
+                          SizedBox(height: 20.h),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48.h,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.redAccent),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
+                              ),
+                              onPressed: () {
+                               context.read<TripActionsCubit>().cancelTripFully(tripId: widget.tripId, isDriver: false);
+                              },
+                              child: Text('إلغاء الرحلة', style: TextStyle(fontFamily: 'Cairo', color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                            ),
+                          ),
+                        ]
+                      ],
                     ),
                   ),
                 ),

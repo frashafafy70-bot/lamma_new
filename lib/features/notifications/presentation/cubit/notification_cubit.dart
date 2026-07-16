@@ -1,50 +1,46 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notification_state.dart';
-
+import 'package:lamma_new/features/notifications/domain/use_cases/get_notifications_use_case.dart';
 class NotificationCubit extends Cubit<NotificationState> {
-  // 🟢 اشتراك الستريم لمراقبة الإشعارات لايف
-  StreamSubscription<QuerySnapshot>? _notificationSubscription;
+  final GetNotificationsUseCase _getNotificationsUseCase;
+  StreamSubscription? _notificationSubscription;
 
-  NotificationCubit() : super(NotificationState());
+  NotificationCubit({required GetNotificationsUseCase getNotificationsUseCase})
+      : _getNotificationsUseCase = getNotificationsUseCase,
+        super(NotificationState());
 
-  // 🟢 دالة فتح الستريم وجلب الإشعارات
   void startListeningToNotifications(String userId) {
     if (userId.isEmpty) return;
 
     emit(state.copyWith(status: NotificationStatus.loading));
 
     _notificationSubscription?.cancel();
-    _notificationSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .listen(
-      (snapshot) {
-        // تحويل الداتا لـ List of Maps
-        final notificationsList = snapshot.docs.map((doc) {
-          var data = doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id; // حفظ الـ ID لو احتجناه
-          return data;
-        }).toList();
+    
+    // 🟢 الكيوبت بيسمع للـ Stream النقي اللي جاي من الـ UseCase
+    _notificationSubscription = _getNotificationsUseCase(userId).listen(
+      (eitherResult) {
+        if (isClosed) return;
 
-        // حساب عدد الإشعارات غير المقروءة (لو عندك حقل isRead في الفايربيز تقدر تفلتر بيه هنا)
-        // int unreadCount = notificationsList.where((n) => n['isRead'] == false).length;
+        eitherResult.fold(
+          (failure) {
+            emit(state.copyWith(
+              status: NotificationStatus.error,
+              errorMessage: failure.message,
+            ));
+          },
+          (notificationsList) {
+            // حساب الإشعارات الغير مقروءة
+            int unreadCount = notificationsList.where((n) => n.isRead == false).length;
 
-        emit(state.copyWith(
-          status: NotificationStatus.loaded,
-          notifications: notificationsList,
-          // unreadNotificationsCount: unreadCount, // لو مفعل الحقل ده
-        ));
-      },
-      onError: (error) {
-        emit(state.copyWith(
-          status: NotificationStatus.error,
-          errorMessage: 'حدث خطأ في جلب الإشعارات',
-        ));
+            emit(state.copyWith(
+              status: NotificationStatus.loaded,
+              notifications: notificationsList,
+              unreadNotificationsCount: unreadCount,
+              hasNewNotification: unreadCount > 0,
+            ));
+          },
+        );
       },
     );
   }
@@ -53,7 +49,6 @@ class NotificationCubit extends Cubit<NotificationState> {
     emit(state.copyWith(unreadNotificationsCount: 0, hasNewNotification: false));
   }
 
-  // 🟢 تنظيف الذاكرة
   @override
   Future<void> close() {
     _notificationSubscription?.cancel();

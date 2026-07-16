@@ -1,32 +1,42 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../domain/repositories/trip_repository.dart'; // مسار الـ Repo
+
+import '../../domain/usecases/get_driver_history_trips_usecase.dart'; 
+import '../../domain/usecases/cancel_trip_use_case.dart';
+import '../../domain/usecases/delete_trip_usecase.dart';
+
 import '../../data/models/trip_model.dart';
 import 'driver_history_state.dart';
 
 class DriverHistoryCubit extends Cubit<DriverHistoryState> {
-  final TripRepository _repository; // الـ Dependency Injection (ممكن تستخدم UseCase لو حابب)
-  
-  List<TripModel> _trips = [];
+  final GetDriverHistoryTripsUseCase getDriverHistoryTripsUseCase;
+  final CancelTripUseCase cancelTripUseCase;
+  final DeleteTripUseCase deleteTripUseCase;
+
+  String _currentUserId = '';
+  final List<TripModel> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
-  final int _limit = 15;
+  static const int _limit = 15;
 
-  DriverHistoryCubit(this._repository) : super(DriverHistoryInitial());
+  DriverHistoryCubit({
+    required this.getDriverHistoryTripsUseCase,
+    required this.cancelTripUseCase,
+    required this.deleteTripUseCase,
+  }) : super(DriverHistoryInitial());
 
-  // --------------------------------------------------
-  // 🔥 نظام الـ Pagination
-  // --------------------------------------------------
-  void startListeningToHistoryTrips() {
+  void startListeningToHistoryTrips(String uid) {
+    if (uid.isEmpty) return;
+    _currentUserId = uid;
     fetchInitialHistoryTrips();
   }
 
   Future<void> fetchInitialHistoryTrips() async {
-    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (currentUserId.isEmpty) return;
+    if (_currentUserId.isEmpty) {
+      emit(DriverHistoryError('لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
+      return;
+    }
 
     emit(DriverHistoryLoading());
     
@@ -35,30 +45,25 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
     _isFetchingMore = false;
 
     try {
-      final result = await _repository.getDriverHistoryTrips(uid: currentUserId, limit: _limit);
+      final result = await getDriverHistoryTripsUseCase(uid: _currentUserId, limit: _limit);
 
       if (isClosed) return;
 
       result.fold(
-        (failure) => emit(DriverHistoryError('حدث خطأ في تحميل السجل.')),
+        (failure) => emit(DriverHistoryError(failure.message ?? 'حدث خطأ في تحميل السجل.')),
         (trips) {
-          _trips = trips;
+          _trips.addAll(trips);
           _hasReachedMax = trips.length < _limit;
-          emit(DriverHistoryLoaded(
-            trips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
+          emit(_buildLoadedState());
         },
       );
     } catch (e) {
-      if (!isClosed) emit(DriverHistoryError('حدث خطأ غير متوقع'));
+      if (!isClosed) emit(DriverHistoryError('حدث خطأ غير متوقع: $e'));
     }
   }
 
   Future<void> fetchMoreHistoryTrips() async {
-    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (_hasReachedMax || _isFetchingMore || currentUserId.isEmpty) return;
+    if (_hasReachedMax || _isFetchingMore || _currentUserId.isEmpty) return;
 
     _isFetchingMore = true;
     if (state is DriverHistoryLoaded) {
@@ -67,8 +72,10 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
 
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
-      final result = await _repository.getDriverHistoryTrips(
-        uid: currentUserId, limit: _limit, lastTrip: lastTrip
+      final result = await getDriverHistoryTripsUseCase(
+        uid: _currentUserId, 
+        limit: _limit, 
+        lastTrip: lastTrip,
       );
 
       if (isClosed) return;
@@ -76,9 +83,8 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          if (state is DriverHistoryLoaded) {
-            emit((state as DriverHistoryLoaded).copyWith(isFetchingMore: false));
-          }
+          emit(DriverHistoryError(failure.message ?? 'فشل جلب المزيد من الرحلات'));
+          emit(_buildLoadedState()); 
         },
         (newTrips) {
           _isFetchingMore = false;
@@ -88,68 +94,86 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
             _trips.addAll(newTrips);
             _hasReachedMax = newTrips.length < _limit;
           }
-          emit(DriverHistoryLoaded(
-            trips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
+          emit(_buildLoadedState());
         },
       );
     } catch (e) {
       _isFetchingMore = false;
-      if (state is DriverHistoryLoaded && !isClosed) {
-        emit((state as DriverHistoryLoaded).copyWith(isFetchingMore: false));
+      if (!isClosed) {
+        emit(DriverHistoryError('حدث خطأ في الاتصال'));
+        emit(_buildLoadedState());
       }
     }
   }
 
-  // --------------------------------------------------
-  // 🔥 اللوجيك القديم الخاص بالسائق
-  // --------------------------------------------------
-  
   Future<void> cancelDriverTrip(String tripId) async {
-    try {
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-
-      DocumentReference tripRef = FirebaseFirestore.instance.collection('trips').doc(tripId);
-      batch.update(tripRef, {
-        'status': 'canceled',
-        'isDeleted': true, 
-        'canceledAt': FieldValue.serverTimestamp(),
-      });
-
-      var bookingsSnapshot = await FirebaseFirestore.instance
-          .collection('trip_bookings')
-          .where('tripId', isEqualTo: tripId)
-          .get();
-
-      for (var doc in bookingsSnapshot.docs) {
-        batch.delete(doc.reference); 
-      }
-
-      await batch.commit();
-      debugPrint('✅ تم إلغاء الرحلة وتنظيف الحجوزات المرتبطة بها بنجاح');
-      
-      fetchInitialHistoryTrips(); // تحديث القائمة
-
-    } catch (e) {
-      debugPrint('❌ خطأ في إلغاء رحلة الكابتن: $e');
-      if (!isClosed) emit(DriverHistoryError('حدث خطأ أثناء إلغاء الرحلة'));
-    }
+    await _performAction(
+      action: () => cancelTripUseCase(tripId: tripId, isDriver: true),
+      successMessage: 'تم إلغاء الرحلة بنجاح',
+      refreshAfterSuccess: true,
+    );
   }
 
   Future<void> deleteTripFromHistory(String docId) async {
-    try {
-      await FirebaseFirestore.instance.collection('trips').doc(docId).update({
-        'isDeletedForDriver': true,
-      });
-      debugPrint('✅ تم إخفاء الرحلة من سجل الكابتن');
-      
-      fetchInitialHistoryTrips(); // تحديث القائمة
+    await _performAction(
+      action: () => deleteTripUseCase(docId),
+      successMessage: 'تم مسح الرحلة من السجل بنجاح',
+      refreshAfterSuccess: true,
+    );
+  }
 
-    } catch (e) {
-      debugPrint('❌ خطأ في حذف الطلب من السجل: $e');
-      if (!isClosed) emit(DriverHistoryError('حدث خطأ أثناء مسح الرحلة من السجل'));
-    }
+  Future<void> _performAction({
+    required Future<dynamic> Function() action,
+    required String successMessage,
+    required bool refreshAfterSuccess,
+  }) async {
+    emit(DriverHistoryActionLoading());
+    
+    final result = await action();
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) {
+        emit(DriverHistoryActionError(failure.message ?? 'حدث خطأ غير متوقع'));
+        emit(_buildLoadedState()); 
+      },
+      (_) {
+        emit(DriverHistoryActionSuccess(successMessage));
+        if (refreshAfterSuccess) {
+          _backgroundRefresh();
+        } else {
+          emit(_buildLoadedState());
+        }
+      }
+    );
+  }
+
+  Future<void> _backgroundRefresh() async {
+    final result = await getDriverHistoryTripsUseCase(
+      uid: _currentUserId, 
+      limit: _trips.length > _limit ? _trips.length : _limit
+    );
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) {
+        debugPrint('⚠️ فشل التحديث بالخلفية للسجل: ${failure.message}');
+      }, 
+      (trips) {
+        _trips.clear();
+        _trips.addAll(trips);
+        emit(_buildLoadedState());
+      },
+    );
+  }
+
+  DriverHistoryLoaded _buildLoadedState() {
+    return DriverHistoryLoaded(
+      trips: List.from(_trips),
+      hasReachedMax: _hasReachedMax,
+      isFetchingMore: _isFetchingMore,
+    );
   }
 }

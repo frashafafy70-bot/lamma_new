@@ -1,34 +1,34 @@
-import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
-// تأكد من استدعاء موديل مخصص للواجهة يجمع الرحلة مع مسافتها
-import '../../data/models/trip_model.dart';
+import '../../data/models/trip_model.dart'; 
 
-// موديل مساعد للواجهة عشان نربط الرحلة بالمسافة
 class ProcessedTrip {
   final TripModel trip;
   final double distance;
+
   ProcessedTrip({required this.trip, required this.distance});
 }
 
-@immutable
-abstract class AvailableTravelsState {}
+abstract class AvailableTravelsState {
+  final List<ProcessedTrip> trips; 
+  AvailableTravelsState({this.trips = const []});
+}
 
-class AvailableTravelsInitial extends AvailableTravelsState {}
+class AvailableTravelsInitial extends AvailableTravelsState {
+  AvailableTravelsInitial() : super(trips: []);
+}
 
-class AvailableTravelsLoading extends AvailableTravelsState {}
+class AvailableTravelsLoading extends AvailableTravelsState {
+  AvailableTravelsLoading({super.trips}); 
+}
 
 class AvailableTravelsLoaded extends AvailableTravelsState {
-  final List<ProcessedTrip> trips;
   final bool showOnlyNearby;
-  final Position? passengerPosition;
-  
-  // متغيرات الـ Pagination
+  final dynamic passengerPosition;
   final bool hasReachedMax;
   final bool isFetchingMore;
 
   AvailableTravelsLoaded({
-    required this.trips,
-    required this.showOnlyNearby,
+    required super.trips,
+    this.showOnlyNearby = false,
     this.passengerPosition,
     this.hasReachedMax = false,
     this.isFetchingMore = false,
@@ -37,7 +37,7 @@ class AvailableTravelsLoaded extends AvailableTravelsState {
   AvailableTravelsLoaded copyWith({
     List<ProcessedTrip>? trips,
     bool? showOnlyNearby,
-    Position? passengerPosition,
+    dynamic passengerPosition,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {
@@ -53,5 +53,5 @@ class AvailableTravelsLoaded extends AvailableTravelsState {
 
 class AvailableTravelsError extends AvailableTravelsState {
   final String message;
-  AvailableTravelsError(this.message);
+  AvailableTravelsError(this.message, {super.trips});
 }

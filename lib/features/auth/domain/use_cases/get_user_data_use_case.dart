@@ -1,3 +1,4 @@
+import 'package:dartz/dartz.dart';
 import '../entities/user_entity.dart';
 import '../repositories/auth_repository.dart';
 
@@ -6,7 +7,7 @@ class GetUserDataUseCase {
 
   GetUserDataUseCase(this.repository);
 
-  Future<UserEntity?> call(String uid) {
-    return repository.getUserData(uid);
+  Future<Either<String, UserEntity?>> call(String uid) async {
+    return await repository.getUserData(uid);
   }
 }

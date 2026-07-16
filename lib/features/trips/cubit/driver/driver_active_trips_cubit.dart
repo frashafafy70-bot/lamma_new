@@ -1,97 +1,69 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; 
-import 'package:audioplayers/audioplayers.dart'; 
 
 import '../../domain/usecases/get_driver_active_trips_usecase.dart'; 
-import '../../domain/repositories/trip_repository.dart';
+import '../../domain/usecases/accept_passenger_booking_usecase.dart';
+import '../../domain/usecases/reject_passenger_booking_usecase.dart';
+import '../../domain/usecases/cancel_passenger_booking_usecase.dart';
+import '../../domain/usecases/activate_driver_trip_usecase.dart';
+import '../../domain/usecases/check_has_active_trip_usecase.dart';
+import '../../domain/usecases/update_trip_status_usecase.dart';
+import '../../domain/usecases/sync_driver_location_use_case.dart';
+
 import '../../data/models/trip_model.dart';
 import 'driver_active_trips_state.dart';
 
 class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
-  final GetDriverActiveTripsUseCase _getDriverActiveTripsUseCase;
-  final TripRepository _repository; 
+  final GetDriverActiveTripsUseCase getDriverActiveTripsUseCase;
+  final AcceptPassengerBookingUseCase acceptPassengerBookingUseCase;
+  final RejectPassengerBookingUseCase rejectPassengerBookingUseCase;
+  final CancelPassengerBookingUseCase cancelPassengerBookingUseCase;
+  final ActivateDriverTripUseCase activateDriverTripUseCase;
+  final CheckHasActiveTripUseCase checkHasActiveTripUseCase;
+  final UpdateTripStatusUseCase updateTripStatusUseCase;
+  final SyncDriverLocationUseCase syncDriverLocationUseCase;
   
-  StreamSubscription<RemoteMessage>? _notificationSubscription;
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
-  List<TripModel> _trips = [];
+  String _currentUserId = '';
+  final List<TripModel> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
-  final int _limit = 15;
+  static const int _limit = 15; 
 
-  DriverActiveTripsCubit(this._getDriverActiveTripsUseCase, this._repository) : super(DriverActiveTripsInitial()) {
-    _listenToForegroundNotifications(); 
-  }
+  DriverActiveTripsCubit({
+    required this.getDriverActiveTripsUseCase,
+    required this.acceptPassengerBookingUseCase,
+    required this.rejectPassengerBookingUseCase,
+    required this.cancelPassengerBookingUseCase,
+    required this.activateDriverTripUseCase,
+    required this.checkHasActiveTripUseCase,
+    required this.updateTripStatusUseCase,
+    required this.syncDriverLocationUseCase,
+  }) : super(DriverActiveTripsInitial());
 
-  void _listenToForegroundNotifications() {
-    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint("🔔 [ActiveTripsCubit] إشعار لايف وصل للكابتن: ${message.notification?.title}");
-      
-      try {
-        String type = message.data['type'] ?? '';
-        
-        if (type == 'passenger_offer' || type == 'negotiating' || type == 'passenger_action') {
-          await _audioPlayer.play(AssetSource('audio/ping_pong.mp3'));
-        } 
-        else if (type == 'new_request' || type == 'trip_accepted' || type == 'new_booking') {
-          await _audioPlayer.play(AssetSource('audio/edite.mp3'));
-        } 
-        else if (type == 'trip_cancelled' || type == 'canceled') {
-          await _audioPlayer.play(AssetSource('audio/cancell.mp3'));
-        } 
-        else if (type == 'chat') {
-          await _audioPlayer.play(AssetSource('audio/ping_pong.mp3'));
-        }
-        else {
-          await _audioPlayer.play(AssetSource('audio/notification.mp3'));
-        }
-      } catch (e) {
-        debugPrint("مشكلة في تشغيل الصوت للكابتن: $e");
-      }
-    });
-  }
-
-  void startListeningToActiveTrips() {
+  void startListeningToActiveTrips(String uid) {
+    if (uid.isEmpty) return; 
+    _currentUserId = uid; 
     fetchInitialActiveTrips();
   }
 
   Future<void> fetchInitialActiveTrips() async {
-    if (currentUserId.isEmpty) {
+    if (_currentUserId.isEmpty) {
       emit(DriverActiveTripsError('لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
       return;
     }
-
-    emit(DriverActiveTripsLoading());
     
-    _trips.clear();
-    _hasReachedMax = false;
-    _isFetchingMore = false;
+    emit(DriverActiveTripsLoading());
+    _resetPagination();
 
     try {
-      final result = await _getDriverActiveTripsUseCase(uid: currentUserId, limit: _limit);
-
+      final result = await getDriverActiveTripsUseCase(uid: _currentUserId, limit: _limit);
       if (isClosed) return;
-
+      
       result.fold(
-        (failure) {
-          emit(DriverActiveTripsError('حدث خطأ أثناء جلب الرحلات النشطة.'));
-        },
-        (trips) {
-          _trips = trips;
-          _hasReachedMax = trips.length < _limit;
-          
-          emit(DriverActiveTripsLoaded(
-            trips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
-        },
+        (failure) => emit(DriverActiveTripsError(failure.message ?? 'حدث خطأ أثناء جلب الرحلات النشطة.')),
+        (trips) => _handleNewTrips(trips),
       );
     } catch (e) {
       if (!isClosed) emit(DriverActiveTripsError('حدث خطأ غير متوقع: $e'));
@@ -99,8 +71,8 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   }
 
   Future<void> fetchMoreActiveTrips() async {
-    if (_hasReachedMax || _isFetchingMore || currentUserId.isEmpty) return;
-
+    if (_hasReachedMax || _isFetchingMore || _currentUserId.isEmpty) return;
+    
     _isFetchingMore = true;
     if (state is DriverActiveTripsLoaded) {
       emit((state as DriverActiveTripsLoaded).copyWith(isFetchingMore: true));
@@ -108,125 +80,140 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
 
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
-      final result = await _getDriverActiveTripsUseCase(
-        uid: currentUserId, 
+      final result = await getDriverActiveTripsUseCase(
+        uid: _currentUserId, 
         limit: _limit, 
-        lastTrip: lastTrip
+        lastTrip: lastTrip,
       );
-
+      
       if (isClosed) return;
-
+      
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          if (state is DriverActiveTripsLoaded) {
-            emit((state as DriverActiveTripsLoaded).copyWith(isFetchingMore: false));
-          }
+          emit(DriverActiveTripsPaginationError(failure.message ?? 'فشل جلب المزيد من الرحلات'));
+          emit(_buildLoadedState()); 
         },
         (newTrips) {
           _isFetchingMore = false;
-          if (newTrips.isEmpty) {
-            _hasReachedMax = true;
-          } else {
-            _trips.addAll(newTrips);
-            _hasReachedMax = newTrips.length < _limit;
-          }
-          
-          emit(DriverActiveTripsLoaded(
-            trips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
+          _handleNewTrips(newTrips, isPagination: true);
         },
       );
     } catch (e) {
       _isFetchingMore = false;
-      if (state is DriverActiveTripsLoaded && !isClosed) {
-        emit((state as DriverActiveTripsLoaded).copyWith(isFetchingMore: false));
+      if (!isClosed) {
+         emit(DriverActiveTripsPaginationError('حدث خطأ في الاتصال'));
+         emit(_buildLoadedState());
       }
     }
   }
 
-  Future<void> acceptBooking(String bookingId, String tripId, int seatsToDeduct) async {
+  Future<void> _performAction({
+    required Future<dynamic> Function() action,
+    required String successMessage,
+    required bool refreshAfterSuccess,
+  }) async {
     emit(DriverActiveTripsActionLoading());
-    final result = await _repository.acceptPassengerBooking(bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct);
+    
+    final result = await action();
+    
     if (isClosed) return;
+    
     result.fold(
-      (failure) => emit(DriverActiveTripsActionError(failure.message)),
-      (_) => emit(DriverActiveTripsActionSuccess('تم قبول الحجز بنجاح!'))
-    );
-    fetchInitialActiveTrips(); 
-  }
-
-  Future<void> rejectBooking(String bookingId, String tripId, String passengerId) async {
-    emit(DriverActiveTripsActionLoading());
-    final result = await _repository.rejectPassengerBooking(bookingId: bookingId, tripId: tripId, passengerId: passengerId);
-    if (isClosed) return;
-    result.fold(
-      (failure) => emit(DriverActiveTripsActionError(failure.message)),
-      (_) => emit(DriverActiveTripsActionSuccess('تم رفض الطلب بنجاح'))
-    );
-  }
-
-  Future<void> cancelBooking(String bookingId, String tripId, String passengerId, int seatsToReturn, bool wasAccepted) async {
-    emit(DriverActiveTripsActionLoading());
-    final result = await _repository.cancelPassengerBooking(bookingId: bookingId, tripId: tripId, passengerId: passengerId, seatsToReturn: seatsToReturn, wasAccepted: wasAccepted);
-    if (isClosed) return;
-    result.fold(
-      (failure) => emit(DriverActiveTripsActionError(failure.message)),
-      (_) => emit(DriverActiveTripsActionSuccess('تم إلغاء الحجز بنجاح'))
-    );
-    fetchInitialActiveTrips();
-  }
-
-  Future<void> activateDriverTripFunction(String tripId) async {
-    emit(DriverActiveTripsActionLoading());
-    final result = await _repository.activateDriverTripFunction(tripId, currentUserId);
-    if (isClosed) return;
-    result.fold(
-      (failure) => emit(DriverActiveTripsActionError(failure.message)),
+      (failure) {
+        // حماية إضافية لو الـ failure ملوش message
+        final errorMessage = (failure is dynamic && failure.message != null) 
+            ? failure.message 
+            : 'حدث خطأ غير متوقع';
+        emit(DriverActiveTripsActionError(errorMessage));
+        emit(_buildLoadedState()); 
+      },
       (_) {
-        emit(DriverActiveTripsActionSuccess('تم تفعيل الرحلة بنجاح!'));
-        fetchInitialActiveTrips();
+        emit(DriverActiveTripsActionSuccess(successMessage));
+        refreshAfterSuccess ? _backgroundRefresh() : emit(_buildLoadedState());
       }
     );
   }
 
-  Future<bool> checkHasActiveTrip() async {
-    if (currentUserId.isEmpty) return false;
-    try {
-      final snapshot = await FirebaseFirestore.instance.collection('trips').where('driverId', isEqualTo: currentUserId).get();
-      if (isClosed) return false; 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        bool isNotDeleted = data['isDeletedForDriver'] != true;
-        bool isActiveStatus = data['status'] == 'available' || data['status'] == 'negotiating' || data['status'] == 'accepted' || data['status'] == 'arrived' || data['status'] == 'in_progress';
-        if (isNotDeleted && isActiveStatus) return true; 
-      }
-      return false; 
-    } catch (e) {
-      return false; 
-    }
-  }
-
-  Future<void> updateTripState(String tripId, String status) async {
-    emit(DriverActiveTripsActionLoading());
-    final result = await _repository.updateTripStatus(tripId, status);
-    if (isClosed) return;
-    result.fold(
-      (failure) => emit(DriverActiveTripsActionError(failure.message)),
-      (_) => emit(DriverActiveTripsActionSuccess('تم تحديث حالة الرحلة بنجاح'))
+  Future<void> acceptBooking(String bookingId, String tripId, int seatsToDeduct) async =>
+    _performAction(
+      action: () => acceptPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct),
+      successMessage: 'تم قبول الحجز بنجاح!',
+      refreshAfterSuccess: true,
     );
+
+  Future<void> rejectBooking(String bookingId, String tripId, String passengerId) async =>
+    _performAction(
+      action: () => rejectPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, passengerId: passengerId),
+      successMessage: 'تم رفض الطلب بنجاح',
+      refreshAfterSuccess: false, 
+    );
+
+  Future<void> cancelBooking(String bookingId, String tripId, String passengerId, int seatsToReturn, bool wasAccepted) async =>
+    _performAction(
+      action: () => cancelPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, passengerId: passengerId, seatsToReturn: seatsToReturn, wasAccepted: wasAccepted),
+      successMessage: 'تم إلغاء الحجز بنجاح',
+      refreshAfterSuccess: true,
+    );
+
+  Future<void> activateDriverTripFunction(String tripId) async =>
+    _performAction(
+      action: () => activateDriverTripUseCase(tripId, _currentUserId),
+      successMessage: 'تم تفعيل الرحلة بنجاح!',
+      refreshAfterSuccess: true,
+    );
+
+  Future<void> updateTripState(String tripId, String status) async =>
+    _performAction(
+      action: () => updateTripStatusUseCase(tripId, status),
+      successMessage: 'تم تحديث حالة الرحلة بنجاح',
+      refreshAfterSuccess: false,
+    );
+
+  Future<bool> checkHasActiveTrip(String driverId) async {
+    if (driverId.isEmpty) return false;
+    final result = await checkHasActiveTripUseCase(driverId);
+    return result.fold((failure) => false, (hasActive) => hasActive);
   }
 
   Future<void> syncLocation(String tripId, double lat, double lng) async {
-    await _repository.syncDriverLocation(tripId, GeoPoint(lat, lng));
+    await syncDriverLocationUseCase(tripId, GeoPoint(lat, lng));
   }
 
-  @override
-  Future<void> close() {
-    _notificationSubscription?.cancel(); 
-    _audioPlayer.dispose();
-    return super.close();
+  Future<void> _backgroundRefresh() async {
+    final result = await getDriverActiveTripsUseCase(uid: _currentUserId, limit: _trips.length > _limit ? _trips.length : _limit);
+    if (isClosed) return;
+    
+    result.fold(
+      (failure) => debugPrint('⚠️ فشل التحديث بالخلفية: $failure'), 
+      (trips) {
+        _trips.clear();
+        _handleNewTrips(trips);
+      },
+    );
+  }
+
+  void _resetPagination() {
+    _trips.clear();
+    _hasReachedMax = false;
+    _isFetchingMore = false;
+  }
+
+  void _handleNewTrips(List<TripModel> newTrips, {bool isPagination = false}) {
+    if (newTrips.isEmpty && isPagination) {
+      _hasReachedMax = true;
+    } else {
+      _trips.addAll(newTrips);
+      _hasReachedMax = newTrips.length < _limit;
+    }
+    emit(_buildLoadedState());
+  }
+
+  DriverActiveTripsLoaded _buildLoadedState() {
+    return DriverActiveTripsLoaded(
+      trips: List.from(_trips),
+      hasReachedMax: _hasReachedMax,
+      isFetchingMore: _isFetchingMore,
+    );
   }
 }

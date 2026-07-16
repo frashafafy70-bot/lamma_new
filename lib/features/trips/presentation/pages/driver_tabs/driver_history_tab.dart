@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; 
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:firebase_auth/firebase_auth.dart'; // 🟢 إضافة FirebaseAuth لجلب الـ uid
 
-import 'package:lamma_new/core/di/injection_container.dart'; // 🟢
+import 'package:lamma_new/core/di/injection_container.dart'; 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 import 'package:lamma_new/features/trips/cubit/driver/driver_history_cubit.dart'; 
 import 'package:lamma_new/features/trips/cubit/driver/driver_history_state.dart'; 
-import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/premium_tab_header.dart';
-// 🟢
+
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
@@ -61,8 +61,12 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
     
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => DriverHistoryCubit(TripRepositoryImpl())..startListeningToHistoryTrips()),
-        BlocProvider(create: (context) => sl<TripActionsCubit>()), // 🟢
+        // 🟢 التعديل الأول: استخدام sl وتمرير الـ uid
+        BlocProvider(create: (context) {
+          final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+          return sl<DriverHistoryCubit>()..startListeningToHistoryTrips(uid);
+        }),
+        BlocProvider(create: (context) => sl<TripActionsCubit>()), 
       ],
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
@@ -72,19 +76,23 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
               const PremiumTabHeader(title: 'سجل الرحلات'),
             
             Expanded(
-              // 🟢 الاستماع للأكشنز (حذف الطلب مثلاً)
-              child: BlocListener<TripActionsCubit, TripActionsState>(
+              // 🟢 التعديل الثاني: تغيير الـ Listener ليسمع للـ DriverHistoryCubit
+              child: BlocListener<DriverHistoryCubit, DriverHistoryState>(
+                listenWhen: (previous, current) => 
+                    current is DriverHistoryActionLoading || 
+                    current is DriverHistoryActionSuccess || 
+                    current is DriverHistoryActionError,
                 listener: (context, state) {
-                  if (state is TripActionsLoading) {
+                  if (state is DriverHistoryActionLoading) {
                     showDialog(
                       context: context,
                       barrierDismissible: false,
                       builder: (_) => const Center(child: CircularProgressIndicator(color: _royalGreen)),
                     );
-                  } else if (state is TripActionsSuccess) {
+                  } else if (state is DriverHistoryActionSuccess) {
                     Navigator.of(context).pop(); 
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
-                  } else if (state is TripActionsError) {
+                  } else if (state is DriverHistoryActionError) {
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
                   }
@@ -111,7 +119,11 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
                                   Text(state.message, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.red)),
                                   SizedBox(height: 16.h),
                                   ElevatedButton(
-                                    onPressed: () => context.read<DriverHistoryCubit>().startListeningToHistoryTrips(),
+                                    // 🟢 تمرير الـ uid هنا أيضاً
+                                    onPressed: () {
+                                      final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                      context.read<DriverHistoryCubit>().startListeningToHistoryTrips(uid);
+                                    },
                                     child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
                                   )
                                 ],
@@ -222,12 +234,11 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
                                                 ),
                                                 SizedBox(width: 12.w),
                                                 InkWell(
-                                                  // 🟢 استخدام الهيلبر النظيف ومسح الرحلة عبر الكيوبت إذا وافق المستخدم
+                                                  // 🟢 التعديل الثالث: استدعاء دالة المسح بشكل سليم
                                                   onTap: () async {
                                                     final confirm = await TripDialogsHelper.showDeleteTripDialog(context: context);
                                                     if (confirm) {
-                                                      // قم باستدعاء الدالة الخاصة بمسح الرحلة من السجل في الكيوبت هنا
-                                                      // context.read<TripActionsCubit>().deleteTripFromHistory(tripId: docId);
+                                                      context.read<DriverHistoryCubit>().deleteTripFromHistory(docId);
                                                     }
                                                   },
                                                   child: Container(

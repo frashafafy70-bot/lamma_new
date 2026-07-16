@@ -1,24 +1,39 @@
 import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+// 🟢 استدعاءات الـ UseCases بالكامل (Clean Architecture)
 import '../../domain/use_cases/get_user_profile_use_case.dart';
 import '../../domain/use_cases/update_user_profile_use_case.dart';
+import '../../domain/use_cases/switch_user_role_use_case.dart';
+import '../../domain/use_cases/upload_document_use_case.dart';
+import '../../domain/use_cases/submit_role_registration_use_case.dart';
+
+// 🟢 الـ Repository متبقي فقط لدالة الدعم الفني (sendSupportTicket)
 import '../../domain/repositories/profile_repository.dart';
 
-// 🟢 استيراد ملف الـ State الخاص بالبروفايل بشكل واضح
+// 🟢 استيراد ملف الـ State
 import 'profile_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {
   final GetUserProfileUseCase _getUserProfileUseCase;
   final UpdateUserProfileUseCase _updateUserProfileUseCase;
+  final SwitchUserRoleUseCase _switchUserRoleUseCase;
+  final UploadDocumentUseCase _uploadDocumentUseCase;
+  final SubmitRoleRegistrationUseCase _submitRoleRegistrationUseCase;
   final ProfileRepository _repository;
 
   ProfileCubit({
     required GetUserProfileUseCase getUserProfileUseCase,
     required UpdateUserProfileUseCase updateUserProfileUseCase,
+    required SwitchUserRoleUseCase switchUserRoleUseCase,
+    required UploadDocumentUseCase uploadDocumentUseCase,
+    required SubmitRoleRegistrationUseCase submitRoleRegistrationUseCase,
     required ProfileRepository repository,
   })  : _getUserProfileUseCase = getUserProfileUseCase,
         _updateUserProfileUseCase = updateUserProfileUseCase,
+        _switchUserRoleUseCase = switchUserRoleUseCase,
+        _uploadDocumentUseCase = uploadDocumentUseCase,
+        _submitRoleRegistrationUseCase = submitRoleRegistrationUseCase,
         _repository = repository,
         super(ProfileState());
 
@@ -61,7 +76,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> switchUserRole(String newRole) async {
     emit(state.copyWith(activeRole: newRole)); 
     
-    final result = await _repository.switchUserRole(newRole);
+    final result = await _switchUserRoleUseCase(newRole);
     if (isClosed) return;
     
     result.fold(
@@ -76,7 +91,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   }
 
   Future<String> uploadDocument({required String role, required String docName, required File file}) async {
-    final result = await _repository.uploadDocument(role, docName, file);
+    // 🟢 التعديل هنا: إرسال المتغيرات بأسمائها (Named Arguments)
+    final result = await _uploadDocumentUseCase(role: role, docName: docName, file: file);
     return result.fold(
       (failure) => throw Exception(failure.message),
       (url) => url,
@@ -85,7 +101,9 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   Future<void> submitRoleRegistration({required String role, required Map<String, dynamic> profileData}) async {
     emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
-    final result = await _repository.submitRoleRegistration(role, profileData);
+    
+    // 🟢 التعديل هنا: إرسال المتغيرات بأسمائها (Named Arguments)
+    final result = await _submitRoleRegistrationUseCase(role: role, profileData: profileData);
     if (isClosed) return;
     
     result.fold(

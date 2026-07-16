@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'auth_state.dart';
 
@@ -28,97 +27,77 @@ class AuthCubit extends Cubit<AuthState> {
     required this.authRepository, 
   }) : super(AuthInitial());
 
-  String _mapFirebaseAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found': return 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
-      case 'wrong-password': return 'كلمة المرور غير صحيحة.';
-      case 'email-already-in-use': return 'هذا البريد الإلكتروني مسجل مسبقاً.';
-      case 'weak-password': return 'كلمة المرور ضعيفة جداً.';
-      case 'invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة.';
-      case 'network-request-failed': return 'يرجى التحقق من اتصالك بالإنترنت.';
-      case 'invalid-credential': return 'بيانات الدخول غير صحيحة.';
-      default: return 'حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.';
-    }
-  }
-
   Future<void> login({required String email, required String password}) async {
     emit(AuthLoading());
-    try {
-      final user = await loginUseCase.call(email: email, password: password);
-      if (isClosed) return;
-      final role = (user as dynamic).role;
-      emit(AuthSuccess('تم تسجيل الدخول بنجاح! 🎉', uid: user.uid, role: role));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError(_mapFirebaseAuthError(e)));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    final result = await loginUseCase.call(email: email, password: password);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (user) => emit(AuthSuccess('تم تسجيل الدخول بنجاح! 🎉', uid: user.uid, role: user.role)),
+    );
   }
   
   Future<void> signUp({required String email, required String password, required String name, required String phone}) async {
     emit(AuthLoading());
-    try {
-      final user = await signUpUseCase.call(email: email, password: password, name: name, phone: phone);
-      if (isClosed) return;
-      emit(AuthSuccess('تم إنشاء الحساب بنجاح! 🚀', uid: user.uid));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError(_mapFirebaseAuthError(e)));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    final result = await signUpUseCase.call(email: email, password: password, name: name, phone: phone);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (user) => emit(AuthSuccess('تم إنشاء الحساب بنجاح! 🚀', uid: user.uid)),
+    );
   }
 
   Future<void> loginWithGoogle() async {
     emit(AuthLoading());
-    try {
-      final user = await loginWithGoogleUseCase.call();
-      if (isClosed) return;
-      emit(AuthSuccess('تم تسجيل الدخول بجوجل بنجاح! 🎉', uid: user.uid));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError('فشل تسجيل الدخول: ${_mapFirebaseAuthError(e)}'));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError('فشل تسجيل الدخول بجوجل ❌: ${e.toString().replaceAll('Exception: ', '')}'));
-    }
+    final result = await loginWithGoogleUseCase.call();
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError('فشل تسجيل الدخول: $error')),
+      (user) => emit(AuthSuccess('تم تسجيل الدخول بجوجل بنجاح! 🎉', uid: user.uid)),
+    );
   }
 
   Future<void> signOut() async {
     emit(AuthLoading());
-    try {
-      await signOutUseCase.call();
-      if (isClosed) return;
-      emit(AuthLoggedOut());
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    final result = await signOutUseCase.call();
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (_) => emit(AuthLoggedOut()),
+    );
   }
 
   Future<void> sendSignUpOtp({required String phone}) async {
     emit(AuthLoading());
-    try {
-      String formattedPhoneNumber = phone.trim();
-      if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
-      if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
+    
+    String formattedPhoneNumber = phone.trim();
+    if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
+    if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
 
-      await sendSignUpOtpUseCase.call(
-        phone: formattedPhoneNumber,
-        onCodeSent: (verificationId) {
-          if (!isClosed) emit(AuthOtpSent(verificationId));
-        },
-        onError: (error) {
-          if (!isClosed) emit(AuthError(error));
-        },
-      );
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError('حدث خطأ: ${e.toString().replaceAll('Exception: ', '')}'));
-    }
+    final result = await sendSignUpOtpUseCase.call(
+      phone: formattedPhoneNumber,
+      onCodeSent: (verificationId) {
+        if (!isClosed) emit(AuthOtpSent(verificationId));
+      },
+      onError: (error) {
+        if (!isClosed) emit(AuthError(error));
+      },
+    );
+
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (_) {}, // لا نفعل شيئاً هنا لأن الـ callback (onCodeSent) هو من سيقوم بتغيير الحالة
+    );
   }
 
   Future<void> verifyOtpAndCompleteSignUp({
@@ -127,47 +106,45 @@ class AuthCubit extends Cubit<AuthState> {
     File? idBackImage, File? professionImage, File? carLicenseFrontImage, File? carLicenseBackImage,
   }) async {
     emit(AuthLoading());
-    try {
-      String formattedPhoneNumber = phone.trim();
-      if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
-      if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
+    
+    String formattedPhoneNumber = phone.trim();
+    if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
+    if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
 
-      final user = await verifyOtpAndSignUpUseCase.call(
-        verificationId: verificationId, smsCode: smsCode, email: email, password: password, name: name, phone: formattedPhoneNumber, role: role,
-        nationalId: nationalId, idFrontImage: idFrontImage, idBackImage: idBackImage, professionImage: professionImage,
-        carLicenseFrontImage: carLicenseFrontImage, carLicenseBackImage: carLicenseBackImage,
-      );
-      
-      if (isClosed) return;
-      emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError('خطأ أثناء التفعيل: ${_mapFirebaseAuthError(e)}'));
-    } catch (e) {
-      if (isClosed) return;
-      emit(const AuthError('كود الـ OTP المدخل غير صحيح أو حدث خطأ ❌'));
-    }
+    final result = await verifyOtpAndSignUpUseCase.call(
+      verificationId: verificationId, smsCode: smsCode, email: email, password: password, name: name, phone: formattedPhoneNumber, role: role,
+      nationalId: nationalId, idFrontImage: idFrontImage, idBackImage: idBackImage, professionImage: professionImage,
+      carLicenseFrontImage: carLicenseFrontImage, carLicenseBackImage: carLicenseBackImage,
+    );
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)), // لو حصل خطأ سواء في التفعيل أو الرفع
+      (user) => emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role)),
+    );
   }
 
   Future<void> verifyOtp({required String verificationId, required String smsCode}) async {
     emit(AuthLoading());
-    try {
-      final userEntity = await authRepository.verifyOtpAndCheckUser(
-        verificationId: verificationId, 
-        smsCode: smsCode,
-      );
-      
-      if (isClosed) return;
-      if (userEntity != null) {
-        final role = (userEntity as dynamic).role;
-        emit(AuthSuccess('تم تسجيل الدخول بنجاح', uid: userEntity.uid, role: role));
-      } else {
-        emit(const AuthNeedsPasswordAndProfile());
+    
+    final result = await authRepository.verifyOtpAndCheckUser(
+      verificationId: verificationId, 
+      smsCode: smsCode,
+    );
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (userEntity) {
+        if (userEntity != null) {
+          emit(AuthSuccess('تم تسجيل الدخول بنجاح', uid: userEntity.uid, role: userEntity.role));
+        } else {
+          emit(const AuthNeedsPasswordAndProfile());
+        }
       }
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    );
   }
 
   Future<void> completeRegistration({
@@ -175,71 +152,72 @@ class AuthCubit extends Cubit<AuthState> {
     String? nationalId, File? idFrontImage, File? idBackImage, File? professionImage, File? carLicenseFrontImage, File? carLicenseBackImage,
   }) async {
     emit(AuthLoading());
-    try {
-      String formattedPhoneNumber = phone.trim();
-      if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
-      if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
+    
+    String formattedPhoneNumber = phone.trim();
+    if (formattedPhoneNumber.startsWith('0')) formattedPhoneNumber = formattedPhoneNumber.substring(1);
+    if (!formattedPhoneNumber.startsWith('+20')) formattedPhoneNumber = '+20$formattedPhoneNumber';
 
-      final user = await authRepository.completeRegistration(
-        email: email, password: password, name: name, phone: formattedPhoneNumber, role: role,
-        nationalId: nationalId, idFrontImage: idFrontImage, idBackImage: idBackImage, professionImage: professionImage,
-        carLicenseFrontImage: carLicenseFrontImage, carLicenseBackImage: carLicenseBackImage,
-      );
-      
-      if (isClosed) return;
-      emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError(_mapFirebaseAuthError(e)));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    final result = await authRepository.completeRegistration(
+      email: email, password: password, name: name, phone: formattedPhoneNumber, role: role,
+      nationalId: nationalId, idFrontImage: idFrontImage, idBackImage: idBackImage, professionImage: professionImage,
+      carLicenseFrontImage: carLicenseFrontImage, carLicenseBackImage: carLicenseBackImage,
+    );
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (user) => emit(AuthSuccess('تم إنشاء وتفعيل حسابك بنجاح! 🎉🚀', uid: user.uid, role: role)),
+    );
   }
 
   Future<void> sendPasswordResetOtp({required String phone}) async {
     emit(AuthLoading());
-    try {
-      await authRepository.sendSignUpOtp(
-        phone: phone,
-        onCodeSent: (verificationId) {
-          if (!isClosed) emit(AuthOtpSent(verificationId));
-        },
-        onError: (error) {
-          if (!isClosed) emit(AuthError(error));
-        },
-      );
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError('حدث خطأ: ${e.toString().replaceAll('Exception: ', '')}'));
-    }
+    
+    final result = await authRepository.sendSignUpOtp(
+      phone: phone,
+      onCodeSent: (verificationId) {
+        if (!isClosed) emit(AuthOtpSent(verificationId));
+      },
+      onError: (error) {
+        if (!isClosed) emit(AuthError(error));
+      },
+    );
+
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (_) {}, // يتم التعامل مع النجاح عبر callback
+    );
   }
 
   Future<void> verifyOtpAndResetPassword({required String verificationId, required String smsCode, required String newPassword}) async {
     emit(AuthLoading());
-    try {
-      await authRepository.verifyOtpAndResetPassword(verificationId: verificationId, smsCode: smsCode, newPassword: newPassword);
-      await signOutUseCase.call(); 
-      if (isClosed) return;
-      emit(const AuthSuccess('تم تحديث كلمة المرور بنجاح. يرجى تسجيل الدخول.'));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    
+    final result = await authRepository.verifyOtpAndResetPassword(verificationId: verificationId, smsCode: smsCode, newPassword: newPassword);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (_) async {
+        await signOutUseCase.call(); // تأكيد تسجيل الخروج بعد تغيير الباسورد
+        if (!isClosed) emit(const AuthSuccess('تم تحديث كلمة المرور بنجاح. يرجى تسجيل الدخول.'));
+      }
+    );
   }
 
   Future<void> sendPasswordResetEmail({required String email}) async {
     emit(AuthLoading());
-    try {
-      await authRepository.resetPassword(email);
-      if (isClosed) return;
-      emit(const AuthSuccess('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح 📧'));
-    } on FirebaseAuthException catch (e) {
-      if (isClosed) return;
-      emit(AuthError(_mapFirebaseAuthError(e)));
-    } catch (e) {
-      if (isClosed) return;
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
+    
+    final result = await authRepository.resetPassword(email);
+    
+    if (isClosed) return;
+    
+    result.fold(
+      (error) => emit(AuthError(error)),
+      (_) => emit(const AuthSuccess('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح 📧')),
+    );
   }
 }

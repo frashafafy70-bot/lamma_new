@@ -1,26 +1,31 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // تمت إضافة هذا السطر عشان الـ debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../domain/usecases/update_driver_location_usecase.dart'; 
 import 'driver_location_state.dart';
 
 class DriverLocationCubit extends Cubit<DriverLocationState> {
-  DriverLocationCubit() : super(DriverLocationInitial());
-
+  final UpdateDriverLocationUseCase updateDriverLocationUseCase;
+  
   StreamSubscription<Position>? _positionStream;
   DateTime? _lastUpdateTime;
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String _currentUserId = '';
 
-  void startLocationTracking() {
-    if (currentUserId.isEmpty) {
+  DriverLocationCubit({
+    required this.updateDriverLocationUseCase,
+  }) : super(DriverLocationInitial());
+
+  void startLocationTracking(String uid) {
+    if (uid.isEmpty) {
       emit(DriverLocationError('السائق غير مسجل الدخول.'));
       return;
     }
+    
+    _currentUserId = uid;
 
-    // الفلترة الأولى (المسافة): عدم إرسال أي داتا من المستشعر إلا لو تحرك السائق 20 متر
-    LocationSettings locationSettings = const LocationSettings(
+    const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 20, 
     );
@@ -28,11 +33,9 @@ class DriverLocationCubit extends Cubit<DriverLocationState> {
     emit(DriverLocationTracking());
 
     _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-      (Position position) {
-        _handleThrottledUpdate(position);
-      },
+      _handleThrottledUpdate,
       onError: (error) {
-        emit(DriverLocationError('حدث خطأ في تتبع الموقع: $error'));
+        if (!isClosed) emit(DriverLocationError('حدث خطأ في تتبع الموقع: $error'));
       }
     );
   }
@@ -40,28 +43,23 @@ class DriverLocationCubit extends Cubit<DriverLocationState> {
   void _handleThrottledUpdate(Position position) {
     final now = DateTime.now();
 
-    // الفلترة الثانية (الوقت): التأكد من مرور 10 ثوانٍ على الأقل قبل الرفع للفايربيز
     if (_lastUpdateTime == null || now.difference(_lastUpdateTime!).inSeconds >= 10) {
       _lastUpdateTime = now;
-      _updateLocationInFirestore(position);
+      _syncLocationWithServer(position);
     }
   }
 
-  Future<void> _updateLocationInFirestore(Position position) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('drivers_locations')
-          .doc(currentUserId)
-          .set({
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      
-      debugPrint('📍 تم تحديث الموقع بنجاح في فايربيز (بعد الفلترة)');
-    } catch (e) {
-      debugPrint('🔥 خطأ أثناء تحديث الموقع في Firestore: $e');
-    }
+  Future<void> _syncLocationWithServer(Position position) async {
+    final result = await updateDriverLocationUseCase(
+      uid: _currentUserId,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+
+    result.fold(
+      (failure) => debugPrint('🔥 خطأ أثناء تحديث الموقع: $failure'),
+      (_) => debugPrint('📍 تم تحديث الموقع بنجاح (بعد الفلترة)'),
+    );
   }
 
   @override

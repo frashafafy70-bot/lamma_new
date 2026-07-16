@@ -20,7 +20,13 @@ class HomeRepositoryImpl implements HomeRepository {
   })  : _firestore = firestore,
         _auth = auth;
 
-  Box<ServiceCategoryModel> get _categoriesBox => Hive.box<ServiceCategoryModel>('categories_box');
+  // 🟢 دالة مساعدة لضمان فتح الصندوق بأمان لتجنب إيرور (Box not found)
+  Future<Box<ServiceCategoryModel>> _getOpenBox() async {
+    if (!Hive.isBoxOpen('categories_box')) {
+      return await Hive.openBox<ServiceCategoryModel>('categories_box');
+    }
+    return Hive.box<ServiceCategoryModel>('categories_box');
+  }
 
   @override
   Future<Either<Failure, List<ServiceCategoryEntity>>> getServiceCategories() async {
@@ -31,17 +37,25 @@ class HomeRepositoryImpl implements HomeRepository {
           .map((doc) => ServiceCategoryModel.fromJson(doc.data(), doc.id))
           .toList();
 
-      // تحديث الـ Hive
-      await _categoriesBox.clear();
-      await _categoriesBox.addAll(categories);
+      // فتح الصندوق وتحديث الكاش بأمان
+      final box = await _getOpenBox();
+      await box.clear();
+      await box.addAll(categories);
           
       return Right(categories);
     } catch (e) {
-      final cachedCategories = _categoriesBox.values.toList();
-      if (cachedCategories.isNotEmpty) {
-        return Right(cachedCategories);
+      try {
+        // 🟢 تأمين الـ Catch: محاولة جلب البيانات من الكاش بأمان
+        final box = await _getOpenBox();
+        final cachedCategories = box.values.toList();
+        if (cachedCategories.isNotEmpty) {
+          return Right(cachedCategories);
+        }
+      } catch (hiveError) {
+        // تجاهل أخطاء Hive الفرعية في حالة فشل فتح الصندوق
       }
-      return Left(ServerFailure(message: 'حدث خطأ أثناء تحميل أقسام الخدمات.'));
+      
+      return Left(ServerFailure(message: 'لا توجد صلاحية أو حدث خطأ أثناء الاتصال.'));
     }
   }
 
@@ -68,5 +82,56 @@ class HomeRepositoryImpl implements HomeRepository {
     } catch (e) {
       return Left(ServerFailure(message: 'حدث خطأ أثناء تحميل الطلبات النشطة.'));
     }
+  }
+
+  // 🟢 تنفيذ ستريم الرادار
+  @override
+  Stream<int> getRadarBadgeCountStream(String currentUserId) {
+    return _firestore
+        .collection('trips')
+        .where('isDriverPost', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.where((doc) {
+        var d = doc.data();
+        if (d['isDeletedForDriver'] == true) return false;
+        String status = d['status'] ?? '';
+        String driverId = d['driverId'] ?? '';
+        String ownerId = d['userId'] ?? d['passengerId'] ?? '';
+        bool isPending = status == 'pending';
+        bool isNegotiatingWithAnother = status == 'negotiating' && driverId != currentUserId;
+        return (isPending || isNegotiatingWithAnother) && ownerId != currentUserId;
+      }).length;
+    }).handleError((_) => 0); 
+  }
+
+  // 🟢 تنفيذ ستريم الرحلات النشطة
+  @override
+  Stream<int> getActiveTripsBadgeCountStream(String currentUserId) {
+    return _firestore
+        .collection('trip_bookings')
+        .where('driverId', isEqualTo: currentUserId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.where((doc) {
+        var d = doc.data();
+        return d['status'] == 'pending';
+      }).length;
+    }).handleError((_) => 0);
+  }
+
+  // 🟢 تنفيذ ستريم طلبات العملاء
+  @override
+  Stream<int> getClientRequestsBadgeCountStream(String currentUserId) {
+    return _firestore
+        .collection('trips')
+        .where('isDriverPost', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.where((doc) {
+        var d = doc.data();
+        return d['status'] == 'available' && (d['driverId'] ?? '') != currentUserId;
+      }).length;
+    }).handleError((_) => 0);
   }
 }

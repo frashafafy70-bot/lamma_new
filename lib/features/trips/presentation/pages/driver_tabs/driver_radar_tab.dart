@@ -10,7 +10,6 @@ import 'package:lamma_new/core/services/fcm_service.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/di/injection_container.dart'; // 🟢 إضافة الـ DI
 
-import 'package:lamma_new/features/trips/data/repositories/driver_radar_repository_impl.dart'; 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
@@ -43,7 +42,7 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
   @override
   void initState() {
     super.initState();
-    _radarCubit = DriverRadarCubit(DriverRadarRepositoryImpl());
+    _radarCubit = sl<DriverRadarCubit>();
     
     _scrollController.addListener(_onScroll);
 

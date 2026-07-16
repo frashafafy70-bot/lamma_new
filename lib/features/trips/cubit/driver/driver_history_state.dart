@@ -1,8 +1,12 @@
-import 'package:flutter/foundation.dart';
+import 'package:equatable/equatable.dart';
 import '../../data/models/trip_model.dart';
 
-@immutable
-abstract class DriverHistoryState {}
+abstract class DriverHistoryState extends Equatable {
+  const DriverHistoryState();
+
+  @override
+  List<Object> get props => [];
+}
 
 class DriverHistoryInitial extends DriverHistoryState {}
 
@@ -13,10 +17,10 @@ class DriverHistoryLoaded extends DriverHistoryState {
   final bool hasReachedMax;
   final bool isFetchingMore;
 
-  DriverHistoryLoaded({
+  const DriverHistoryLoaded({
     required this.trips,
-    this.hasReachedMax = false,
-    this.isFetchingMore = false,
+    required this.hasReachedMax,
+    required this.isFetchingMore,
   });
 
   DriverHistoryLoaded copyWith({
@@ -30,9 +34,37 @@ class DriverHistoryLoaded extends DriverHistoryState {
       isFetchingMore: isFetchingMore ?? this.isFetchingMore,
     );
   }
+
+  @override
+  List<Object> get props => [trips, hasReachedMax, isFetchingMore];
 }
 
 class DriverHistoryError extends DriverHistoryState {
   final String message;
-  DriverHistoryError(this.message);
+
+  const DriverHistoryError(this.message);
+
+  @override
+  List<Object> get props => [message];
+}
+
+// 🟢 الحالات الجديدة الخاصة بتنفيذ الأوامر (مسح، إلغاء)
+class DriverHistoryActionLoading extends DriverHistoryState {}
+
+class DriverHistoryActionSuccess extends DriverHistoryState {
+  final String message;
+
+  const DriverHistoryActionSuccess(this.message);
+
+  @override
+  List<Object> get props => [message];
+}
+
+class DriverHistoryActionError extends DriverHistoryState {
+  final String message;
+
+  const DriverHistoryActionError(this.message);
+
+  @override
+  List<Object> get props => [message];
 }

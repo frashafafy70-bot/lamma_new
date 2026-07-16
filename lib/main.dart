@@ -43,6 +43,10 @@ import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 
+// 🟢 استدعاء ملف الربط الجديد والكيوبت الخاص بالمعمارية النظيفة لقسم الرحلات
+import 'package:lamma_new/features/trips/trip_injection.dart';
+import 'package:lamma_new/features/trips/presentation/cubit/trip_cubit.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -51,18 +55,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('--- 1. Widgets Initialized ---');
   
   await dotenv.load(fileName: ".env");
+  debugPrint('--- 2. DotEnv Loaded ---');
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('--- 3. Firebase Initialized ---');
 
   await CacheHelper.init();
+  debugPrint('--- 4. CacheHelper Initialized ---');
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true, 
     cacheSizeBytes: 52428800, 
   );
+  debugPrint('--- 5. Firestore Settings Applied ---');
 
   await di.initDI(); 
+  debugPrint('--- 6. DI Initialized ---');
+  
+  // 🟢 تهيئة قسم الرحلات الجديد بالمعمارية النظيفة (بدون المساس بالقديم)
+  initTripModule();
+  debugPrint('--- 7. Trip Module Initialized ---');
 
   if (!kIsWeb) {
     FlutterError.onError = (errorDetails) {
@@ -77,13 +92,18 @@ void main() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     await NotificationService.initLocalNotifications();
+    debugPrint('--- 8. Local Notifications Initialized ---');
+    
     await FCMService.initFCM();
+    debugPrint('--- 9. FCM Initialized ---');
   }
 
   // 🟢 التعديل الأهم هنا: مررنا الـ navigatorKey للكونستركتور بتاع الراوتر مباشرة
   final appRouter = AppRouter(navigatorKey: NavigationService.navigatorKey);
+  debugPrint('--- 10. App Router Created ---');
 
   // 🟢 تمريرها للتطبيق
+  debugPrint('--- 11. Starting runApp ---');
   runApp(LammaApp(appRouter: appRouter)); 
 }
 
@@ -109,68 +129,65 @@ class LammaApp extends StatelessWidget {
             BlocProvider(create: (context) => di.sl<DriverActiveTripsCubit>()),
             BlocProvider(create: (context) => di.sl<TripChatCubit>()),
             BlocProvider(create: (context) => di.sl<HomeCubit>()),
+            
+            // 🟢 توفير الـ TripCubit الجديد لكل شاشات التطبيق
+            BlocProvider(create: (context) => di.sl<TripCubit>()),
           ],
           child: MaterialApp.router(
+            // تم إزالة الـ Center والـ ConstrainedBox والـ Directionality اليدوي هنا
             builder: (context, widget) {
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 450),
-                  child: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: BlocBuilder<NetworkCubit, NetworkState>(
-                      builder: (context, networkState) {
-                        return Stack(
-                          children: [
-                            if (widget != null) widget,
-                            
-                            if (networkState is NetworkDisconnected)
-                              Positioned(
-                                top: MediaQuery.of(context).padding.top, 
-                                left: 0,
-                                right: 0,
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: EdgeInsets.symmetric(vertical: 8.h),
-                                    decoration: BoxDecoration(
-                                      color: Colors.redAccent.shade700,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
-                                        )
-                                      ]
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18.sp),
-                                        SizedBox(width: 8.w),
-                                        Text(
-                                          'لا يوجد اتصال بالإنترنت',
-                                          style: TextStyle(
-                                            fontFamily: 'Cairo',
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14.sp,
-                                          ),
-                                        ),
-                                      ],
+              return BlocBuilder<NetworkCubit, NetworkState>(
+                builder: (context, networkState) {
+                  return Stack(
+                    children: [
+                      if (widget != null) widget,
+                      
+                      if (networkState is NetworkDisconnected)
+                        Positioned(
+                          top: MediaQuery.of(context).padding.top, 
+                          left: 0,
+                          right: 0,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(vertical: 8.h),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.shade700,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18.sp),
+                                  SizedBox(width: 8.w),
+                                  Text(
+                                    'لا يوجد اتصال بالإنترنت',
+                                    style: TextStyle(
+                                      fontFamily: 'Cairo',
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14.sp,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               );
             },
             debugShowCheckedModeBanner: false,
+            // التطبيق سيتعرف على اللغة العربية والاتجاه (RTL) تلقائياً من هنا
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
@@ -183,7 +200,7 @@ class LammaApp extends StatelessWidget {
               fontFamily: 'Cairo', 
             ),
             
-            // 🟢 إعدادات التوجيه الجديدة: الأقواس هنا بقت فاضية لأننا نقلنا الـ Key فوق
+            // 🟢 إعدادات التوجيه الجديدة
             routerConfig: appRouter.config(),
           ),
         );

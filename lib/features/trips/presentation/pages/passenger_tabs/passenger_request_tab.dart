@@ -1,29 +1,27 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:io'; 
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:geolocator/geolocator.dart'; 
-import 'dart:math' as math; 
+import 'package:geolocator/geolocator.dart';
+import 'dart:math' as math;
 
-import 'package:lamma_new/features/trips/data/repositories/map_repository_impl.dart';
-import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
-
+// 🟢 الاعتماد على الـ Service Locator بدلاً من الـ Repositories المباشرة
+import 'package:lamma_new/features/trips/trip_injection.dart'; 
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/map_selection_overlay.dart';
-import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
-
-import 'package:lamma_new/core/constants/app_constants.dart'; 
+import 'package:lamma_new/core/constants/app_constants.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
-
 import 'package:lamma_new/features/trips/domain/entities/place_search_entity.dart';
-
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/buy_orders_service_form.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/ride_service_form.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/service_form/travel_service_form.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/passenger_request/trip_category.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/passenger_request/passenger_category_selector.dart';
+import 'package:lamma_new/features/trips/presentation/widgets/passenger_request/passenger_map_section.dart';
 
 class PassengerRequestTab extends StatefulWidget {
   final TabController tabController;
@@ -34,54 +32,51 @@ class PassengerRequestTab extends StatefulWidget {
 }
 
 class _PassengerRequestTabState extends State<PassengerRequestTab> {
-  late PassengerRequestCubit _requestCubit;
-  
+  // 🟢 جلب الكيوبيت النظيف من الـ sl
+  late final PassengerRequestCubit _requestCubit = sl<PassengerRequestCubit>();
+
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _errandDetailsController = TextEditingController();
   final TextEditingController _errandEstimatedCostController = TextEditingController();
   final FocusNode _priceFocusNode = FocusNode();
-  
-  String _tripCategory = 'داخلي';
+
+  TripCategory _selectedCategory = TripCategory.internal;
   String _vehicleType = 'سيارة';
   File? _orderAudioFile;
 
   GoogleMapController? _mapController;
-  final Set<Marker> _markers = {}; 
-  final Set<Polyline> _polylines = {}; 
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   LatLng? _pickupLocation;
   LatLng? _destinationLocation;
-  
+
   bool _isLoadingMap = true;
-  String _mapSelectionMode = 'none'; 
-  LatLng? _tempMapCenter; 
+  String _mapSelectionMode = 'none';
+  LatLng? _tempMapCenter;
 
   bool _isMapFullscreen = false;
   bool _isReverseGeocoding = false;
 
   final TextEditingController _mapSearchController = TextEditingController();
-  List<PlaceSearchEntity> _placePredictions = []; 
+  List<PlaceSearchEntity> _placePredictions = [];
 
-  final double _closeZoom = 16.5; 
+  final double _closeZoom = 16.5;
 
   @override
   void initState() {
     super.initState();
-    _requestCubit = PassengerRequestCubit(
-      mapRepository: MapRepositoryImpl(), 
-      tripRepository: TripRepositoryImpl(),
-    );
     _requestCubit.getUserLocation();
   }
 
   @override
   void dispose() {
     _mapSearchController.dispose();
-    _requestCubit.close(); 
+    _requestCubit.close();
     _mapController?.dispose();
-    
+
     _pickupController.dispose();
     _destinationController.dispose();
     _priceController.dispose();
@@ -96,7 +91,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)), 
+        content: Text(message, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)),
         backgroundColor: isError ? AppColors.error : AppColors.primaryDark,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
@@ -122,7 +117,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text('إلغاء', style: TextStyle(color: AppColors.textMuted, fontFamily: 'Cairo', fontSize: 14.sp))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
-            onPressed: () { Geolocator.openAppSettings(); Navigator.pop(context); },
+            onPressed: () {
+              Geolocator.openAppSettings();
+              Navigator.pop(context);
+            },
             child: Text('فتح الإعدادات', style: TextStyle(color: AppColors.accentGold, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
           ),
         ],
@@ -135,8 +133,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     if (_pickupLocation != null && _destinationLocation != null) {
       setState(() {
         _polylines.add(Polyline(
-          polylineId: const PolylineId('trip_route_temp'), points: [_pickupLocation!, _destinationLocation!],
-          color: AppColors.primaryDark.withValues(alpha: 0.5), width: 4, patterns: [PatternItem.dash(15), PatternItem.gap(10)], endCap: Cap.roundCap, startCap: Cap.roundCap,
+          polylineId: const PolylineId('trip_route_temp'),
+          points: [_pickupLocation!, _destinationLocation!],
+          color: AppColors.primaryDark.withOpacity(0.5),
+          width: 4,
+          patterns: [PatternItem.dash(15), PatternItem.gap(10)],
+          endCap: Cap.roundCap,
+          startCap: Cap.roundCap,
         ));
       });
       _requestCubit.fetchRoute(_pickupLocation!, _destinationLocation!);
@@ -151,16 +154,21 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
         _pickupLocation = newLoc;
         _markers.removeWhere((m) => m.markerId.value == 'pickup');
         _markers.add(Marker(markerId: const MarkerId('pickup'), position: newLoc, icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), infoWindow: const InfoWindow(title: 'نقطة الانطلاق')));
-        if (_mapSelectionMode != 'none' && _tempMapCenter == null) { _tempMapCenter = newLoc; }
-        if (_mapController != null && _mapSelectionMode == 'none') { _mapController!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: newLoc, zoom: _closeZoom))); }
+        if (_mapSelectionMode != 'none' && _tempMapCenter == null) {
+          _tempMapCenter = newLoc;
+        }
+        if (_mapController != null && _mapSelectionMode == 'none') {
+          _mapController!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: newLoc, zoom: _closeZoom)));
+        }
       }
     });
   }
 
   void _openMapSelection(String mode) {
-    FocusScope.of(context).unfocus(); 
+    FocusScope.of(context).unfocus();
     setState(() {
-      _mapSelectionMode = mode; _isMapFullscreen = true; 
+      _mapSelectionMode = mode;
+      _isMapFullscreen = true;
       _tempMapCenter = mode == 'pickup' ? (_pickupLocation ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude)) : (_destinationLocation ?? _pickupLocation ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude));
     });
     if (mounted && _mapController != null && _tempMapCenter != null) {
@@ -168,9 +176,14 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       _requestCubit.getAddressFromLatLng(_tempMapCenter!);
     }
   }
-  
+
   void _onMapTap(LatLng position) {
-    if (_mapSelectionMode == 'none') setState(() { _isMapFullscreen = true; _mapSelectionMode = 'pickup'; });
+    if (_mapSelectionMode == 'none') {
+      setState(() {
+        _isMapFullscreen = true;
+        _mapSelectionMode = 'pickup';
+      });
+    }
     _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: position, zoom: _closeZoom)));
     setState(() => _tempMapCenter = position);
     _requestCubit.getAddressFromLatLng(position);
@@ -178,9 +191,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
 
   void _fitMapToMarkers() {
     if (_pickupLocation != null && _destinationLocation != null && _mapController != null) {
-      LatLngBounds bounds = _pickupLocation!.latitude > _destinationLocation!.latitude 
-          ? LatLngBounds(southwest: _destinationLocation!, northeast: _pickupLocation!) 
-          : LatLngBounds(southwest: _pickupLocation!, northeast: _destinationLocation!);
+      LatLngBounds bounds = _pickupLocation!.latitude > _destinationLocation!.latitude ? LatLngBounds(southwest: _destinationLocation!, northeast: _pickupLocation!) : LatLngBounds(southwest: _pickupLocation!, northeast: _destinationLocation!);
       _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
     } else if (_pickupLocation != null && _mapController != null) {
       _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_pickupLocation!, _closeZoom));
@@ -190,41 +201,47 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   }
 
   void _confirmMapSelection() {
-    setState(() { 
-      LatLng finalLoc = _tempMapCenter ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
-      String locationText = (_mapSearchController.text.trim().isNotEmpty && _mapSearchController.text != 'جاري تحديد الموقع...' && _mapSearchController.text != 'جاري جلب العنوان...') 
-          ? _mapSearchController.text.trim() : "إحداثيات: ${finalLoc.latitude.toStringAsFixed(4)}, ${finalLoc.longitude.toStringAsFixed(4)}"; 
-      
-      if (_mapSelectionMode == 'pickup') { 
-        _pickupLocation = finalLoc; 
-        _markers.removeWhere((m) => m.markerId.value == 'pickup'); 
-        _markers.add(Marker(markerId: const MarkerId('pickup'), position: finalLoc, icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), infoWindow: const InfoWindow(title: 'نقطة الانطلاق'))); 
+    setState(() {
+      LatLng finalLoc = _tempMapCenter ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude);
+      String locationText = (_mapSearchController.text.trim().isNotEmpty && _mapSearchController.text != 'جاري تحديد الموقع...' && _mapSearchController.text != 'جاري جلب العنوان...') ? _mapSearchController.text.trim() : "إحداثيات: ${finalLoc.latitude.toStringAsFixed(4)}, ${finalLoc.longitude.toStringAsFixed(4)}";
+
+      if (_mapSelectionMode == 'pickup') {
+        _pickupLocation = finalLoc;
+        _markers.removeWhere((m) => m.markerId.value == 'pickup');
+        _markers.add(Marker(markerId: const MarkerId('pickup'), position: finalLoc, icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), infoWindow: const InfoWindow(title: 'نقطة الانطلاق')));
         _pickupController.text = locationText;
-      } else if (_mapSelectionMode == 'destination') { 
-        _destinationLocation = finalLoc; 
-        _markers.removeWhere((m) => m.markerId.value == 'destination'); 
-        _markers.add(Marker(markerId: const MarkerId('destination'), position: finalLoc, icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), infoWindow: const InfoWindow(title: 'وجهة الوصول'))); 
+      } else if (_mapSelectionMode == 'destination') {
+        _destinationLocation = finalLoc;
+        _markers.removeWhere((m) => m.markerId.value == 'destination');
+        _markers.add(Marker(markerId: const MarkerId('destination'), position: finalLoc, icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), infoWindow: const InfoWindow(title: 'وجهة الوصول')));
         _destinationController.text = locationText;
-      } 
-      _updateRoutePolyline(); _mapSelectionMode = 'none'; _isMapFullscreen = false; 
+      }
+      _updateRoutePolyline();
+      _mapSelectionMode = 'none';
+      _isMapFullscreen = false;
     });
-    Future.delayed(const Duration(milliseconds: 300), () => _fitMapToMarkers()); 
+    Future.delayed(const Duration(milliseconds: 300), () => _fitMapToMarkers());
   }
 
   void _showLoadingDialog() {
     showDialog(
-      context: context, barrierDismissible: false,
+      context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return PopScope(
           canPop: false,
           child: Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)), elevation: 0, backgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
             child: Container(
-              padding: EdgeInsets.all(20.w), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16.r)),
+              padding: EdgeInsets.all(20.w),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16.r)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CircularProgressIndicator(color: AppColors.primaryDark), SizedBox(height: 20.h),
+                  const CircularProgressIndicator(color: AppColors.primaryDark),
+                  SizedBox(height: 20.h),
                   Text('جاري إرسال طلبك...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
                 ],
               ),
@@ -243,12 +260,12 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
       return;
     }
 
-    if (_tripCategory == 'داخلي' || _tripCategory == 'سفر') {
+    if (_selectedCategory == TripCategory.internal || _selectedCategory == TripCategory.travel) {
       if (_destinationLocation == null) {
         _showSnackBar('الرجاء تحديد مكان الوصول');
         return;
       }
-    } else if (_tripCategory == 'طلبات') {
+    } else if (_selectedCategory == TripCategory.shopping) {
       if (_errandDetailsController.text.trim().isEmpty && _orderAudioFile == null) {
         _showSnackBar('الرجاء كتابة أو تسجيل تفاصيل الطلبات');
         return;
@@ -267,13 +284,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     }
 
     _requestCubit.submitTripRequest(
-      tripCategory: _tripCategory,
+      tripCategory: _selectedCategory.value,
       vehicleType: _vehicleType,
-      pickup: _pickupController.text.trim(),           
-      destination: _destinationController.text.trim(), 
-      price: _priceController.text.trim(),             
+      pickup: _pickupController.text.trim(),
+      destination: _destinationController.text.trim(),
+      price: _priceController.text.trim(),
       errandDetails: _errandDetailsController.text.trim(),
-      errandCost: _errandEstimatedCostController.text.trim(), 
+      errandCost: _errandEstimatedCostController.text.trim(),
       pickupLocation: _pickupLocation,
       destinationLocation: _destinationLocation,
       orderAudioFile: _orderAudioFile,
@@ -281,8 +298,8 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
   }
 
   Widget _buildSelectedServiceForm(bool isSubmitting) {
-    switch (_tripCategory) {
-      case 'طلبات':
+    switch (_selectedCategory) {
+      case TripCategory.shopping:
         return BuyOrdersServiceForm(
           isSubmittingTrip: isSubmitting,
           errandDetailsController: _errandDetailsController,
@@ -291,13 +308,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           destinationController: _destinationController,
           priceController: _priceController,
           priceFocusNode: _priceFocusNode,
-          primaryGreen: AppColors.primaryDark, // تم استبدال الأخضر بالكحلي
+          primaryGreen: AppColors.primaryDark,
           accentGold: AppColors.accentGold,
           onOpenMapSelection: _openMapSelection,
           onAudioRecorded: (file) => setState(() => _orderAudioFile = file),
           onSubmit: _submitTrip,
         );
-      case 'داخلي':
+      case TripCategory.internal:
         return RideServiceForm(
           vehicleType: _vehicleType,
           onVehicleChanged: (veh) => setState(() => _vehicleType = veh),
@@ -311,10 +328,10 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           onOpenMapSelection: _openMapSelection,
           onSubmit: _submitTrip,
         );
-      case 'سفر':
+      case TripCategory.travel:
         return TravelServiceForm(
-          vehicleType: _vehicleType, 
-          onVehicleChanged: (veh) => setState(() => _vehicleType = veh), 
+          vehicleType: _vehicleType,
+          onVehicleChanged: (veh) => setState(() => _vehicleType = veh),
           isSubmittingTrip: isSubmitting,
           pickupController: _pickupController,
           destinationController: _destinationController,
@@ -325,55 +342,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           onOpenMapSelection: _openMapSelection,
           onSubmit: _submitTrip,
         );
-      default:
-        return const SizedBox();
     }
-  }
-
-  // 🟢 التعديل الجديد للتابات السفلية: خلفية كحلي ونص دهبي
-  Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
-    bool isSelected = _tripCategory == logicTitle;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _tripCategory = logicTitle;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: EdgeInsets.symmetric(vertical: 12.h),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primaryDark : Colors.transparent, 
-            borderRadius: BorderRadius.circular(25.r),
-            border: Border.all(
-              color: isSelected ? AppColors.primaryDark : Colors.grey.shade300, 
-              width: 1.5
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon, 
-                size: 18.sp, 
-                color: isSelected ? AppColors.accentGold : Colors.grey.shade400 
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                displayTitle,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14.sp,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  color: isSelected ? AppColors.accentGold : Colors.grey.shade400, 
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -382,7 +351,7 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
     double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return BlocProvider.value(
-      value: _requestCubit, 
+      value: _requestCubit,
       child: BlocConsumer<PassengerRequestCubit, PassengerRequestState>(
         listener: (context, state) {
           if (state is LocationLoading) {
@@ -390,41 +359,60 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           } else if (state is LocationLoaded) {
             _updateLocationOnMap(state.position);
           } else if (state is LocationError) {
-            setState(() => _isLoadingMap = false); _showSnackBar(state.message);
+            setState(() => _isLoadingMap = false);
+            _showSnackBar(state.message);
           } else if (state is LocationPermissionDenied) {
-            setState(() => _isLoadingMap = false); _showLocationPermissionDialog();
+            setState(() => _isLoadingMap = false);
+            _showLocationPermissionDialog();
           } else if (state is AddressLoading) {
-            setState(() { _isReverseGeocoding = true; _mapSearchController.text = 'جاري تحديد الموقع...'; });
+            setState(() {
+              _isReverseGeocoding = true;
+              _mapSearchController.text = 'جاري تحديد الموقع...';
+            });
           } else if (state is AddressLoaded) {
-            setState(() { _isReverseGeocoding = false; _mapSearchController.text = state.address; });
+            setState(() {
+              _isReverseGeocoding = false;
+              _mapSearchController.text = state.address;
+            });
           } else if (state is AddressError) {
-            setState(() { _isReverseGeocoding = false; _mapSearchController.text = state.message; });
+            setState(() {
+              _isReverseGeocoding = false;
+              _mapSearchController.text = state.message;
+            });
           } else if (state is PlacesSearchLoaded) {
             setState(() => _placePredictions = List<PlaceSearchEntity>.from(state.predictions));
           } else if (state is PlaceDetailsLoaded) {
-            setState(() { _tempMapCenter = state.location; _mapSearchController.text = state.description; _placePredictions = []; });
+            setState(() {
+              _tempMapCenter = state.location;
+              _mapSearchController.text = state.description;
+              _placePredictions = [];
+            });
             _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: state.location, zoom: _closeZoom)));
             FocusScope.of(context).unfocus();
           } else if (state is TripSubmitting) {
-            _showLoadingDialog(); 
+            _showLoadingDialog();
           } else if (state is TripSubmitSuccess) {
-            Navigator.of(context, rootNavigator: true).pop(); 
-            _destinationController.clear(); _priceController.clear(); _errandDetailsController.clear(); _errandEstimatedCostController.clear(); _orderAudioFile = null;
+            Navigator.of(context, rootNavigator: true).pop();
+            _destinationController.clear();
+            _priceController.clear();
+            _errandDetailsController.clear();
+            _errandEstimatedCostController.clear();
+            _orderAudioFile = null;
             _showSnackBar('تم إرسال طلبك بنجاح! 🚀', isError: false);
-            widget.tabController.animateTo(2); 
+            widget.tabController.animateTo(2);
           } else if (state is TripSubmitError) {
-            Navigator.of(context, rootNavigator: true).pop(); _showSnackBar(state.message);
-          } 
-          else if (state is RouteCoordinatesLoaded) {
+            Navigator.of(context, rootNavigator: true).pop();
+            _showSnackBar(state.message);
+          } else if (state is RouteCoordinatesLoaded) {
             if (state.routePoints.isNotEmpty && mounted) {
               setState(() {
-                _polylines.removeWhere((p) => p.polylineId.value == 'trip_route_temp'); 
+                _polylines.removeWhere((p) => p.polylineId.value == 'trip_route_temp');
                 _polylines.add(Polyline(
-                  polylineId: const PolylineId('trip_route'), 
-                  points: state.routePoints, 
-                  color: AppColors.primaryDark, // الخط اترسم كحلي بدل أخضر
+                  polylineId: const PolylineId('trip_route'),
+                  points: state.routePoints,
+                  color: AppColors.primaryDark,
                   width: 5,
-                  endCap: Cap.roundCap, 
+                  endCap: Cap.roundCap,
                   startCap: Cap.roundCap,
                 ));
               });
@@ -433,71 +421,108 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
           }
         },
         builder: (context, state) {
-          bool isPickingMap = _mapSelectionMode != 'none'; 
+          bool isPickingMap = _mapSelectionMode != 'none';
 
           return LayoutBuilder(
             builder: (context, constraints) {
               double availableHeight = constraints.maxHeight;
-              double requestedHeight = screenHeight * 0.55; 
+              double requestedHeight = screenHeight * 0.55;
               double visibleSpace = availableHeight - keyboardHeight;
               double actualContainerHeight = math.max(0.0, math.min(requestedHeight, visibleSpace));
 
               return Stack(
                 children: [
                   Positioned.fill(
-                    child: _isLoadingMap 
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.accentGold))
-                      : LammaGoogleMap(
-                          initialCameraPosition: CameraPosition(target: _pickupLocation ?? const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude), zoom: _closeZoom),
-                          markers: _markers, polylines: _polylines, showCenterPin: isPickingMap,
-                          mapPadding: EdgeInsets.only(bottom: _isMapFullscreen ? 90.h : actualContainerHeight + 10.h, top: isPickingMap ? 100.h : 0),
-                          onTap: _onMapTap, onMapCreated: (controller) => _mapController = controller,
-                          onCameraMove: (position) {
-                            if (isPickingMap) {
-                              _tempMapCenter = position.target;
-                              if (!_isReverseGeocoding) { setState(() { _isReverseGeocoding = true; _mapSearchController.text = 'جاري تحديد الموقع...'; }); }
-                            }
-                          },
-                          onCameraIdle: () {
-                            if (isPickingMap && _tempMapCenter != null) _requestCubit.getAddressFromLatLng(_tempMapCenter!);
-                          },
-                        ),
+                    child: PassengerMapSection(
+                      isLoadingMap: _isLoadingMap,
+                      pickupLocation: _pickupLocation,
+                      fallbackLatitude: AppConstants.fallbackLatitude,
+                      fallbackLongitude: AppConstants.fallbackLongitude,
+                      closeZoom: _closeZoom,
+                      markers: _markers,
+                      polylines: _polylines,
+                      isPickingMap: isPickingMap,
+                      isMapFullscreen: _isMapFullscreen,
+                      actualContainerHeight: actualContainerHeight,
+                      onMapCreated: (controller) => _mapController = controller,
+                      onMapTap: _onMapTap,
+                      onCameraMove: (position) {
+                        if (isPickingMap) {
+                          _tempMapCenter = position.target;
+                          if (!_isReverseGeocoding) {
+                            setState(() {
+                              _isReverseGeocoding = true;
+                              _mapSearchController.text = 'جاري تحديد الموقع...';
+                            });
+                          }
+                        }
+                      },
+                      onCameraIdle: () {
+                        if (isPickingMap && _tempMapCenter != null) {
+                          _requestCubit.getAddressFromLatLng(_tempMapCenter!);
+                        }
+                      },
+                    ),
                   ),
 
                   if (isPickingMap)
                     MapSelectionOverlay(
-                      mapSearchController: _mapSearchController, placePredictions: _placePredictions.cast<dynamic>(), 
-                      isReverseGeocoding: _isReverseGeocoding, primaryGreen: AppColors.primaryDark, accentGold: AppColors.accentGold,
-                      onSearch: (input) => _requestCubit.searchForPlaces(input), onSelectPlace: (placeId, desc) => _requestCubit.fetchPlaceDetails(placeId, desc), 
+                      mapSearchController: _mapSearchController,
+                      placePredictions: _placePredictions.cast<dynamic>(),
+                      isReverseGeocoding: _isReverseGeocoding,
+                      primaryGreen: AppColors.primaryDark,
+                      accentGold: AppColors.accentGold,
+                      onSearch: (input) => _requestCubit.searchForPlaces(input),
+                      onSelectPlace: (placeId, desc) => _requestCubit.fetchPlaceDetails(placeId, desc),
                       onCancel: () {
-                        setState(() { _mapSelectionMode = 'none'; _isMapFullscreen = false; _placePredictions = []; }); FocusScope.of(context).unfocus(); _fitMapToMarkers(); 
+                        setState(() {
+                          _mapSelectionMode = 'none';
+                          _isMapFullscreen = false;
+                          _placePredictions = [];
+                        });
+                        FocusScope.of(context).unfocus();
+                        _fitMapToMarkers();
                       },
                       onConfirm: _confirmMapSelection,
                     ),
 
                   if (_isMapFullscreen && !isPickingMap)
                     Positioned(
-                      bottom: 30.h, left: 30.w, right: 30.w,
+                      bottom: 30.h,
+                      left: 30.w,
+                      right: 30.w,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryDark, foregroundColor: AppColors.accentGold, shadowColor: AppColors.primaryDark.withValues(alpha: 0.4), elevation: 10, padding: EdgeInsets.symmetric(vertical: 14.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r))
+                          backgroundColor: AppColors.primaryDark,
+                          foregroundColor: AppColors.accentGold,
+                          shadowColor: AppColors.primaryDark.withOpacity(0.4),
+                          elevation: 10,
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                         ),
-                        onPressed: () { setState(() => _isMapFullscreen = false); _fitMapToMarkers(); }, icon: Icon(Icons.check_circle_rounded, size: 24.sp), label: Text('تأكيد الموقع 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                        onPressed: () {
+                          setState(() => _isMapFullscreen = false);
+                          _fitMapToMarkers();
+                        },
+                        icon: Icon(Icons.check_circle_rounded, size: 24.sp),
+                        label: Text('تأكيد الموقع 🚖', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
                       ),
                     ),
 
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
-                    bottom: _isMapFullscreen ? -actualContainerHeight : keyboardHeight, 
-                    left: 0, right: 0,
+                    bottom: _isMapFullscreen ? -actualContainerHeight : keyboardHeight,
+                    left: 0,
+                    right: 0,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOutCubic,
-                      height: actualContainerHeight, 
+                      height: actualContainerHeight,
                       decoration: BoxDecoration(
-                        color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)), 
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))]
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
@@ -506,20 +531,13 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                           children: [
                             Padding(
                               padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 10.h),
-                              child: Container(
-                                padding: EdgeInsets.all(4.w),
-                                decoration: BoxDecoration(
-                                  color: Colors.white, // تم تغيير الخلفية للأبيض لتباين أفضل
-                                  borderRadius: BorderRadius.circular(30.r),
-                                  border: Border.all(color: Colors.grey.shade200),
-                                ),
-                                child: Row(
-                                  children: [
-                                    _buildCategoryChip('داخلي', 'توصيل', Icons.local_taxi_rounded),
-                                    _buildCategoryChip('طلبات', 'شراء طلبات', Icons.shopping_bag_rounded),
-                                    _buildCategoryChip('سفر', 'سفر', Icons.emoji_transportation_rounded),
-                                  ],
-                                ),
+                              child: PassengerCategorySelector(
+                                selectedCategory: _selectedCategory,
+                                onCategoryChanged: (category) {
+                                  setState(() {
+                                    _selectedCategory = category;
+                                  });
+                                },
                               ),
                             ),
                             Expanded(
@@ -527,14 +545,14 @@ class _PassengerRequestTabState extends State<PassengerRequestTab> {
                                 physics: const BouncingScrollPhysics(),
                                 child: Padding(
                                   padding: EdgeInsets.only(
-                                    left: 20.w, 
-                                    right: 20.w, 
-                                    bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 20.h
+                                    left: 20.w,
+                                    right: 20.w,
+                                    bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 20.h,
                                   ),
                                   child: _buildSelectedServiceForm(state is TripSubmitting),
                                 ),
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),

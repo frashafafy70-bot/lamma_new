@@ -2,8 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lamma_new/core/theme/app_colors.dart'; 
+
+import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
+import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_trip_tracking_page.dart';
 
 class RideServiceForm extends StatelessWidget {
   final String vehicleType;
@@ -36,112 +41,145 @@ class RideServiceForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'اختر نوع المركبة:', 
-          style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)
-        ),
-        SizedBox(height: 16.h),
-        
-        // كروت المركبات
-        Row(
-          children: [
-            Expanded(child: _buildVehicleCard('توكتوك', 'assets/images/tuktuk.png')),
-            SizedBox(width: 12.w),
-            Expanded(child: _buildVehicleCard('موتوسيكل', 'assets/images/motorcycle.png')),
-            SizedBox(width: 12.w),
-            Expanded(child: _buildVehicleCard('سيارة', 'assets/images/car.png')),
-          ],
-        ),
-        SizedBox(height: 24.h),
-        
-        // حقول إدخال المواقع
-        _buildSeparateLocationInput(
-          prefixText: 'من :',
-          label: 'موقعي الحالي', 
-          controller: pickupController, 
-          icon: Icons.my_location_rounded, 
-          iconColor: AppColors.accentGold, 
-          onMapTap: () {
-            FocusScope.of(context).unfocus(); 
-            onOpenMapSelection('pickup');
-          }
-        ),
-        
-        _buildSeparateLocationInput(
-          prefixText: 'إلى :',
-          label: 'وجهة الوصول', 
-          controller: destinationController, 
-          icon: Icons.location_on_rounded, 
-          iconColor: AppColors.primaryDark, 
-          onMapTap: () {
-            FocusScope.of(context).unfocus();
-            onOpenMapSelection('destination');
-          }
-        ),
-        
-        // حقل السعر بتصميم "شاشة العرض" الفخمة
-        _buildPriceInputDisplay(),
-
-        SizedBox(height: 16.h),
-
-        // أزرار التسعير السريع المخصصة (Custom Buttons)
-        _buildPremiumQuickPriceChips(),
-        
-        SizedBox(height: 28.h),
-        
-        // زر الإرسال الفخم
-        Container(
-          width: double.infinity,
-          height: 55.h,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.royalGreen],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
+    return BlocListener<PassengerRequestCubit, PassengerRequestState>(
+      listener: (context, state) {
+        if (state is TripSubmitSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'تم إرسال طلبك بنجاح! جاري البحث عن كابتن... 🚀', 
+                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: AppColors.royalGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
             ),
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryDark.withValues(alpha: 0.25),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(0, 8),
-              )
+          );
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PassengerTripTrackingPage(
+                tripId: state.tripId,
+                passengerId: FirebaseAuth.instance.currentUser?.uid ?? '', // 🟢 تم إضافة passengerId
+              ),
+            ),
+          );
+        } else if (state is TripSubmitError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                state.message, 
+                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+            ),
+          );
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'اختر نوع المركبة:', 
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)
+          ),
+          SizedBox(height: 16.h),
+          
+          Row(
+            children: [
+              Expanded(child: _buildVehicleCard('توكتوك', 'assets/images/tuktuk.png')),
+              SizedBox(width: 12.w),
+              Expanded(child: _buildVehicleCard('موتوسيكل', 'assets/images/motorcycle.png')),
+              SizedBox(width: 12.w),
+              Expanded(child: _buildVehicleCard('سيارة', 'assets/images/car.png')),
             ],
           ),
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent, 
-              shadowColor: Colors.transparent,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-            ),
-            onPressed: isSubmittingTrip ? null : () {
-              HapticFeedback.mediumImpact(); 
-              onSubmit();
-            },
-            child: isSubmittingTrip 
-                ? const CircularProgressIndicator(color: Colors.white) 
-                : Text(
-                    'إرسال الطلب للكباتن', 
-                    style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)
-                  ),
+          SizedBox(height: 24.h),
+          
+          _buildSeparateLocationInput(
+            prefixText: 'من :',
+            label: 'موقعي الحالي', 
+            controller: pickupController, 
+            icon: Icons.my_location_rounded, 
+            iconColor: AppColors.accentGold, 
+            onMapTap: () {
+              FocusScope.of(context).unfocus(); 
+              onOpenMapSelection('pickup');
+            }
           ),
-        ),
-      ],
+          
+          _buildSeparateLocationInput(
+            prefixText: 'إلى :',
+            label: 'وجهة الوصول', 
+            controller: destinationController, 
+            icon: Icons.location_on_rounded, 
+            iconColor: AppColors.primaryDark, 
+            onMapTap: () {
+              FocusScope.of(context).unfocus();
+              onOpenMapSelection('destination');
+            }
+          ),
+          
+          _buildPriceInputDisplay(),
+
+          SizedBox(height: 16.h),
+
+          _buildPremiumQuickPriceChips(),
+          
+          SizedBox(height: 28.h),
+          
+          Container(
+            width: double.infinity,
+            height: 55.h,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primaryDark, AppColors.royalGreen],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(16.r),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.25),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8),
+                )
+              ],
+            ),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent, 
+                shadowColor: Colors.transparent,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+              ),
+              onPressed: isSubmittingTrip ? null : () {
+                HapticFeedback.mediumImpact(); 
+                onSubmit();
+              },
+              child: isSubmittingTrip 
+                  ? const CircularProgressIndicator(color: Colors.white) 
+                  : Text(
+                      'إرسال الطلب للكباتن', 
+                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // ودجت حقل السعر المستقل (لإعطائه فخامة خاصة)
   Widget _buildPriceInputDisplay() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.accentGold.withValues(alpha: 0.05), // لون دهبي خفيف جداً
+        color: AppColors.accentGold.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3), width: 1.5),
         boxShadow: [
@@ -150,7 +188,6 @@ class RideServiceForm extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // أيقونة السعر
           Container(
             padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
@@ -165,16 +202,15 @@ class RideServiceForm extends StatelessWidget {
             style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600)
           ),
           SizedBox(width: 12.w),
-          // حقل إدخال السعر
           Expanded(
             child: TextField(
               controller: priceController,
               focusNode: priceFocusNode,
               keyboardType: TextInputType.number,
-              textAlign: TextAlign.center, // الرقم في النص للفخامة
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Cairo', 
-                fontSize: 24.sp, // خط ضخم للرقم
+                fontSize: 24.sp, 
                 fontWeight: FontWeight.w900, 
                 color: AppColors.primaryDark
               ),
@@ -184,7 +220,7 @@ class RideServiceForm extends StatelessWidget {
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
-                suffixText: 'ج.م', // إضافة العملة
+                suffixText: 'ج.م',
                 suffixStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
               ),
             ),
@@ -194,7 +230,6 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // ودجت أزرار التسعير السريع الفخمة
   Widget _buildPremiumQuickPriceChips() {
     return Row(
       children: [
@@ -211,9 +246,7 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // زر التحكم في السعر (Custom Button)
   Widget _buildActionButton(String label, int amount, {bool isClear = false, bool isNegative = false}) {
-    // تحديد ألوان الزر بناءً على نوعه
     Color bgColor = AppColors.accentGold.withValues(alpha: 0.1);
     Color borderColor = AppColors.accentGold.withValues(alpha: 0.3);
     Color textColor = AppColors.primaryDark;
@@ -228,12 +261,12 @@ class RideServiceForm extends StatelessWidget {
       textColor = Colors.grey.shade700;
     }
 
-    return Expanded( // عشان كل الأزرار تاخد نفس العرض بالضبط
+    return Expanded(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact(); 
           if (isClear) {
-            priceController.text = ''; // تصفير كامل
+            priceController.text = '';
           } else {
             int currentPrice = int.tryParse(priceController.text) ?? 0;
             int newPrice = currentPrice + amount;
@@ -263,7 +296,6 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  // 🟢 ودجت إدخال المواقع (من وإلى) - مُعدل
   Widget _buildSeparateLocationInput({
     required String prefixText, 
     required String label, 
@@ -293,7 +325,7 @@ class RideServiceForm extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              readOnly: false, // 🟢 السماح بالكتابة اليدوية
+              readOnly: false,
               style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
               decoration: InputDecoration(
                 hintText: label,
@@ -305,7 +337,6 @@ class RideServiceForm extends StatelessWidget {
             ),
           ),
           SizedBox(width: 8.w),
-          // 🟢 الأيقونة (الدبوس/الزوم) على اليسار وتفتح الخريطة
           GestureDetector(
             onTap: onMapTap,
             child: Container(
@@ -403,7 +434,7 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
           ),
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 300),
-            opacity: widget.isSelected ? 1.0 : 0.5, // تقليل شفافية الكروت غير المحددة للتركيز
+            opacity: widget.isSelected ? 1.0 : 0.5, 
             child: Column(
               children: [
                 ClipRRect(

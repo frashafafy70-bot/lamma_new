@@ -1,39 +1,38 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../domain/repositories/trip_repository.dart';
+
+import '../../domain/usecases/get_available_travels_usecase.dart';
 import '../../data/models/trip_model.dart';
-import 'available_travels_state.dart';
+import 'available_travels_state.dart'; 
 
 class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
-  final TripRepository _repository;
-  
+  final GetAvailableTravelsUseCase _getAvailableTravelsUseCase;
+
   Position? _passengerPosition;
   bool _showOnlyNearby = false;
-  final double _nearbyRadiusInMeters = 20000; 
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final double _nearbyRadiusInMeters = 20000;
+  String _currentUserId = '';
 
-  // 🟢 متغيرات الـ Pagination
-  List<TripModel> _rawTrips = []; // نحتفظ بالداتا الخام قبل الفلترة
+  List<TripModel> _rawTrips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   final int _limit = 20;
 
-  AvailableTravelsCubit(this._repository) : super(AvailableTravelsInitial());
+  AvailableTravelsCubit(this._getAvailableTravelsUseCase) : super(AvailableTravelsInitial());
 
-  void init() {
-    _getPassengerLocation(); 
+  void init(String userId) {
+    _currentUserId = userId;
+    _getPassengerLocation();
   }
 
   Future<void> _getPassengerLocation() async {
-    if (isClosed) return; 
-    emit(AvailableTravelsLoading());
-    
+    if (isClosed) return;
+    emit(AvailableTravelsLoading(trips: state.trips));
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _fetchInitialTrips(); 
+      _fetchInitialTrips();
       return;
     }
 
@@ -50,7 +49,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       _passengerPosition = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
       );
-      _fetchInitialTrips(); 
+      _fetchInitialTrips();
     } catch (e) {
       _fetchInitialTrips();
     }
@@ -59,33 +58,29 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   void toggleNearby(bool val) {
     if (_passengerPosition == null && val) {
       if (isClosed) return;
-      emit(AvailableTravelsError('يرجى تفعيل الموقع (GPS) لاستخدام هذه الميزة'));
+      emit(AvailableTravelsError('يرجى تفعيل الموقع (GPS) لاستخدام هذه الميزة', trips: state.trips));
       _getPassengerLocation();
       return;
     }
     _showOnlyNearby = val;
-    // إعادة معالجة الداتا المخزنة حالياً
     _processAndEmitTrips();
   }
 
-  // --------------------------------------------------
-  // 🔥 نظام الـ Pagination
-  // --------------------------------------------------
   Future<void> _fetchInitialTrips() async {
     if (isClosed) return;
-    emit(AvailableTravelsLoading());
-    
+    emit(AvailableTravelsLoading(trips: state.trips));
+
     _rawTrips.clear();
     _hasReachedMax = false;
     _isFetchingMore = false;
 
     try {
-      final result = await _repository.getAvailableTravels(limit: _limit);
+      final result = await _getAvailableTravelsUseCase(limit: _limit);
 
       if (isClosed) return;
 
       result.fold(
-        (failure) => emit(AvailableTravelsError('حدث خطأ في تحميل الرحلات المتاحة.')),
+        (failure) => emit(AvailableTravelsError('حدث خطأ في تحميل الرحلات المتاحة.', trips: state.trips)),
         (trips) {
           _rawTrips = trips;
           _hasReachedMax = trips.length < _limit;
@@ -93,7 +88,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
         },
       );
     } catch (e) {
-      if (!isClosed) emit(AvailableTravelsError('حدث خطأ غير متوقع'));
+      if (!isClosed) emit(AvailableTravelsError('حدث خطأ غير متوقع', trips: state.trips));
     }
   }
 
@@ -107,7 +102,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
 
     try {
       final lastTrip = _rawTrips.isNotEmpty ? _rawTrips.last : null;
-      final result = await _repository.getAvailableTravels(limit: _limit, lastTrip: lastTrip);
+      final result = await _getAvailableTravelsUseCase(limit: _limit, lastTrip: lastTrip);
 
       if (isClosed) return;
 
@@ -137,39 +132,26 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
     }
   }
 
-  // --------------------------------------------------
-  // 🔥 معالجة البيانات (البزنس لوجيك بتاعك كما هو)
-  // --------------------------------------------------
   void _processAndEmitTrips() {
     if (isClosed) return;
-    
+
     List<ProcessedTrip> processedTrips = [];
-    
+
     for (TripModel trip in _rawTrips) {
-      // 1. إخفاء رحلة السائق نفسه
-      if (trip.driverId == currentUserId) continue;
+      if (trip.driverId == _currentUserId) continue;
 
-      // 2. إخفاء الرحلة لو المقاعد صفر
       int availableSeats = int.tryParse(trip.availableSeats ?? '0') ?? 0;
-      if (availableSeats <= 0) continue; 
+      if (availableSeats <= 0) continue;
 
-      // 3. إخفاء الرحلة لو الراكب حاجز فيها
-      // 🟢 ملاحظة: TripModel لا يحتوي حالياً على bookedPassengersIds، لذا سنقوم بجلبها من Map
-      // أو كحل مؤقت إذا كنت أضفتها للـ Model فاستخدمها. هنا سأفترض أنك لم تضفها بعد وسأعتمد على اللوجيك القديم
-      // في حالة Clean Architecture يفضل إضافتها للموديل.
-      // ⚠️ للتسهيل: سأتجاهل هذا الفلتر هنا وأتركه لك لإضافته للموديل إذا أردت، أو تعتمد على الشاشة اللي بتمنع الحجز.
-
-      // 4. فلتر الصلاحية (الوقت)
       DateTime? tripDate = trip.travelDate;
       if (tripDate != null && tripDate.isBefore(DateTime.now())) {
-        continue; 
+        continue;
       } else if (tripDate == null && trip.createdAt != null) {
         if (DateTime.now().difference(trip.createdAt!).inDays > 2) {
-          continue; 
+          continue;
         }
       }
 
-      // 5. حساب المسافة
       double distance = double.infinity;
       if (trip.fromLocation != null && _passengerPosition != null) {
         distance = Geolocator.distanceBetween(
@@ -194,33 +176,5 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       hasReachedMax: _hasReachedMax,
       isFetchingMore: _isFetchingMore,
     ));
-  }
-
-  Future<bool> bookSeatInDriverPost(String tripId, String driverId, int seatsToBook) async {
-    try {
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-
-      DocumentReference tripRef = FirebaseFirestore.instance.collection('trips').doc(tripId);
-      batch.update(tripRef, {
-        'bookedPassengersIds': FieldValue.arrayUnion([currentUserId]),
-      });
-
-      DocumentReference bookingRef = FirebaseFirestore.instance.collection('trip_bookings').doc();
-      batch.set(bookingRef, {
-        'tripId': tripId,
-        'driverId': driverId,
-        'passengerId': currentUserId,
-        'seats': seatsToBook, 
-        'status': 'pending', 
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
-      return true; 
-    } catch (e) {
-      if (isClosed) return false; 
-      emit(AvailableTravelsError('حدث خطأ أثناء حجز المقعد، يرجى المحاولة مرة أخرى'));
-      return false;
-    }
   }
 }

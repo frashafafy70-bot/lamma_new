@@ -37,7 +37,13 @@ class PlaceDetailsLoaded extends PassengerRequestState {
 }
 
 class TripSubmitting extends PassengerRequestState {}
-class TripSubmitSuccess extends PassengerRequestState {}
+
+// 🟢 التعديل الأهم: الحالة دي أصبحت تحمل معها معرف الرحلة
+class TripSubmitSuccess extends PassengerRequestState {
+  final String tripId;
+  TripSubmitSuccess(this.tripId);
+}
+
 class TripSubmitError extends PassengerRequestState {
   final String message;
   TripSubmitError(this.message);

@@ -6,18 +6,30 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart' hide TextDirection; 
 
+// 🟢 استيراد الـ Injection
+import '../../../trip_injection.dart'; 
+
 import '../../../cubit/passenger/available_travels_cubit.dart';
 import '../../../cubit/passenger/available_travels_state.dart';
+import '../../../cubit/passenger/trip_booking_cubit.dart';
+import '../../../cubit/passenger/trip_booking_state.dart';
 import '../../data/models/trip_model.dart';
-import '../../data/repositories/trip_repository_impl.dart';
 
 class AvailableTravelsTab extends StatelessWidget {
   const AvailableTravelsTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AvailableTravelsCubit(TripRepositoryImpl())..init(),
+    // 🟢 استخدام MultiBlocProvider لتوفير كيوبيت العرض وكيوبيت الحجز معاً باستخدام sl
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => sl<AvailableTravelsCubit>()..init(FirebaseAuth.instance.currentUser?.uid ?? ''),
+        ),
+        BlocProvider(
+          create: (context) => sl<TripBookingCubit>(),
+        ),
+      ],
       child: const _AvailableTravelsView(),
     );
   }
@@ -63,86 +75,102 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
     
     final cubit = context.read<AvailableTravelsCubit>();
 
-    return BlocConsumer<AvailableTravelsCubit, AvailableTravelsState>(
-      listener: (context, state) {
-        if (state is AvailableTravelsError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-              backgroundColor: Colors.red.shade700,
-            ),
+    // 🟢 الاستماع لنتيجة الحجز من TripBookingCubit
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AvailableTravelsCubit, AvailableTravelsState>(
+          listener: (context, state) {
+            if (state is AvailableTravelsError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red.shade700),
+              );
+            }
+          },
+        ),
+        BlocListener<TripBookingCubit, TripBookingState>(
+          listener: (context, state) {
+            if (state is TripBookingSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green),
+              );
+            } else if (state is TripBookingError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red.shade700),
+              );
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<AvailableTravelsCubit, AvailableTravelsState>(
+        builder: (context, state) {
+          bool showOnlyNearby = false;
+          List<ProcessedTrip> processedTrips = [];
+          bool isLoading = state is AvailableTravelsInitial || state is AvailableTravelsLoading;
+          bool isFetchingMore = false;
+
+          if (state is AvailableTravelsLoaded) {
+            showOnlyNearby = state.showOnlyNearby;
+            processedTrips = state.trips;
+            isFetchingMore = state.isFetchingMore;
+          }
+
+          return Column(
+            children: [
+              // 🟢 شريط الفلترة العلوي
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(6.w),
+                          decoration: BoxDecoration(color: showOnlyNearby ? royalGreen.withOpacity(0.1) : Colors.grey.shade100, shape: BoxShape.circle),
+                          child: Icon(Icons.radar_rounded, color: showOnlyNearby ? royalGreen : Colors.grey, size: 20.sp),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text('الرحلات القريبة مني فقط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp, color: darkSlate)),
+                      ],
+                    ),
+                    Switch(
+                      value: showOnlyNearby,
+                      activeColor: Colors.white,
+                      activeTrackColor: royalGreen,
+                      inactiveThumbColor: Colors.grey.shade400,
+                      inactiveTrackColor: Colors.grey.shade200,
+                      onChanged: (val) => cubit.toggleNearby(val),
+                    )
+                  ],
+                ),
+              ),
+              
+              if (isLoading)
+                LinearProgressIndicator(color: accentGold, backgroundColor: royalGreen.withOpacity(0.1), minHeight: 3.h),
+
+              Expanded(
+                child: RefreshIndicator(
+                  color: royalGreen,
+                  onRefresh: () async {
+                    cubit.init(FirebaseAuth.instance.currentUser?.uid ?? ''); 
+                  },
+                  child: _buildTripsList(context, processedTrips, isLoading, isFetchingMore, royalGreen, accentGold, darkSlate),
+                ),
+              ),
+            ],
           );
-        }
-      },
-      builder: (context, state) {
-        bool showOnlyNearby = false;
-        List<ProcessedTrip> processedTrips = [];
-        bool isLoading = state is AvailableTravelsInitial || state is AvailableTravelsLoading;
-        bool isFetchingMore = false;
-
-        if (state is AvailableTravelsLoaded) {
-          showOnlyNearby = state.showOnlyNearby;
-          processedTrips = state.trips;
-          isFetchingMore = state.isFetchingMore;
-        }
-
-        return Column(
-          children: [
-            // 🟢 شريط الفلترة العلوي
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(6.w),
-                        decoration: BoxDecoration(color: showOnlyNearby ? royalGreen.withOpacity(0.1) : Colors.grey.shade100, shape: BoxShape.circle),
-                        child: Icon(Icons.radar_rounded, color: showOnlyNearby ? royalGreen : Colors.grey, size: 20.sp),
-                      ),
-                      SizedBox(width: 10.w),
-                      Text('الرحلات القريبة مني فقط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp, color: darkSlate)),
-                    ],
-                  ),
-                  Switch(
-                    value: showOnlyNearby,
-                    activeColor: Colors.white,
-                    activeTrackColor: royalGreen,
-                    inactiveThumbColor: Colors.grey.shade400,
-                    inactiveTrackColor: Colors.grey.shade200,
-                    onChanged: (val) => cubit.toggleNearby(val),
-                  )
-                ],
-              ),
-            ),
-            
-            if (isLoading)
-              LinearProgressIndicator(color: accentGold, backgroundColor: royalGreen.withOpacity(0.1), minHeight: 3.h),
-
-            Expanded(
-              child: RefreshIndicator(
-                color: royalGreen,
-                onRefresh: () async {
-                  cubit.init(); // تحديث القائمة
-                },
-                child: _buildTripsList(context, processedTrips, isLoading, isFetchingMore, royalGreen, accentGold, darkSlate),
-              ),
-            ),
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 
   // 🟢 ديالوج اختيار عدد المقاعد
   void _showBookingDialog(BuildContext context, String tripId, String driverId, int maxSeats, Color royalGreen) {
     int selectedSeats = 1;
-    bool isSubmitting = false;
 
     showDialog(
       context: context,
@@ -180,30 +208,39 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
             ),
             actions: [
               TextButton(
-                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(ctx),
                 child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp)),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: royalGreen,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-                ),
-                onPressed: isSubmitting ? null : () async {
-                  setState(() => isSubmitting = true);
-                  bool success = await context.read<AvailableTravelsCubit>().bookSeatInDriverPost(tripId, driverId, selectedSeats);
-                  if (success && ctx.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم إرسال طلب الحجز للكابتن بنجاح! تابع "متابعة طلباتي"', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green),
-                    );
-                  } else {
-                    setState(() => isSubmitting = false);
-                  }
-                },
-                child: isSubmitting 
-                  ? SizedBox(height: 20.h, width: 20.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('تأكيد الحجز', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+              
+              // 🟢 الاستماع لـ TripBookingCubit لإظهار اللودينج داخل الزرار
+              BlocBuilder<TripBookingCubit, TripBookingState>(
+                builder: (context, bookingState) {
+                  bool isSubmitting = bookingState is TripBookingLoading;
+                  
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: royalGreen,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+                    ),
+                    onPressed: isSubmitting ? null : () {
+                      final passengerId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                      
+                      // 🟢 توجيه أمر الحجز للكيوبيت المختص
+                      context.read<TripBookingCubit>().bookSelectedTrip(
+                        tripId: tripId, 
+                        driverId: driverId, 
+                        passengerId: passengerId,
+                        requestedSeats: selectedSeats
+                      );
+                      
+                      Navigator.pop(ctx); // نقفل الديالوج، والـ Listener هيطلع رسالة النجاح
+                    },
+                    child: isSubmitting 
+                      ? SizedBox(height: 20.h, width: 20.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text('تأكيد الحجز', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                  );
+                }
               )
             ],
           );
@@ -218,7 +255,7 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
     }
 
     if (processedTrips.isEmpty) {
-      return ListView( // استخدمنا ListView ليعمل الـ RefreshIndicator
+      return ListView( 
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
@@ -280,7 +317,6 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // رأس الكارت: بيانات الكابتن والمقاعد
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -310,7 +346,6 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                 ),
                 SizedBox(height: 16.h),
                 
-                // خط السير 
                 Row(
                   children: [
                     Column(
@@ -336,7 +371,6 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                 
                 SizedBox(height: 16.h),
                 
-                // الوقت والسعر
                 Container(
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10.r)),
@@ -357,7 +391,6 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                 
                 SizedBox(height: 16.h),
                 
-                // زر الحجز
                 maxSeats <= 0
                 ? SizedBox(
                     width: double.infinity, 

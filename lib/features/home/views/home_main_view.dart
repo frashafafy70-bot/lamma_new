@@ -5,10 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 // مسارات الكوبيت والستيت
-import '../cubit/home_cubit.dart';
-import '../cubit/home_state.dart';
+import 'package:lamma_new/features/home/cubit/home_cubit.dart';
+import 'package:lamma_new/features/home/cubit/home_state.dart';
 
-// مسارات الميزات الأخرى
+// مسارات الميزات الأخرى والـ Widgets المستخدمة
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
 import 'package:lamma_new/core/theme/app_colors.dart'; 
@@ -21,7 +21,7 @@ import 'package:lamma_new/features/trips/presentation/widgets/driver_radar_card.
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; 
 import 'package:lamma_new/features/home/views/widgets/home_shimmer_loading.dart';
 
-// مسارات محلية
+// مسار الـ Widget المحلي لتبديل الحساب
 import 'account_switch_widget.dart'; 
 
 class HomeMainView extends StatefulWidget {
@@ -72,6 +72,7 @@ class _HomeMainViewState extends State<HomeMainView> {
         appBar: _buildAppBar(),
         body: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
+            // يعرض الـ Shimmer فقط أثناء التحميل الفعلي
             if (state.status == HomeStatus.loading) {
               return const HomeShimmerLoading();
             }

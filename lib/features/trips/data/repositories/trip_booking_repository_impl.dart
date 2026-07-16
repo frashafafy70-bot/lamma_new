@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/repositories/trip_booking_repository.dart';
 import '../models/trip_model.dart';
+// 🟢 الاستيراد السحري اللي بيعرف الملف على TripStatus
+import '../../domain/entities/trip_entity.dart';
 
 class TripBookingRepositoryImpl implements TripBookingRepository {
   final FirebaseFirestore _firestore;

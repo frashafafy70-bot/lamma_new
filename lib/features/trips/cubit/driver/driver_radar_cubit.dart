@@ -1,68 +1,62 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/repositories/driver_radar_repository.dart';
+
+// 🟢 استيراد الـ UseCases النظيفة
+import '../../domain/usecases/get_driver_radar_trips_usecase.dart';
+import '../../domain/usecases/accept_radar_trip_usecase.dart';
+import '../../domain/usecases/negotiate_radar_trip_usecase.dart';
+
 import '../../data/models/trip_model.dart';
 import 'driver_radar_state.dart';
 
 class DriverRadarCubit extends Cubit<DriverRadarState> {
-  final DriverRadarRepository _repository;
+  final GetDriverRadarTripsUseCase getDriverRadarTripsUseCase;
+  final AcceptRadarTripUseCase acceptRadarTripUseCase;
+  final NegotiateRadarTripUseCase negotiateRadarTripUseCase;
   
-  // 🟢 متغيرات التحكم في الـ Pagination
-  List<TripModel> _trips = [];
+  final List<TripModel> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
-  final int _limit = 20;
+  static const int _limit = 20;
 
-  DriverRadarCubit(this._repository) : super(DriverRadarInitial());
+  DriverRadarCubit({
+    required this.getDriverRadarTripsUseCase, 
+    required this.acceptRadarTripUseCase,
+    required this.negotiateRadarTripUseCase,
+  }) : super(DriverRadarInitial());
 
-  /// 🟢 جلب الصفحة الأولى من الرادار
+  // ==========================================
+  // 🟢 نظام الـ Pagination
+  // ==========================================
   Future<void> fetchInitialRadarTrips() async {
     emit(DriverRadarLoading());
-    
-    _trips.clear();
-    _hasReachedMax = false;
-    _isFetchingMore = false;
+    _resetPagination();
 
     try {
-      final result = await _repository.getPaginatedRadarTrips(limit: _limit);
+      final result = await getDriverRadarTripsUseCase(limit: _limit);
 
       if (isClosed) return;
 
       result.fold(
-        (failure) {
-          emit(DriverRadarError('حدث خطأ في معالجة الطلبات.'));
-        },
-        (trips) {
-          _trips = trips;
-          _hasReachedMax = trips.length < _limit;
-          
-          emit(DriverRadarLoaded(
-            radarTrips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
-        },
+        (failure) => emit(DriverRadarError('حدث خطأ في معالجة الطلبات.')),
+        (trips) => _handleNewTrips(trips),
       );
     } catch (e) {
-      if (!isClosed) emit(DriverRadarError('حدث خطأ غير متوقع: ${e.toString()}'));
+      if (!isClosed) emit(DriverRadarError('حدث خطأ غير متوقع: $e'));
     }
   }
 
-  /// 🟢 جلب الصفحات الإضافية
   Future<void> fetchMoreRadarTrips() async {
     if (_hasReachedMax || _isFetchingMore) return;
 
     _isFetchingMore = true;
-    final currentState = state;
-    
-    if (currentState is DriverRadarLoaded) {
-      emit(currentState.copyWith(isFetchingMore: true));
+    if (state is DriverRadarLoaded) {
+      emit((state as DriverRadarLoaded).copyWith(isFetchingMore: true));
     }
 
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
-      
-      final result = await _repository.getPaginatedRadarTrips(
+      final result = await getDriverRadarTripsUseCase(
         limit: _limit,
         lastTrip: lastTrip,
       );
@@ -72,62 +66,90 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          if (state is DriverRadarLoaded) {
-            emit((state as DriverRadarLoaded).copyWith(isFetchingMore: false));
-          }
+          emit(_buildLoadedState()); 
         },
         (newTrips) {
           _isFetchingMore = false;
-          
-          if (newTrips.isEmpty) {
-            _hasReachedMax = true;
-          } else {
-            _trips.addAll(newTrips);
-            _hasReachedMax = newTrips.length < _limit;
-          }
-          
-          emit(DriverRadarLoaded(
-            radarTrips: List.from(_trips),
-            hasReachedMax: _hasReachedMax,
-            isFetchingMore: false,
-          ));
+          _handleNewTrips(newTrips, isPagination: true);
         },
       );
     } catch (e) {
       _isFetchingMore = false;
-      if (state is DriverRadarLoaded && !isClosed) {
-        emit((state as DriverRadarLoaded).copyWith(isFetchingMore: false));
-      }
+      if (!isClosed) emit(_buildLoadedState());
     }
   }
 
+  // ==========================================
+  // 🟢 الأكشنز (تم النقل للـ UseCases)
+  // ==========================================
   Future<void> acceptTrip(String tripId, {String? negotiatedPrice}) async {
     emit(DriverRadarActionLoading());
-    try {
-      await _repository.acceptTripSecurely(tripId, negotiatedPrice);
-      if (isClosed) return;
-      emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
-    } catch (e) {
-      if (isClosed) return;
-      String errorMessage = 'حدث خطأ غير متوقع';
-      if (e.toString().contains('TRIP_NOT_FOUND')) {
-        errorMessage = 'عذراً، هذه الرحلة لم تعد متوفرة';
-      } else if (e.toString().contains('TRIP_ALREADY_TAKEN')) {
-        errorMessage = 'عذراً، تم التقاط هذه الرحلة بواسطة سائق آخر';
+    
+    final result = await acceptRadarTripUseCase(tripId, negotiatedPrice: negotiatedPrice);
+    
+    if (isClosed) return;
+
+    result.fold(
+      (failure) {
+        emit(DriverRadarActionError(_mapAcceptTripError(failure.toString())));
+        emit(_buildLoadedState());
+      },
+      (_) {
+        emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
+        emit(_buildLoadedState()); 
       }
-      emit(DriverRadarActionError(errorMessage));
-    }
+    );
   }
 
   Future<void> negotiateTrip(String tripId, String offer) async {
     emit(DriverRadarActionLoading());
-    try {
-      await _repository.negotiateTrip(tripId, offer);
-      if (isClosed) return;
-      emit(DriverRadarActionSuccess('تم إرسال عرض السعر بنجاح'));
-    } catch (e) {
-      if (isClosed) return;
-      emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: ${e.toString()}'));
+    
+    final result = await negotiateRadarTripUseCase(tripId, offer);
+    
+    if (isClosed) return;
+
+    result.fold(
+      (failure) {
+        emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: $failure'));
+        emit(_buildLoadedState());
+      },
+      (_) {
+        emit(DriverRadarActionSuccess('تم إرسال عرض السعر بنجاح'));
+        emit(_buildLoadedState());
+      }
+    );
+  }
+
+  // ==========================================
+  // 🛠️ دوال مساعدة (Helpers)
+  // ==========================================
+  void _resetPagination() {
+    _trips.clear();
+    _hasReachedMax = false;
+    _isFetchingMore = false;
+  }
+
+  void _handleNewTrips(List<TripModel> newTrips, {bool isPagination = false}) {
+    if (newTrips.isEmpty && isPagination) {
+      _hasReachedMax = true;
+    } else {
+      _trips.addAll(newTrips);
+      _hasReachedMax = newTrips.length < _limit;
     }
+    emit(_buildLoadedState());
+  }
+
+  DriverRadarLoaded _buildLoadedState() {
+    return DriverRadarLoaded(
+      radarTrips: List.from(_trips),
+      hasReachedMax: _hasReachedMax,
+      isFetchingMore: _isFetchingMore,
+    );
+  }
+
+  String _mapAcceptTripError(String error) {
+    if (error.contains('TRIP_NOT_FOUND')) return 'عذراً، هذه الرحلة لم تعد متوفرة';
+    if (error.contains('TRIP_ALREADY_TAKEN')) return 'عذراً، تم التقاط هذه الرحلة بواسطة سائق آخر';
+    return 'حدث خطأ غير متوقع';
   }
 }

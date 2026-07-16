@@ -2,16 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:audioplayers/audioplayers.dart'; // 🟢 ضفنا مكتبة الصوت هنا كمان
+import 'package:audioplayers/audioplayers.dart'; 
 
-// استدعاء ملف التوجيه الخاص بك
 import 'package:lamma_new/core/services/navigation_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // 🟢 مشغل صوتي خفيف خاص بالبانر الأمامي فقط
   static final AudioPlayer _foregroundAlertPlayer = AudioPlayer();
 
   static Future<void> initLocalNotifications() async {
@@ -44,13 +42,12 @@ class NotificationService {
       },
     );
 
-    // 🟢 التعديل هنا: إضافة v2 لاسم القناة لإجبار النظام على تفعيل الصوت ومسح الكاش القديم
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'lamma_alerts_channel_v2', 
       'تنبيهات لَمَّة الهامة', 
       description: 'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
       importance: Importance.max,
-      playSound: true, // رنين طبيعي وصوت عالي لو التطبيق في الخلفية
+      playSound: true, 
     );
 
     await _flutterLocalNotificationsPlugin
@@ -59,24 +56,31 @@ class NotificationService {
         ?.createNotificationChannel(channel);
   }
 
-  // 👑 دالة عرض الإشعار والتطبيق مفتوح (Foreground) مع لمسة الحرفنة
+  // 👑 دالة عرض الإشعار والتطبيق مفتوح + تشغيل الصوت المخصص
   static void showChicNotification(RemoteMessage message) async {
     RemoteNotification? notification = message.notification;
     AndroidNotification? android = message.notification?.android;
 
     if (notification != null && android != null) {
       
-      // 🟢 تريكة الحرفنة: تشغيل صوت "بوب" هادي جداً برمجياً مع نزول البانر
+      // 🟢 الجراحة هنا: نقلنا كل لوجيك الصوت اللي كان في الكيوبت لمكانه الصح
       try {
         String type = message.data['type'] ?? '';
         
-        // لو الإشعار عبارة عن شات أو أي حركة عادية والتطبيق مفتوح، اديله رنة البوب الفخمة
-        // وبنبعد عن حالات التفاوض أو الإلغاء الكبيرة عشان الـ Cubit يتولى صوتها الضخم
-        if (type == 'chat' || type == 'new_booking') {
-          await _foregroundAlertPlayer.play(AssetSource('audio/pop.mp3'));
+        if (type == 'passenger_offer' || type == 'negotiating' || type == 'passenger_action' || type == 'chat') {
+          await _foregroundAlertPlayer.play(AssetSource('audio/ping_pong.mp3'));
+        } 
+        else if (type == 'new_request' || type == 'trip_accepted' || type == 'new_booking') {
+          await _foregroundAlertPlayer.play(AssetSource('audio/edite.mp3'));
+        } 
+        else if (type == 'trip_cancelled' || type == 'canceled') {
+          await _foregroundAlertPlayer.play(AssetSource('audio/cancell.mp3'));
+        } 
+        else {
+          await _foregroundAlertPlayer.play(AssetSource('audio/notification.mp3'));
         }
       } catch (e) {
-        debugPrint("خطأ في تشغيل صوت البوب: $e");
+        debugPrint("خطأ في تشغيل صوت الإشعار: $e");
       }
 
       _flutterLocalNotificationsPlugin.show(
@@ -85,18 +89,18 @@ class NotificationService {
         body: notification.body,
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'lamma_alerts_channel_v2', // 🟢 تحديث اسم القناة هنا أيضاً
+            'lamma_alerts_channel_v2', 
             'تنبيهات لَمَّة الهامة',
             channelDescription: 'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
             icon: '@mipmap/ic_launcher',
             importance: Importance.max,
             priority: Priority.high,
-            playSound: false, // 🤫 سايلنت من ناحية السيستم عشان الصوت البرمجي الهادي بتاعنا يشتغل بنظافة
+            playSound: false, // 🤫 سايلنت للسيستم عشان صوتنا يشتغل بمزاج
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
-            presentSound: false, // سايلنت للآيفون بره وجوه السيستم، والاعتماد على البرمجة
+            presentSound: false,
           ),
         ),
         payload: jsonEncode(message.data),

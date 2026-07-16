@@ -6,45 +6,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 // 🟢 استدعاءات الشبكة
 import 'package:lamma_new/core/network/network_cubit.dart';
 
-// 🟢 استدعاءات الـ Auth
-import 'package:lamma_new/features/auth/cubit/auth_cubit.dart';
-import 'package:lamma_new/features/auth/data/services/auth_service.dart';
-import 'package:lamma_new/features/auth/domain/repositories/auth_repository.dart'; // 👈 الـ Interface
-import 'package:lamma_new/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:lamma_new/features/auth/domain/use_cases/login_use_case.dart';
-import 'package:lamma_new/features/auth/domain/use_cases/sign_up_use_case.dart';
-import 'package:lamma_new/features/auth/domain/use_cases/sign_out_use_case.dart';
-import 'package:lamma_new/features/auth/domain/use_cases/auth_advanced_use_cases.dart';
-
-// 🟢 استدعاءات الـ Profile
-import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:lamma_new/features/profile/domain/repositories/profile_repository.dart'; // 👈 الـ Interface
-import 'package:lamma_new/features/profile/data/repositories/profile_repository_impl.dart';
-import 'package:lamma_new/features/profile/domain/use_cases/get_user_profile_use_case.dart';
-import 'package:lamma_new/features/profile/domain/use_cases/update_user_profile_use_case.dart';
-
-// 🟢 استدعاءات الـ Home & Notifications
-import 'package:lamma_new/features/home/cubit/home_cubit.dart';
-import 'package:lamma_new/features/home/domain/repositories/home_repository.dart'; // 👈 الـ Interface
-import 'package:lamma_new/features/home/data/repositories/home_repository_impl.dart';
-import 'package:lamma_new/features/home/domain/use_cases/get_service_categories_use_case.dart';
-import 'package:lamma_new/features/home/domain/use_cases/get_active_orders_summary_use_case.dart';
-import 'package:lamma_new/features/notifications/presentation/cubit/notification_cubit.dart';
-
-// 🟢 استدعاءات الـ Trips
-import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
-import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
-import 'package:lamma_new/features/trips/cubit/shared/trip_chat_cubit.dart';
-import 'package:lamma_new/features/trips/domain/repositories/chat_repository.dart'; // 👈 الـ Interface
-import 'package:lamma_new/features/trips/domain/repositories/trip_repository.dart'; // 👈 الـ Interface
-import 'package:lamma_new/features/trips/data/repositories/chat_repository_impl.dart';
-import 'package:lamma_new/features/trips/data/repositories/trip_repository_impl.dart';
-import 'package:lamma_new/features/trips/domain/usecases/get_driver_active_trips_usecase.dart';
-
-// 🌟 استدعاءات الـ Use Cases الجديدة الخاصة بالرحلات (لاحظ استخدمت اسم الملف بتاعك بحرف e)
-import 'package:lamma_new/features/trips/domain/usecases/cancel_trip_use_case.dart';
-import 'package:lamma_new/features/trips/domain/usecases/update_booking_seats_use_case.dart';
-import 'package:lamma_new/features/trips/domain/usecases/submit_negotiation_use_case.dart';
+// 🟢 استدعاءات الـ Modules المنفصلة (Clean Architecture)
+import 'package:lamma_new/features/auth/auth_injection.dart'; 
+import 'package:lamma_new/features/home/home_injection.dart'; 
+import 'package:lamma_new/features/profile/profile_injection.dart'; 
+import 'package:lamma_new/features/notifications/notification_injection.dart'; 
+import 'package:lamma_new/features/trips/trip_injection.dart'; // 👈 مسار التريبس
 
 final sl = GetIt.instance; // sl = Service Locator
 
@@ -60,84 +27,13 @@ Future<void> initDI() async {
   // 2. Core (Network)
   // ==========================================
   sl.registerFactory(() => NetworkCubit());
-  sl.registerFactory(() => NotificationCubit());
 
   // ==========================================
-  // 3. Features
+  // 3. Features Modules (Clean Architecture)
   // ==========================================
-
-  // --- Auth Feature ---
-  sl.registerLazySingleton(() => AuthService());
-  
-  // 🟢 الحل: بنعرف الـ GetIt إن الـ Interface ده هيتنفذ بالكلاس ده
-  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
-  
-  sl.registerLazySingleton(() => LoginUseCase(sl()));
-  sl.registerLazySingleton(() => SignUpUseCase(sl()));
-  sl.registerLazySingleton(() => SignOutUseCase(sl()));
-  sl.registerLazySingleton(() => LoginWithGoogleUseCase(sl()));
-  sl.registerLazySingleton(() => SendSignUpOtpUseCase(sl()));
-  sl.registerLazySingleton(() => VerifyOtpAndSignUpUseCase(sl()));
-
-  sl.registerFactory(() => AuthCubit(
-    loginUseCase: sl(),
-    signUpUseCase: sl(),
-    signOutUseCase: sl(),
-    loginWithGoogleUseCase: sl(),
-    sendSignUpOtpUseCase: sl(),
-    verifyOtpAndSignUpUseCase: sl(),
-    authRepository: sl(),
-  ));
-
-  // --- Profile Feature ---
-  sl.registerLazySingleton<ProfileRepository>(() => ProfileRepositoryImpl(
-    auth: sl(), firestore: sl(), storage: sl()
-  ));
-  
-  sl.registerLazySingleton(() => GetUserProfileUseCase(sl()));
-  sl.registerLazySingleton(() => UpdateUserProfileUseCase(sl()));
-
-  sl.registerFactory(() => ProfileCubit(
-    getUserProfileUseCase: sl(),
-    updateUserProfileUseCase: sl(),
-    repository: sl(),
-  ));
-
-  // --- Home Feature ---
-  sl.registerLazySingleton<HomeRepository>(() => HomeRepositoryImpl(
-    auth: sl(), firestore: sl(),
-  ));
-
-  sl.registerLazySingleton(() => GetServiceCategoriesUseCase(sl()));
-  sl.registerLazySingleton(() => GetActiveOrdersSummaryUseCase(sl()));
-
-  sl.registerFactory(() => HomeCubit(
-    getServiceCategoriesUseCase: sl(),
-    getActiveOrdersSummaryUseCase: sl(),
-  ));
-
-  // --- Trips Feature ---
-  sl.registerLazySingleton<TripRepository>(() => TripRepositoryImpl(
-    auth: sl(), firestore: sl(),
-  ));
-  
-  sl.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl());
-
-  sl.registerLazySingleton(() => GetDriverActiveTripsUseCase(sl()));
-  
-  // 🌟 تسجيل الـ Use Cases الجديدة
-  sl.registerLazySingleton(() => CancelTripUseCase(sl())); 
-  sl.registerLazySingleton(() => UpdateBookingSeatsUseCase(sl())); 
-  sl.registerLazySingleton(() => SubmitNegotiationUseCase(sl())); 
-
-  sl.registerFactory(() => DriverActiveTripsCubit(sl(), sl()));
-  sl.registerFactory(() => TripChatCubit(chatRepository: sl()));
-  
-  // 🌟 تحديث تسجيل الـ Cubit عشان ياخد المتطلبات بتاعته
-  sl.registerFactory(() => TripActionsCubit(
-    tripRepository: sl(),
-    cancelTripUseCase: sl(),
-    updateBookingSeatsUseCase: sl(),
-    submitNegotiationUseCase: sl(),
-  ));
+  initAuthModule(); 
+  initHome(); 
+  initProfile(); 
+  initNotificationModule(); 
+  initTripModule(); // 👈 تفعيل الرحلات النظيف بالكامل
 }

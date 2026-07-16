@@ -1,8 +1,16 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
 
 @immutable
-abstract class DriverActiveTripsState {}
+abstract class DriverActiveTripsState extends Equatable {
+  const DriverActiveTripsState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+// --- حالات تهيئة الشاشة وجلب البيانات ---
 
 class DriverActiveTripsInitial extends DriverActiveTripsState {}
 
@@ -13,7 +21,7 @@ class DriverActiveTripsLoaded extends DriverActiveTripsState {
   final bool hasReachedMax;
   final bool isFetchingMore;
 
-  DriverActiveTripsLoaded({
+  const DriverActiveTripsLoaded({
     required this.trips,
     this.hasReachedMax = false,
     this.isFetchingMore = false,
@@ -30,21 +38,54 @@ class DriverActiveTripsLoaded extends DriverActiveTripsState {
       isFetchingMore: isFetchingMore ?? this.isFetchingMore,
     );
   }
+
+  @override
+  List<Object?> get props => [trips, hasReachedMax, isFetchingMore];
 }
 
 class DriverActiveTripsError extends DriverActiveTripsState {
   final String message;
-  DriverActiveTripsError(this.message);
+  const DriverActiveTripsError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }
+
+// --- حالة خطأ التمرير (لعدم تدمير القائمة المعروضة) ---
+class DriverActiveTripsPaginationError extends DriverActiveTripsState {
+  final String message;
+  // أضفنا الطابع الزمني لضمان انطلاق الـ Listener لو تكرر نفس الخطأ مرتين متتاليتين
+  final int timestamp; 
+
+  DriverActiveTripsPaginationError(this.message) 
+      : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [message, timestamp];
+}
+
+// --- حالات الإجراءات (Actions) ---
 
 class DriverActiveTripsActionLoading extends DriverActiveTripsState {}
 
 class DriverActiveTripsActionSuccess extends DriverActiveTripsState {
   final String message;
-  DriverActiveTripsActionSuccess(this.message);
+  final int timestamp;
+
+  DriverActiveTripsActionSuccess(this.message)
+      : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [message, timestamp];
 }
 
 class DriverActiveTripsActionError extends DriverActiveTripsState {
   final String message;
-  DriverActiveTripsActionError(this.message);
+  final int timestamp;
+
+  DriverActiveTripsActionError(this.message)
+      : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [message, timestamp];
 }

@@ -1,9 +1,14 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// استدعاء الـ Widget الذكي للريكورد بتاعك
 import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart'; 
+import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
+import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_trip_tracking_page.dart';
 
 class BuyOrdersServiceForm extends StatelessWidget {
   final bool isSubmittingTrip;
@@ -37,92 +42,130 @@ class BuyOrdersServiceForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 السر في الـ Column ده مع mainAxisSize: MainAxisSize.min عشان يمنع الشاشة الحمرا
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, 
-      children: [
-        
-        OrderInputWidget(
-          controller: errandDetailsController,
-          onAudioRecorded: onAudioRecorded,
-        ),
-        SizedBox(height: 16.h),
-        
-        _buildPremiumTextField(
-          controller: errandEstimatedCostController,
-          label: 'سعر الطلبات التقريبي',
-          suffixText: 'جنيه',
-          icon: Icons.account_balance_wallet_rounded,
-          iconColor: primaryGreen,
-          isNumber: true,
-        ),
-        SizedBox(height: 16.h),
-        
-        _buildPremiumLocationField(
-          label: 'مكان الشراء',
-          controller: pickupController,
-          icon: Icons.my_location_rounded,
-          iconColor: accentGold,
-          onMapTap: () {
-            FocusScope.of(context).unfocus(); 
-            onOpenMapSelection('pickup');
-          },
-        ),
-        SizedBox(height: 16.h),
-        
-        _buildPremiumLocationField(
-          label: 'مكان تسليم الطلب',
-          controller: destinationController,
-          icon: Icons.location_on_rounded,
-          iconColor: primaryGreen,
-          onMapTap: () {
-            FocusScope.of(context).unfocus();
-            onOpenMapSelection('destination');
-          },
-        ),
-        SizedBox(height: 16.h),
-        
-        _buildPremiumTextField(
-          controller: priceController,
-          focusNode: priceFocusNode,
-          label: 'أجرة التوصيل للسائق',
-          suffixText: 'جنيه',
-          icon: Icons.payments_outlined,
-          iconColor: accentGold,
-          isNumber: true,
-        ),
-        SizedBox(height: 24.h),
-        
-        Container(
-          width: double.infinity,
-          height: 54.h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: primaryGreen.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 6),
-              )
-            ],
-          ),
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
+    return BlocListener<PassengerRequestCubit, PassengerRequestState>(
+      listener: (context, state) {
+        if (state is TripSubmitSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'تم إرسال طلبك بنجاح! جاري البحث عن مندوب... 🚀', 
+                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
               backgroundColor: primaryGreen,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
             ),
-            onPressed: isSubmittingTrip ? null : onSubmit,
-            child: isSubmittingTrip
-                ? CircularProgressIndicator(color: accentGold)
-                : Text(
-                    'إرسال الطلب للكباتن', 
-                    style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
-                  ),
+          );
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PassengerTripTrackingPage(
+                tripId: state.tripId,
+                passengerId: FirebaseAuth.instance.currentUser?.uid ?? '', // 🟢 تم إضافة passengerId
+              ),
+            ),
+          );
+        } else if (state is TripSubmitError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                state.message, 
+                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+            ),
+          );
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, 
+        children: [
+          
+          OrderInputWidget(
+            controller: errandDetailsController,
+            onAudioRecorded: onAudioRecorded,
           ),
-        ),
-      ],
+          SizedBox(height: 16.h),
+          
+          _buildPremiumTextField(
+            controller: errandEstimatedCostController,
+            label: 'سعر الطلبات التقريبي',
+            suffixText: 'جنيه',
+            icon: Icons.account_balance_wallet_rounded,
+            iconColor: primaryGreen,
+            isNumber: true,
+          ),
+          SizedBox(height: 16.h),
+          
+          _buildPremiumLocationField(
+            label: 'مكان الشراء',
+            controller: pickupController,
+            icon: Icons.my_location_rounded,
+            iconColor: accentGold,
+            onMapTap: () {
+              FocusScope.of(context).unfocus(); 
+              onOpenMapSelection('pickup');
+            },
+          ),
+          SizedBox(height: 16.h),
+          
+          _buildPremiumLocationField(
+            label: 'مكان تسليم الطلب',
+            controller: destinationController,
+            icon: Icons.location_on_rounded,
+            iconColor: primaryGreen,
+            onMapTap: () {
+              FocusScope.of(context).unfocus();
+              onOpenMapSelection('destination');
+            },
+          ),
+          SizedBox(height: 16.h),
+          
+          _buildPremiumTextField(
+            controller: priceController,
+            focusNode: priceFocusNode,
+            label: 'أجرة التوصيل للسائق',
+            suffixText: 'جنيه',
+            icon: Icons.payments_outlined,
+            iconColor: accentGold,
+            isNumber: true,
+          ),
+          SizedBox(height: 24.h),
+          
+          Container(
+            width: double.infinity,
+            height: 54.h,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16.r),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryGreen.withValues(alpha: 0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                )
+              ],
+            ),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+              ),
+              onPressed: isSubmittingTrip ? null : onSubmit,
+              child: isSubmittingTrip
+                  ? CircularProgressIndicator(color: accentGold)
+                  : Text(
+                      'إرسال الطلب للكباتن', 
+                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
