@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/trip_model.dart';
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 
 abstract class TripSearchState extends Equatable {
   const TripSearchState();
@@ -13,7 +14,7 @@ class TripSearchInitial extends TripSearchState {}
 class TripSearchLoading extends TripSearchState {}
 
 class TripSearchLoaded extends TripSearchState {
-  final List<TripModel> trips;
+  final List<TripEntity> trips;
 
   const TripSearchLoaded(this.trips);
 

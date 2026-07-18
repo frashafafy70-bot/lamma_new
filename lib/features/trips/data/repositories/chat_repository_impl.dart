@@ -108,4 +108,48 @@ class ChatRepositoryImpl implements ChatRepository {
     }
     await batch.commit();
   }
+
+  @override
+  Future<Map<String, String>> getOtherPartyInfo({required String tripId, required String currentUserId}) async {
+    try {
+      var tripDoc = await _firestore.collection('trips').doc(tripId).get();
+      String otherUserId = '';
+      if (tripDoc.exists) {
+        var tripData = tripDoc.data() as Map<String, dynamic>;
+        String driverId = tripData['driverId'] ?? '';
+        String passengerId = tripData['passengerId'] ?? tripData['userId'] ?? '';
+        if (currentUserId == driverId) {
+          if (passengerId.isNotEmpty) {
+            otherUserId = passengerId;
+          } else {
+            var bookings = await _firestore.collection('trip_bookings')
+                .where('tripId', isEqualTo: tripId).where('driverId', isEqualTo: currentUserId).limit(1).get();
+            if (bookings.docs.isNotEmpty) {
+              otherUserId = bookings.docs.first.data()['passengerId'] ?? '';
+            }
+          }
+        } else {
+          otherUserId = driverId;
+        }
+      }
+      if (otherUserId.isNotEmpty) {
+         var userDoc = await _firestore.collection('users').doc(otherUserId).get();
+         if (userDoc.exists) {
+            var userData = userDoc.data() as Map<String, dynamic>;
+            return {
+              'name': userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر',
+              'phone': userData['phone'] ?? userData['phoneNumber'] ?? '',
+            };
+         }
+      }
+      return {'name': 'مستخدم لَمَّة', 'phone': ''};
+    } catch (e) {
+      return {'name': 'غير معروف', 'phone': ''};
+    }
+  }
+
+  @override
+  Future<void> sendChatNotification({required String tripId, required String message}) async {
+    // ضع لوجيك إرسال الإشعار هنا
+  }
 }

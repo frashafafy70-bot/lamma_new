@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_driver_history_trips_usecase.dart'; 
 import '../../domain/usecases/cancel_trip_use_case.dart';
 import '../../domain/usecases/delete_trip_usecase.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import '../../data/models/trip_model.dart';
 import 'driver_history_state.dart';
 
@@ -15,7 +15,7 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
   final DeleteTripUseCase deleteTripUseCase;
 
   String _currentUserId = '';
-  final List<TripModel> _trips = [];
+  final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   static const int _limit = 15;

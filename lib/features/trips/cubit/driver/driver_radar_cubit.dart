@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_driver_radar_trips_usecase.dart';
 import '../../domain/usecases/accept_radar_trip_usecase.dart';
 import '../../domain/usecases/negotiate_radar_trip_usecase.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import '../../data/models/trip_model.dart';
 import 'driver_radar_state.dart';
 
@@ -14,7 +14,7 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
   final AcceptRadarTripUseCase acceptRadarTripUseCase;
   final NegotiateRadarTripUseCase negotiateRadarTripUseCase;
   
-  final List<TripModel> _trips = [];
+  final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   static const int _limit = 20;
@@ -129,7 +129,7 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
     _isFetchingMore = false;
   }
 
-  void _handleNewTrips(List<TripModel> newTrips, {bool isPagination = false}) {
+  void _handleNewTrips(List<TripEntity> newTrips, {bool isPagination = false}) {
     if (newTrips.isEmpty && isPagination) {
       _hasReachedMax = true;
     } else {

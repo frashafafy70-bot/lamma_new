@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/trip_model.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 abstract class DriverHistoryState extends Equatable {
   const DriverHistoryState();
 
@@ -13,7 +13,7 @@ class DriverHistoryInitial extends DriverHistoryState {}
 class DriverHistoryLoading extends DriverHistoryState {}
 
 class DriverHistoryLoaded extends DriverHistoryState {
-  final List<TripModel> trips;
+  final List<TripEntity> trips;
   final bool hasReachedMax;
   final bool isFetchingMore;
 
@@ -24,7 +24,7 @@ class DriverHistoryLoaded extends DriverHistoryState {
   });
 
   DriverHistoryLoaded copyWith({
-    List<TripModel>? trips,
+    List<TripEntity>? trips,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {

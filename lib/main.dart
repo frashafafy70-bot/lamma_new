@@ -9,43 +9,36 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_storage/firebase_storage.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart'; 
-import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart'; 
+
+// مسار الترجمة الصحيح الخاص بمشروعك
+import 'package:lamma_new/l10n/app_localizations.dart';
 import 'firebase_options.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/services/navigation_service.dart';
 import 'package:lamma_new/core/services/fcm_service.dart';
 import 'package:lamma_new/core/services/notification_service.dart';
-
 import 'package:lamma_new/core/di/injection_container.dart' as di; 
-
 import 'package:lamma_new/core/network/network_cubit.dart';
 import 'package:lamma_new/core/network/network_state.dart';
-
 import 'package:lamma_new/core/local_storage/cache_helper.dart'; 
-
 import 'package:lamma_new/core/routes/app_router.dart';
 
-import 'package:lamma_new/features/auth/presentation/pages/login_page.dart'; 
 import 'package:lamma_new/features/auth/cubit/auth_cubit.dart'; 
-
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart'; 
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_chat_cubit.dart';
-
-import 'package:lamma_new/features/home/home_page.dart'; 
 import 'package:lamma_new/features/notifications/presentation/cubit/notification_cubit.dart';
-
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
-
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
-
-// 🟢 استدعاء ملف الربط الجديد والكيوبت الخاص بالمعمارية النظيفة لقسم الرحلات
 import 'package:lamma_new/features/trips/trip_injection.dart';
 import 'package:lamma_new/features/trips/presentation/cubit/trip_cubit.dart';
+
+// 🟢 استدعاء خدمة الخريطة لتحميل أيقونة السيارة المخصصة
+import 'package:lamma_new/features/trips/data/services/map_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -75,9 +68,12 @@ void main() async {
   await di.initDI(); 
   debugPrint('--- 6. DI Initialized ---');
   
-  // 🟢 تهيئة قسم الرحلات الجديد بالمعمارية النظيفة (بدون المساس بالقديم)
   initTripModule();
   debugPrint('--- 7. Trip Module Initialized ---');
+
+  // 🟢 التحميل المسبق لأيقونة السيارة (Pre-cache)
+  await MapService().loadCustomMarkers();
+  debugPrint('--- 8. Map Markers Pre-cached ---');
 
   if (!kIsWeb) {
     FlutterError.onError = (errorDetails) {
@@ -92,49 +88,57 @@ void main() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     await NotificationService.initLocalNotifications();
-    debugPrint('--- 8. Local Notifications Initialized ---');
+    debugPrint('--- 9. Local Notifications Initialized ---');
     
     await FCMService.initFCM();
-    debugPrint('--- 9. FCM Initialized ---');
+    debugPrint('--- 10. FCM Initialized ---');
   }
 
-  // 🟢 التعديل الأهم هنا: مررنا الـ navigatorKey للكونستركتور بتاع الراوتر مباشرة
   final appRouter = AppRouter(navigatorKey: NavigationService.navigatorKey);
-  debugPrint('--- 10. App Router Created ---');
+  debugPrint('--- 11. App Router Created ---');
 
-  // 🟢 تمريرها للتطبيق
-  debugPrint('--- 11. Starting runApp ---');
+  debugPrint('--- 12. Starting runApp ---');
   runApp(LammaApp(appRouter: appRouter)); 
 }
 
 class LammaApp extends StatelessWidget {
-  final AppRouter appRouter; // 🟢 استلام الـ Router
+  final AppRouter appRouter;
 
   const LammaApp({super.key, required this.appRouter});
 
   @override
   Widget build(BuildContext context) {
-    return ScreenUtilInit(
-      designSize: const Size(360, 690), 
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (context, child) {
-        return MultiBlocProvider(
-          providers: [
-            BlocProvider(create: (context) => di.sl<NetworkCubit>()),
-            BlocProvider(create: (context) => di.sl<AuthCubit>()),
-            BlocProvider(create: (context) => di.sl<NotificationCubit>()),
-            BlocProvider(create: (context) => di.sl<ProfileCubit>()),
-            BlocProvider(create: (context) => di.sl<TripActionsCubit>()),
-            BlocProvider(create: (context) => di.sl<DriverActiveTripsCubit>()),
-            BlocProvider(create: (context) => di.sl<TripChatCubit>()),
-            BlocProvider(create: (context) => di.sl<HomeCubit>()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => di.sl<NetworkCubit>()),
+        BlocProvider(create: (context) => di.sl<AuthCubit>()),
+        BlocProvider(create: (context) => di.sl<NotificationCubit>()),
+        BlocProvider(create: (context) => di.sl<ProfileCubit>()),
+        BlocProvider(create: (context) => di.sl<TripActionsCubit>()),
+        BlocProvider(create: (context) => di.sl<DriverActiveTripsCubit>()),
+        BlocProvider(create: (context) => di.sl<TripChatCubit>()),
+        BlocProvider(create: (context) => di.sl<HomeCubit>()),
+        BlocProvider(create: (context) => di.sl<TripCubit>()),
+      ],
+      child: ScreenUtilInit(
+        designSize: const Size(360, 690), 
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (context, child) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            // 🟢 إعدادات اللغات (الـ Localization)
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('ar'), 
             
-            // 🟢 توفير الـ TripCubit الجديد لكل شاشات التطبيق
-            BlocProvider(create: (context) => di.sl<TripCubit>()),
-          ],
-          child: MaterialApp.router(
-            // تم إزالة الـ Center والـ ConstrainedBox والـ Directionality اليدوي هنا
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryDark),
+              useMaterial3: true,
+              fontFamily: 'Cairo', 
+            ),
+            routerConfig: appRouter.config(),
+            
             builder: (context, widget) {
               return BlocBuilder<NetworkCubit, NetworkState>(
                 builder: (context, networkState) {
@@ -167,8 +171,9 @@ class LammaApp extends StatelessWidget {
                                 children: [
                                   Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18.sp),
                                   SizedBox(width: 8.w),
+                                  // 🟢 تأمين الترجمة لتجنب الـ Null Check Operator Error
                                   Text(
-                                    'لا يوجد اتصال بالإنترنت',
+                                    AppLocalizations.of(context)?.noInternetConnection ?? 'لا يوجد اتصال بالإنترنت',
                                     style: TextStyle(
                                       fontFamily: 'Cairo',
                                       color: Colors.white,
@@ -186,25 +191,9 @@ class LammaApp extends StatelessWidget {
                 },
               );
             },
-            debugShowCheckedModeBanner: false,
-            // التطبيق سيتعرف على اللغة العربية والاتجاه (RTL) تلقائياً من هنا
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [Locale('ar', 'EG')],
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryDark),
-              useMaterial3: true,
-              fontFamily: 'Cairo', 
-            ),
-            
-            // 🟢 إعدادات التوجيه الجديدة
-            routerConfig: appRouter.config(),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

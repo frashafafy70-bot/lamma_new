@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; 
 import 'package:intl/intl.dart' hide TextDirection; 
 import 'package:rxdart/rxdart.dart';
-
+import 'package:lamma_new/core/di/injection_container.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/available_travels_cubit.dart';

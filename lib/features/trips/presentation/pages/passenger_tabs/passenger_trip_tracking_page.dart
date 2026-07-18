@@ -1,5 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import 'dart:async'; 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -210,7 +210,7 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
     }
   }
 
-  void _showRatingDialog(BuildContext context, TripModel trip) {
+  void _showRatingDialog(BuildContext context, TripEntity trip) {
     int selectedRating = 5;
     TextEditingController commentController = TextEditingController();
 
@@ -351,7 +351,8 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
             }
 
             var tripData = snapshot.data!.data() as Map<String, dynamic>;
-            TripModel trip = TripModel.fromMap(tripData, snapshot.data!.id);
+            // 🟢 استخدام الـ Model بدلاً من الـ Entity للتحويل
+            TripEntity trip = TripModel.fromMap(tripData, snapshot.data!.id);
             
             bool driverAssigned = trip.driverId != null && trip.driverId!.isNotEmpty;
             
@@ -427,15 +428,15 @@ class _PassengerTripTrackingPageState extends State<PassengerTripTrackingPage> w
                             Container(
                               padding: EdgeInsets.all(8.w),
                               decoration: BoxDecoration(
-                                color: _getStatusColor(trip.status ?? '').withValues(alpha: 0.1),
+                                color: _getStatusColor(trip.status.value).withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.info_outline, color: _getStatusColor(trip.status ?? ''), size: 24.sp),
+                              child: Icon(Icons.info_outline, color: _getStatusColor(trip.status.value), size: 24.sp),
                             ),
                             SizedBox(width: 12.w),
                             Expanded(
                               child: Text(
-                                _getStatusText(trip.status ?? ''),
+                                _getStatusText(trip.status.value),
                                 style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                               ),
                             ),

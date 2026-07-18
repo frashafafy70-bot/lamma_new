@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 // استدعاء الفورمز الفرعية من الفولدر اللي إنت عملته
 import 'service_form/ride_service_form.dart';
@@ -44,11 +45,12 @@ class TripForm extends StatelessWidget {
     required this.onAudioRecorded,
   });
 
-  Widget _buildTripCategorySelector() {
+  Widget _buildTripCategorySelector(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     List<Map<String, dynamic>> categories = [
-      {'id': 'داخلي', 'name': 'توصيل', 'icon': Icons.local_taxi_rounded},
-      {'id': 'طلبات', 'name': 'شراء طلبات', 'icon': Icons.shopping_bag_rounded},
-      {'id': 'خارجي', 'name': 'سفر', 'icon': Icons.emoji_transportation_rounded}
+      {'id': 'داخلي', 'name': localizations.tripForm_deliveryName, 'icon': Icons.local_taxi_rounded},
+      {'id': 'طلبات', 'name': localizations.tripForm_buyOrdersName, 'icon': Icons.shopping_bag_rounded},
+      {'id': 'خارجي', 'name': localizations.tripForm_travelName, 'icon': Icons.emoji_transportation_rounded}
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -93,21 +95,23 @@ class TripForm extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildTripCategorySelector(),
+          _buildTripCategorySelector(context),
           SizedBox(height: 16.h),
           
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             alignment: Alignment.topCenter,
-            child: _buildSelectedForm(),
+            child: _buildSelectedForm(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSelectedForm() {
+  Widget _buildSelectedForm(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+    
     if (tripCategory == 'داخلي') {
       return RideServiceForm(
         vehicleType: vehicleType,
@@ -143,7 +147,10 @@ class TripForm extends StatelessWidget {
       return Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 40.h),
-          child: Text('خدمات السفر قريباً...', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+          child: Text(
+            localizations.tripForm_travelServicesSoon, 
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)
+          ),
         ),
       );
     }

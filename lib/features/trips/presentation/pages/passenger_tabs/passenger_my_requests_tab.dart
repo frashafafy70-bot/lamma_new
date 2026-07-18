@@ -16,6 +16,7 @@ import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart'
 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart'; // 🟢 تم إضافة الـ Entity هنا
 
 // 🟢
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
@@ -124,7 +125,7 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
             BlocListener<PassengerMyRequestsCubit, PassengerMyRequestsState>(
               listener: (context, state) async {
                 if (state is PassengerMyRequestsLoaded) {
-                  for (TripModel trip in state.requests) {
+                  for (TripEntity trip in state.requests) {
                     final tripId = trip.id ?? '';
                     final status = trip.status;
                     
@@ -360,7 +361,8 @@ class _PassengerMyRequestsTabState extends State<PassengerMyRequestsTab> with Au
                             itemBuilder: (context, index) {
                               final trip = requests[index];
                               
-                              Map<String, dynamic> tripDataMap = trip.toMap();
+                              // 🟢 التحويل هنا بيتم بشكل سليم
+                              Map<String, dynamic> tripDataMap = (trip as TripModel).toMap();
                               tripDataMap['id'] = trip.id;
                               
                               return MyRequestTripCard(

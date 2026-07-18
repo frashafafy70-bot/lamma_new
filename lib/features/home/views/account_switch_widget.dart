@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+// 🟢 استيراد الترجمة بالمسار الصحيح لمشروعك
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
 import '../role_registration_sheets.dart';
-import 'package:lamma_new/core/constants/app_strings.dart';
 import 'package:lamma_new/core/constants/firebase_constants.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
 
@@ -16,26 +18,33 @@ class AccountSwitchWidget extends StatelessWidget {
     required this.currentRole,
   });
 
-  List<Map<String, dynamic>> get _roles => [
-    {'key': 'client', 'name': 'عميل', 'icon': Icons.person_rounded},
-    {'key': 'driver', 'name': 'كابتن', 'icon': Icons.local_taxi_rounded}, 
-    {'key': 'lawyer', 'name': 'محامي', 'icon': Icons.gavel_rounded},
-    {'key': 'doctor', 'name': 'طبيب', 'icon': Icons.medical_services_rounded},
-    {'key': 'nurse', 'name': 'تمريض', 'icon': Icons.healing_rounded},
-  ];
+  // 🟢 تم تحويلها لدالة تأخذ context عشان نقدر نقرأ الترجمة منها
+  List<Map<String, dynamic>> _getRoles(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      {'key': 'client', 'name': l10n.clientRoleName, 'icon': Icons.person_rounded},
+      {'key': 'driver', 'name': l10n.captainRoleName, 'icon': Icons.local_taxi_rounded}, 
+      {'key': 'lawyer', 'name': l10n.lawyerRoleName, 'icon': Icons.gavel_rounded},
+      {'key': 'doctor', 'name': l10n.doctorRoleName, 'icon': Icons.medical_services_rounded},
+      {'key': 'nurse', 'name': l10n.nurseRoleName, 'icon': Icons.healing_rounded},
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final roles = _getRoles(context);
+
     String safeCurrentRole = currentRole.trim().toLowerCase();
     if (safeCurrentRole == 'customer') safeCurrentRole = 'client';
     if (safeCurrentRole == 'captain') safeCurrentRole = 'driver';
 
-    final currentRoleData = _roles.firstWhere(
+    final currentRoleData = roles.firstWhere(
       (role) => role['key'] == safeCurrentRole,
-      orElse: () => _roles.first, 
+      orElse: () => roles.first, 
     );
 
-    final otherRoles = _roles.where((role) => role['key'] != safeCurrentRole).toList();
+    final otherRoles = roles.where((role) => role['key'] != safeCurrentRole).toList();
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -49,7 +58,7 @@ class AccountSwitchWidget extends StatelessWidget {
             onPressed: () => Navigator.pop(context), 
           ),
           title: Text(
-            AppStrings.accountSwitchTitle, 
+            l10n.accountSwitchTitle, 
             style: TextStyle(
               color: Colors.white,
               fontFamily: 'Cairo',
@@ -65,7 +74,7 @@ class AccountSwitchWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                AppStrings.currentRole,
+                l10n.currentRoleLabel,
                 style: TextStyle(
                   color: AppColors.textMuted.shade400,
                   fontFamily: 'Cairo',
@@ -76,6 +85,7 @@ class AccountSwitchWidget extends StatelessWidget {
               SizedBox(height: 12.h),
               
               _buildCurrentRoleCard(
+                context: context,
                 roleName: currentRoleData['name'],
                 icon: currentRoleData['icon'],
               ),
@@ -83,7 +93,7 @@ class AccountSwitchWidget extends StatelessWidget {
               SizedBox(height: 32.h), 
 
               Text(
-                AppStrings.switchToOtherRole,
+                l10n.switchToOtherRole,
                 style: TextStyle(
                   color: AppColors.textMuted.shade400,
                   fontFamily: 'Cairo',
@@ -123,7 +133,8 @@ class AccountSwitchWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentRoleCard({required String roleName, required IconData icon}) {
+  Widget _buildCurrentRoleCard({required BuildContext context, required String roleName, required IconData icon}) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h), 
       decoration: BoxDecoration(
@@ -183,7 +194,7 @@ class AccountSwitchWidget extends StatelessWidget {
                 ),
               ),
               Text(
-                AppStrings.activeNow,
+                l10n.activeNow,
                 style: TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 13.sp,
@@ -210,6 +221,8 @@ class AccountSwitchWidget extends StatelessWidget {
     required String roleName,
     required IconData icon,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Padding(
       padding: EdgeInsets.only(bottom: 14.h),
       child: Material(
@@ -232,7 +245,7 @@ class AccountSwitchWidget extends StatelessWidget {
             
             String fullName = profileState.userName.isNotEmpty 
                 ? profileState.userName 
-                : "مستخدم لَمَّة"; 
+                : l10n.lammaDefaultUserName; 
 
             if (roleKey == 'driver') {
               if (isRoleVerified) {

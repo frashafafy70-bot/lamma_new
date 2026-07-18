@@ -1,8 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../../../../l10n/app_localizations.dart';
 
 // استيراد الخريطة الموحدة والـ MapService
 import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart';
@@ -48,6 +52,10 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
   double _markerRotation = 0.0;
   bool _isFirstCameraMove = true;
 
+  // 🟢 تعريف المتغيرات لتخزين الترجمة لمنع استدعائها مراراً داخل الأنيميشن
+  late String _myLocationTitle;
+  late String _driverTitle;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +67,15 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
     if (widget.driverLocation != null) {
       _currentDriverPosition = LatLng(widget.driverLocation!.latitude, widget.driverLocation!.longitude);
     }
+  }
+
+  // 🟢 جلب الترجمة مرة واحدة فقط عند التهيئة أو تغير لغة التطبيق
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final l10n = AppLocalizations.of(context)!;
+    _myLocationTitle = l10n.myLocationMarker;
+    _driverTitle = l10n.driverMarker;
   }
 
   @override
@@ -127,6 +144,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
 
   void _updateMarkers() {
     if (!mounted) return;
+
     setState(() {
       _markers.clear();
 
@@ -135,7 +153,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
           Marker(
             markerId: const MarkerId('passenger_marker'),
             position: LatLng(widget.passengerLocation!.latitude, widget.passengerLocation!.longitude),
-            infoWindow: const InfoWindow(title: 'موقعي'),
+            infoWindow: InfoWindow(title: _myLocationTitle), // 🟢 استخدام المتغير الجاهز
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
           ),
         );
@@ -148,7 +166,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
             position: _currentDriverPosition!,
             rotation: _markerRotation, 
             anchor: const Offset(0.5, 0.5), 
-            infoWindow: const InfoWindow(title: 'السائق'),
+            infoWindow: InfoWindow(title: _driverTitle), // 🟢 استخدام المتغير الجاهز
             icon: MapService().carMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), 
           ),
         );

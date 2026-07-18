@@ -59,6 +59,7 @@ dependencies:
   equatable: ^2.1.0
   connectivity_plus: ^7.2.0
   get_it: ^9.2.1
+  internet_connection_checker: ^1.0.0+1
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  generate: true # 🟢 تم تفعيل التوليد التلقائي للغات هنا
   assets:
     - .env
     - assets/icons/

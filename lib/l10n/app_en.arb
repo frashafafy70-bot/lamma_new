@@ -1,0 +1,453 @@
+{
+  "@@locale": "en",
+  "noInternetConnection": "No internet connection",
+  "lammaPlatform": "Lamma Platform",
+  "loginSubtitle": "All your services in one place, please login",
+  "loginTitle": "Login",
+  "identifierLabel": "Email, Phone, or Username",
+  "emptyIdentifierError": "Please enter your details",
+  "passwordLabel": "Password",
+  "emptyPasswordError": "Please enter your password",
+  "rememberMe": "Remember me",
+  "forgotPassword": "Forgot Password?",
+  "loginButton": "Login",
+  "or": "OR",
+  "loginWithGoogle": "Login with Google",
+  "noAccount": "Don't have an account?",
+  "registerNow": "Register Now",
+  "fullNameRequiredError": "Please enter your full name",
+  "invalidEmailError": "Please enter a valid email address",
+  "invalidPhoneError": "Please enter a valid phone number",
+  "otpSentSuccess": "Verification code sent successfully! 💬",
+  "createNewAccount": "Create a new account",
+  "joinLammaFamily": "Join the Lamma family and enjoy all services",
+  "passengerRole": "Passenger",
+  "captainRole": "Captain",
+  "fullNameHint": "Full Name",
+  "emailHint": "Email Address",
+  "registerNewAccount": "Register new account",
+  "signUpWithGoogle": "Sign up with Google",
+  "signUpWithEmailOnly": "Sign up with email only",
+  "alreadyHaveAccount": "Already have an account?",
+  "loginNow": "Login now",
+  "fillAllFieldsError": "Please fill in all fields",
+  "passwordLengthError": "Password must be at least 6 characters",
+  "registrationSuccess": "Registered successfully",
+  "completeDataTitle": "Complete Data",
+  "completeDataSubtitle": "Enter your email and password to create your account",
+  "saveAndActivate": "Save data and activate",
+  "forgotPasswordAppBar": "Restore Password",
+  "activationCodeSentMsg": "Activation code sent successfully 💬",
+  "sendSuccess": "Sent successfully",
+  "forgotPasswordHeader": "Forgot your password?",
+  "forgotPasswordDescription": "Choose your preferred recovery method to easily reset your password.",
+  "emailMethod": "Email",
+  "phoneMethod": "Phone Number",
+  "emailExampleHint": "example@mail.com",
+  "phoneExampleHint": "10xxxxxxxxx",
+  "sendResetLink": "Send Reset Link",
+  "sendVerificationCode": "Send Verification Code",
+  "otpLengthError": "Please enter the full 6-digit verification code",
+  "loginSuccess": "Logged in successfully",
+  "otpVerifiedNeedPassword": "Phone verified successfully, please enter a password",
+  "verifyPhoneTitle": "Verify Phone Number",
+  "verifyPhoneSubtitle": "Enter the 6-digit verification code\nsent to {phone}",
+  "@verifyPhoneSubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyAndActivate": "Verify and Activate",
+  "didntReceiveCode": "Didn't receive the code?",
+  "resendingCode": "Resending...",
+  "resendCode": "Resend",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "passwordResetSuccess": "Password changed successfully! 🎉 Please login.",
+  "setNewPasswordTitle": "Set New Password",
+  "setNewPasswordSubtitle": "Enter the verification code sent to {phone}\nthen set your new password",
+  "@setNewPasswordSubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "newPasswordHint": "New Password",
+  "confirmPasswordHint": "Confirm Password",
+  "saveAndLogin": "Save and Login",
+  "notificationsTitle": "Notifications",
+  "noNotifications": "No notifications currently 🔕",
+  "loading": "Loading...",
+  "navHome": "Home",
+  "navRadar": "Radar",
+  "navActive": "Active",
+  "navHistory": "History",
+  "navSearch": "Search",
+  "navOrders": "Orders",
+  "navAccount": "Account",
+  "changePasswordTitle": "Change Password",
+  "chooseRecoveryMethod": "Choose recovery method to reset your password:",
+  "sendEmailLink": "Send Email Link",
+  "emailNotAvailable": "Email is not available, please complete your profile.",
+  "sendPhoneCode": "Send Phone Code",
+  "phoneNotAvailable": "Phone number is not available, please complete your profile.",
+  "cancel": "Cancel",
+  "supportTitle": "Technical Support & Complaints",
+  "supportHint": "Write your complaint, problem, or suggestion here...",
+  "sendSupport": "Send Support",
+  "operationSuccess": "Operation completed successfully",
+  "errorOccurred": "An error occurred",
+  "analyzingDocumentMsg": "🤖 Analyzing document in cloud...",
+  "docValidationAlertTitle": "Document Validation Alert ⚠️",
+  "docValidationAlertBody": "AI could not recognize the document. Do you want to proceed with manual review?",
+  "yesContinue": "Yes, Continue",
+  "docAttachedSuccessfully": "✅ Document attached successfully.",
+  "errorFetchingDoc": "Error fetching document",
+  "fillAllFieldsWarning": "Please complete all fields",
+  "fillAllFieldsAndImagesWarning": "Please complete all fields and images",
+  "errorOccurredWithDetails": "Error: {error}",
+  "@errorOccurredWithDetails": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activateAccountAndStart": "Activate Account & Start",
+  "personalIdFront": "Personal ID (Front)",
+  "personalIdBack": "Personal ID (Back)",
+  "edit": "Edit",
+  "attachedSuccessfully": "Attached",
+  "activateCaptainAccount": "Activate Captain Account 🚖",
+  "carType": "Vehicle Type",
+  "plateNumber": "Plate Number",
+  "carLicenseFront": "Vehicle License (Front)",
+  "carLicenseBack": "Vehicle License (Back)",
+  "captainPrefix": "Captain {name}",
+  "@captainPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateLawyerAccount": "Activate Lawyer Account ⚖️",
+  "barDegree": "Bar Degree",
+  "barRegistrationNumber": "Bar Registration Number",
+  "attachSyndicateId": "Attach Syndicate ID",
+  "lawyerPrefix": "Mr./Ms. {name}",
+  "@lawyerPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateDoctorAccount": "Activate Doctor Account 👨‍⚕️",
+  "specialty": "Specialty",
+  "medicalLicenseNumber": "Medical License Number",
+  "doctorPrefix": "Dr. {name}",
+  "@doctorPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateNurseAccount": "Activate Nurse Account 🩺",
+  "nurseQualification": "Qualification (Specialist / Technician)",
+  "nurseLicenseNumber": "Syndicate License Number",
+  "nursePrefix": "Nurse {name}",
+  "@nursePrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeUser": "Welcome, {name}",
+  "@welcomeUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clientRoleName": "Client",
+  "captainRoleName": "Captain",
+  "lawyerRoleName": "Lawyer",
+  "doctorRoleName": "Doctor",
+  "nurseRoleName": "Nurse",
+  "serviceProviderRoleName": "Service Provider",
+  "currentAccountMode": "Current Account Mode",
+  "switchBtn": "Switch",
+  "deliveryAndTrips": "Delivery & Trips",
+  "requestCaptainNow": "Request a captain immediately",
+  "medicalServices": "Medical Services",
+  "doctorsAndClinics": "Doctors & Clinics",
+  "medicalSectionComingSoon": "Medical section will be activated soon",
+  "legalServices": "Legal Services",
+  "consultationsAndPowerOfAttorney": "Consultations & Power of Attorney",
+  "legalSectionComingSoon": "Legal services section will be activated soon",
+  "shopAndStores": "Shop & Stores",
+  "shopBestProductsEasily": "Shop the best products easily",
+  "storesSectionUnderConstruction": "Stores section is under construction",
+  "dashboardTitle": "Dashboard",
+  "consultationsAndAgencies": "Consultations & Agencies",
+  "accountSwitchTitle": "Switch Account",
+  "currentRoleLabel": "Current Role",
+  "switchToOtherRole": "Switch to another role",
+  "activeNow": "Active Now",
+  "lammaDefaultUserName": "Lamma User",
+  "loadingDataPleaseWait": "Loading your data, please wait...",
+  "passwordResetConfirmation": "Do you want to send a password reset link to your email?",
+  "sendLink": "Send Link",
+  "supportSentSuccess": "Your support message has been sent successfully ✅",
+  "supportSendError": "An error occurred while sending ❌",
+  "activeOrdersTitle": "Track Active Orders",
+  "errorLoadingOrders": "Error loading orders",
+  "noActiveOrdersCurrent": "You have no active orders currently",
+  "requestCaptainNowSub": "Request a captain now and your trip will appear here",
+  "tripWord": "Trip",
+  "determinedLater": "Determined later",
+  "statusPending": "Pending",
+  "statusAccepted": "Accepted",
+  "statusNegotiating": "Negotiating",
+  "statusArrived": "Driver Arrived",
+  "statusInProgress": "In Progress",
+  "pickupLocationPlaceholder": "Pickup Location",
+  "dropoffLocationPlaceholder": "Dropoff Location",
+  "priceWithCurrency": "{price} EGP",
+  "@priceWithCurrency": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeGreeting": "Welcome 👋",
+  "loadingDataPlaceholder": "Loading data...",
+  "editPersonalData": "Edit Personal Profile",
+  "savedAddresses": "Saved Addresses",
+  "familySubscription": "Family Subscription (Child Tracking)",
+  "logoutFromPlatform": "Logout from Platform",
+  "bookingLoadingMsg": "Sending booking request...",
+  "searchForTripTitle": "Search for a Trip",
+  "fromCity": "From City",
+  "toCity": "To City",
+  "enterCitiesWarning": "Please enter departure and arrival cities",
+  "searchTripsButton": "Search Trips",
+  "noTripsAvailable": "No trips available for this route currently.",
+  "notSpecified": "Not specified",
+  "bookAction": "Book",
+  "searchPrompt": "Set your route and press search to start",
+  "tripRoute": "{from} ➔ {to}",
+  "@tripRoute": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "Object"
+      }
+    }
+  },
+  "tripDetailsSubtitle": "Driver: {driver} | Price: {price} EGP",
+  "@tripDetailsSubtitle": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSuccessMsg": "Logged in successfully! 🚀",
+  "welcomeToLamma": "Welcome to Lamma",
+  "loginToContinue": "Login to continue",
+  "passwordHint": "Password",
+  "myLocationMarker": "My Location",
+  "driverMarker": "Driver",
+  "addNewAddress": "Add New Address",
+  "editAddressTitle": "Edit Address",
+  "addressNameHint": "Address Name (e.g., Home, Work)",
+  "addressDetailsHint": "Address Details",
+  "setAsDefaultAddress": "Set as Default Address",
+  "saveAddress": "Save Address",
+  "deleteAddressTitle": "Delete Address",
+  "deleteAddressConfirmation": "Are you sure you want to permanently delete this address?",
+  "delete": "Delete",
+  "noSavedAddresses": "No saved addresses",
+  "defaultAddressLabel": "Default",
+  "allCategory": "All",
+  "tripsAndDeliveryCategory": "Trips & Delivery",
+  "legalConsultationsCategory": "Legal Consultations",
+  "storesCategory": "Stores",
+  "medicalServicesCategory": "Medical Services",
+  "requestDriverService": "Request Driver Now",
+  "deliveryService": "Delivery",
+  "lawyerConsultationService": "Lawyer Consultation",
+  "officialPowerOfAttorneyService": "Official Power of Attorney",
+  "marketShoppingService": "Market Shopping",
+  "pharmaciesService": "Pharmacies",
+  "bookMedicalAppointmentService": "Book Medical Appointment",
+  "comprehensiveSearch": "Comprehensive Search",
+  "searchHint": "What are you looking for? (Driver, Lawyer...)",
+  "typeToStartSearching": "Type what you are looking for to start",
+  "noMatchingResults": "No results match your search",
+  "serviceUnderPreparation": "This service is under preparation",
+  "deliveryDisplay": "Delivery",
+  "buyOrdersDisplay": "Buy Orders",
+  "carVehicle": "Car",
+  "motorcycleVehicle": "Motorcycle",
+  "tuktukVehicle": "TukTuk",
+  "pickupLocationLabel": "Current location / Pickup",
+  "destinationLocationLabel": "Destination / Drop-off",
+  "estimatedOrderPriceLabel": "Estimated order cost (to buy)",
+  "deliveryFareLabel": "Delivery fare for driver",
+  "sendPurchaseRequestBtn": "Send Purchase Request",
+  "sendRequestBtn": "Send Request",
+  "deleteTripTitle": "Delete Order",
+  "deleteTripConfirmation": "Are you sure you want to remove this order from your list?",
+  "goBack": "Back",
+  "yesDelete": "Yes, Delete",
+  "cancelTripTitle": "Cancel Trip",
+  "cancelTripConfirmation": "Are you sure you want to cancel this trip? The other party will be notified.",
+  "yesCancel": "Yes, Cancel",
+  "tripCancelledSuccessfully": "Trip cancelled successfully",
+  "errorDuringCancellation": "An error occurred during cancellation",
+  "negotiateFareTitle": "Negotiate Fare",
+  "suggestedPriceHint": "Enter your suggested price",
+  "currencyEGP": "EGP",
+  "sendBtn": "Send",
+  "tripEndedTitle": "Trip Ended!",
+  "submitRatingBtn": "Submit Rating",
+  "travel_preBooking": "Pre-booking",
+  "travel_travelingSoon": "Traveling to another governorate soon?",
+  "travel_travelDescription": "Set your route and date, let clients book with you in advance and share the cost.",
+  "travel_addTravelTrip": "Add Travel Trip",
+  "travel_publishNewTrip": "Publish New Travel Trip",
+  "travel_individualSeats": "Individual Seats",
+  "travel_fullCar": "Full Car",
+  "travel_availableSeatsCount": "Available Seats:",
+  "travel_departurePoint": "Departure Point (From)",
+  "travel_destinationPoint": "Destination (To)",
+  "travel_dateAndTime": "Date and Time of Departure",
+  "travel_fullTripPrice": "Full Trip Price (EGP)",
+  "travel_singleSeatPrice": "Single Seat Price (EGP)",
+  "travel_publishBtn": "Publish Trip",
+  "travel_selectDateError": "Please select the date and time of the trip",
+  "travel_activeTripExistError": "Sorry, you cannot publish a new trip because you already have an active one.",
+  "travel_enterDepartureError": "Please enter departure point",
+  "travel_enterDestinationError": "Please enter destination",
+  "travel_enterPriceError": "Please enter the price",
+  "tripForm_deliveryName": "Delivery",
+  "tripForm_buyOrdersName": "Buy Orders",
+  "tripForm_travelName": "Travel",
+  "tripForm_travelServicesSoon": "Travel services coming soon...",
+  "tripMap_locating": "Locating...",
+  "tripMap_pickupPoint": "Pickup Point",
+  "tripMap_dropoffPoint": "Dropoff Point",
+  "tripMap_gpsDisabled": "Location services (GPS) are disabled, please enable them.",
+  "tripMap_permissionDenied": "Location permissions are denied.",
+  "tripMap_permissionDeniedForever": "Location permissions are permanently denied, please enable them in settings.",
+  "tripMap_errorFetchingLocation": "Error fetching location",
+  "tripMap_unknownLocation": "Unknown location",
+  "tripMap_regularTrip": "Regular Trip",
+  "tripMap_governoratesTravel": "Governorates Travel",
+  "tripMap_confirmThisAddress": "Confirm this address",
+  "tripMap_confirmPickupHere": "Confirm pickup here",
+  "tripMap_home": "Home",
+  "tripMap_addHomeAddress": "Add home address",
+  "tripMap_work": "Work",
+  "tripMap_addWorkAddress": "Add work address",
+  "locationPermissionTitle": "Location Permission",
+  "locationPermissionMessage": "Location permission is permanently denied. Please enable it in the app settings to continue.",
+  "openSettings": "Open Settings",
+  "sendingRequest": "Sending your request...",
+  "pickupLocation": "Pickup Location",
+  "destinationLocation": "Destination",
+  "locatingMap": "Locating on map...",
+  "fetchingAddress": "Fetching address...",
+  "confirmLocation": "Confirm Location 🚖",
+  "errorSelectPickup": "Please select a pickup location first",
+  "errorSelectDestination": "Please select a destination",
+  "errorProvideOrderDetails": "Please write or record the order details",
+  "errorEnterPrice": "Please enter a suggested price",
+  "errorInvalidPrice": "Please enter a valid price (numbers only)",
+  "requestSentSuccess": "Your request has been sent successfully! 🚀",
+  "activeTripsTabTitle": "Active Trips",
+  "travelBookingRequests": "Travel Booking Requests",
+  "yourCurrentTrips": "Your Current Trips",
+  "noActiveTripsCurrently": "No active trips currently",
+  "cancelBookingTitle": "Cancel Booking",
+  "cancelBookingConfirmation": "Are you sure you want to cancel this booking and remove the passenger?",
+  "backBtn": "Back",
+  "unspecified": "Unspecified",
+  "fullCarBookingRequest": "Full Car Booking Request",
+  "seatsBookingRequest": "Seats Booking Request",
+  "pendingSeatsRequest": "⏳ Pending - Client requesting {seats} seats",
+  "@pendingSeatsRequest": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptedSeatsRequest": "✅ Accepted - Client booked {seats} seats",
+  "@acceptedSeatsRequest": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "requestTime": "Request Time: {time}",
+  "@requestTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptBtn": "Accept",
+  "rejectBtn": "Reject",
+  "messageClient": "Message Client",
+  "pickupLocationDefault": "Pickup Location",
+  "dropoffLocationDefault": "Dropoff Location",
+  "fullSeats": "Full 🔴",
+  "availableSeats": "{seats} seats available",
+  "@availableSeats": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "searchingForPassengers": "Searching for passengers",
+  "clientProposesNewPrice": "Client proposed a new price",
+  "waitingForClientResponse": "Waiting for client response",
+  "proposedPrice": "Proposed Price: {price} EGP",
+  "@proposedPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "finalPrice": "Final Price: {price} EGP",
+  "@finalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "agreeWithPrice": "Agree to Price",
+  "negotiateBtn": "Negotiate",
+  "activateActiveTrip": "Activate Trip",
+  "detailsAndMap": "Details & Map"
+}

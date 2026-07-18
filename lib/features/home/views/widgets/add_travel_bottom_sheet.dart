@@ -3,17 +3,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// 🟢 تم إزالة import 'package:firebase_auth/firebase_auth.dart'; نهائياً لنظافة المعمارية
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:lamma_new/l10n/app_localizations.dart';
 
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
-import 'package:lamma_new/features/trips/data/models/trip_model.dart';
-// 🟢 استيراد ملف الكيوبت الخاص بالرحلات النشطة للسائق
+import 'package:lamma_new/features/trips/domain/entities/trip_status.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
+import 'package:lamma_new/core/constants/app_constants.dart';
 
 class AddTravelBottomSheet extends StatefulWidget {
   final String userName;
-  const AddTravelBottomSheet({super.key, required this.userName});
+  final String driverId; // 🟢 التعديل الاحترافي: استقبال الـ ID من الخارج
+
+  const AddTravelBottomSheet({
+    super.key, 
+    required this.userName,
+    required this.driverId, // 🟢 إجبار الشاشة الأب على تمرير الـ ID
+  });
 
   @override
   State<AddTravelBottomSheet> createState() => _AddTravelBottomSheetState();
@@ -43,6 +51,8 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -70,7 +80,10 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                   children: [
                     Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
                     SizedBox(width: 10.w),
-                    Text('نشر رحلة سفر جديدة', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                    Text(
+                      l10n.travel_publishNewTrip,
+                      style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)
+                    ),
                   ],
                 ),
                 SizedBox(height: 20.h),
@@ -87,7 +100,12 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                             borderRadius: BorderRadius.circular(10.r),
                             border: Border.all(color: !isFullCar ? royalGreen : Colors.grey.shade300)
                           ),
-                          child: Center(child: Text('مقاعد فردية', style: TextStyle(color: !isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
+                          child: Center(
+                            child: Text(
+                              l10n.travel_individualSeats, 
+                              style: TextStyle(color: !isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold)
+                            )
+                          ),
                         ),
                       ),
                     ),
@@ -102,7 +120,12 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                             borderRadius: BorderRadius.circular(10.r),
                             border: Border.all(color: isFullCar ? royalGreen : Colors.grey.shade300)
                           ),
-                          child: Center(child: Text('سيارة كاملة', style: TextStyle(color: isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold))),
+                          child: Center(
+                            child: Text(
+                              l10n.travel_fullCar, 
+                              style: TextStyle(color: isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold)
+                            )
+                          ),
                         ),
                       ),
                     ),
@@ -117,7 +140,10 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('عدد المقاعد المتاحة:', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                        Text(
+                          l10n.travel_availableSeatsCount, 
+                          style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)
+                        ),
                         Row(
                           children: [
                             IconButton(
@@ -143,9 +169,9 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
 
                 TextFormField(
                   controller: fromCtrl,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال نقطة التحرك' : null,
+                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterDepartureError : null,
                   decoration: InputDecoration(
-                    labelText: 'نقطة التحرك (من)',
+                    labelText: l10n.travel_departurePoint,
                     prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
                   ),
@@ -154,9 +180,9 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
 
                 TextFormField(
                   controller: toCtrl,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال وجهة السفر' : null,
+                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterDestinationError : null,
                   decoration: InputDecoration(
-                    labelText: 'وجهة السفر (إلى)',
+                    labelText: l10n.travel_destinationPoint,
                     prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
                   ),
@@ -185,7 +211,7 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         const Icon(Icons.calendar_month_rounded, color: Colors.orange),
                         SizedBox(width: 10.w),
                         Text(
-                          selectedDate == null ? 'تاريخ ووقت التحرك' : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
+                          selectedDate == null ? l10n.travel_dateAndTime : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
                         ),
                       ],
@@ -197,9 +223,9 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                 TextFormField(
                   controller: priceCtrl,
                   keyboardType: TextInputType.number,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'برجاء إدخال السعر' : null,
+                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterPriceError : null,
                   decoration: InputDecoration(
-                    labelText: isFullCar ? 'سعر الرحلة بالكامل (ج.م)' : 'سعر المقعد الواحد (ج.م)',
+                    labelText: isFullCar ? l10n.travel_fullTripPrice : l10n.travel_singleSeatPrice,
                     prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
                   ),
@@ -215,19 +241,19 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                       if (!formKey.currentState!.validate()) return; 
                       
                       if (selectedDate == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء تحديد تاريخ ووقت الرحلة', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.travel_selectDateError, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
                         return;
                       }
 
-                      final String driverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip(driverId);
+                      // 🟢 استخدام widget.driverId المرسل من الخارج
+                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip(widget.driverId);
                       
                       if (!context.mounted) return;
 
                       if (hasActiveTrip) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('عفواً، لا يمكنك نشر رحلة جديدة لوجود رحلة نشطة بالفعل.', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                          SnackBar(
+                            content: Text(l10n.travel_activeTripExistError, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
                             backgroundColor: Colors.redAccent,
                             behavior: SnackBarBehavior.floating,
                           )
@@ -237,25 +263,23 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                       
                       Navigator.pop(context); 
                       
-                      final newTrip = TripModel(
+                      final newTrip = TripEntity(
                         isDriverPost: true,
-                        // 🟢 تأمين الداتا لتتوافق مع الموديل
-                        driverId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                        driverId: widget.driverId, // 🟢 تم التطبيق هنا أيضاً
                         driverName: widget.userName,
                         pickup: fromCtrl.text.trim(),
                         destination: toCtrl.text.trim(),
                         travelDate: selectedDate!,
-                        price: priceCtrl.text.trim(),
-                        tripCategory: 'سفر',
-                        tripType: isFullCar ? 'full_car' : 'seats',
-                        // 🟢 التحويل هنا بقى آمن جداً
-                        availableSeats: isFullCar ? '1' : availableSeats.toString(),
-                        status: 'available',
+                        price: double.tryParse(priceCtrl.text.trim()) ?? 0.0, 
+                        tripCategory: AppConstants.travelCategory,
+                        tripType: isFullCar ? AppConstants.fullCarType : AppConstants.seatsType, 
+                        availableSeats: isFullCar ? 1 : availableSeats,
+                        status: TripStatus.available,
                       );
 
-                      context.read<TripActionsCubit>().addTravelTrip(trip: newTrip);
+                      context.read<TripActionsCubit>().publishTravelPost(newTrip);
                     },
-                    child: Text('نشر الرحلة', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
+                    child: Text(l10n.travel_publishBtn, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
                   ),
                 ),
               ],

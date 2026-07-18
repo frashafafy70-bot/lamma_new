@@ -1,8 +1,8 @@
-import 'dart:async';
+import 'dart:async'; // 🟢 تم تصحيح حرف الـ I
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/trip_entity.dart';
 
-// 🟢 استدعاءات الـ UseCases المنفصلة
+// استدعاءات الـ UseCases المنفصلة
 import '../../domain/usecases/add_trip_usecase.dart';
 import '../../domain/usecases/delete_trip_usecase.dart';
 import '../../domain/usecases/get_trips_usecase.dart';
@@ -37,10 +37,10 @@ class TripCubit extends Cubit<TripState> {
     
     _tripsSubscription = getTripsUseCase.call().listen(
       (trips) {
-        emit(TripsLoaded(trips));
+        if (!isClosed) emit(TripsLoaded(trips)); // 🟢 تأمين إضافي للـ Stream
       },
       onError: (error) {
-        emit(TripsError(error.toString()));
+        if (!isClosed) emit(TripsError(error.toString()));
       },
     );
   }
@@ -51,10 +51,10 @@ class TripCubit extends Cubit<TripState> {
     
     _tripsSubscription = getUserTripsUseCase.call(userId).listen(
       (trips) {
-        emit(TripsLoaded(trips));
+        if (!isClosed) emit(TripsLoaded(trips));
       },
       onError: (error) {
-        emit(TripsError(error.toString()));
+        if (!isClosed) emit(TripsError(error.toString()));
       },
     );
   }
@@ -62,14 +62,15 @@ class TripCubit extends Cubit<TripState> {
   Future<void> addTrip(TripEntity trip) async {
     emit(TripLoading());
     
-    // 🟢 استخدام fold بدلاً من try-catch
     final result = await addTripUseCase.call(trip);
     
     if (isClosed) return;
     
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'حدث خطأ غير متوقع')),
-      (_) => emit(TripOperationSuccess("تم إضافة الرحلة بنجاح")),
+      // 🟢 إرسال الـ Key أو رسالة الخطأ القادمة من الـ Domain
+      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      // 🟢 إرسال Key النجاح ليتم ترجمته في الـ UI
+      (_) => emit(TripOperationSuccess('success_trip_added')),
     );
   }
 
@@ -81,8 +82,8 @@ class TripCubit extends Cubit<TripState> {
     if (isClosed) return;
     
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'حدث خطأ غير متوقع')),
-      (_) => emit(TripOperationSuccess("تم تحديث بيانات الرحلة")),
+      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (_) => emit(TripOperationSuccess('success_trip_updated')),
     );
   }
 
@@ -92,7 +93,7 @@ class TripCubit extends Cubit<TripState> {
     if (isClosed) return;
     
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'حدث خطأ غير متوقع')),
+      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
       (_) => emit(TripStatusUpdated(tripId, newStatus)),
     );
   }
@@ -105,8 +106,8 @@ class TripCubit extends Cubit<TripState> {
     if (isClosed) return;
     
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'حدث خطأ غير متوقع')),
-      (_) => emit(TripOperationSuccess("تم حذف الرحلة")),
+      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (_) => emit(TripOperationSuccess('success_trip_deleted')),
     );
   }
 

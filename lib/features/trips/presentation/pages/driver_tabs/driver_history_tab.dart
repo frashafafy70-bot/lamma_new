@@ -175,7 +175,7 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
                                 
                                 String pickup = trip.pickup ?? 'موقع الانطلاق';
                                 String destination = trip.destination ?? 'وجهة الوصول';
-                                String finalPrice = trip.finalPrice ?? trip.price ?? '0';
+                                String finalPrice = (trip.finalPrice ?? trip.price)?.toString() ?? '0';
                                 String passengerName = trip.passengerName ?? 'عميل (غير محدد)';
                                 
                                 String distance = 'غير محدد'; 

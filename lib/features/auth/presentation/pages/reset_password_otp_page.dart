@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 // 🟢 استدعاء الـ Cubit والـ States
 import '../../cubit/auth_cubit.dart';
 import '../../cubit/auth_state.dart';
@@ -59,25 +62,26 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
     );
   }
 
-  void _submitNewPassword() {
+  void _submitNewPassword(BuildContext context) {
     FocusScope.of(context).unfocus();
+    final l10n = AppLocalizations.of(context)!;
     
     String smsCode = _otpControllers.map((c) => c.text).join();
     String newPassword = _newPasswordController.text;
     String confirmPassword = _confirmPasswordController.text;
 
     if (smsCode.length < 6) {
-      _showFloatingSnackBar('برجاء إدخال كود التحقق كاملاً المكون من 6 أرقام', Colors.red.shade800);
+      _showFloatingSnackBar(l10n.otpLengthError, Colors.red.shade800);
       return;
     }
     
     if (newPassword.length < 6) {
-      _showFloatingSnackBar('كلمة المرور يجب ألا تقل عن 6 أحرف', Colors.red.shade800);
+      _showFloatingSnackBar(l10n.passwordLengthError, Colors.red.shade800);
       return;
     }
 
     if (newPassword != confirmPassword) {
-      _showFloatingSnackBar('كلمات المرور غير متطابقة', Colors.red.shade800);
+      _showFloatingSnackBar(l10n.passwordsDoNotMatch, Colors.red.shade800);
       return;
     }
 
@@ -100,6 +104,8 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -111,7 +117,7 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
-            _showFloatingSnackBar(state.message ?? 'تم تغيير كلمة المرور بنجاح! 🎉 يرجى تسجيل الدخول.', Colors.green);
+            _showFloatingSnackBar(state.message ?? l10n.passwordResetSuccess, Colors.green);
             
             // 🟢 التعديل الأهم: قفلنا التوجيه العنيف اللي كان بيعمل تضارب
             // وبداله بنقفل كل الشاشات الفرعية ونرجع للأساس، وبما إننا عملنا SignOut في الـ Cubit
@@ -136,13 +142,13 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                     Icon(Icons.password_rounded, size: 70.sp, color: primaryNavy),
                     SizedBox(height: 16.h),
                     Text(
-                      'تعيين كلمة مرور جديدة',
+                      l10n.setNewPasswordTitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 26.sp, fontWeight: FontWeight.bold, color: primaryNavy),
                     ),
                     SizedBox(height: 8.h),
                     Text(
-                      'أدخل كود التحقق المرسل إلى ${widget.phone}\nثم قم بتعيين كلمة المرور الجديدة',
+                      l10n.setNewPasswordSubtitle(widget.phone),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600, height: 1.5),
                       textDirection: TextDirection.rtl,
@@ -204,7 +210,7 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                           textAlign: TextAlign.left,
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                           decoration: InputDecoration(
-                            hintText: 'كلمة المرور الجديدة',
+                            hintText: l10n.newPasswordHint,
                             hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                             prefixIcon: IconButton(
                               icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
@@ -235,7 +241,7 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                           textAlign: TextAlign.left,
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                           decoration: InputDecoration(
-                            hintText: 'تأكيد كلمة المرور',
+                            hintText: l10n.confirmPasswordHint,
                             hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                             prefixIcon: IconButton(
                               icon: Icon(_isConfirmObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
@@ -257,10 +263,10 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                           elevation: 0,
                         ),
-                        onPressed: isLoading ? null : _submitNewPassword,
+                        onPressed: isLoading ? null : () => _submitNewPassword(context),
                         child: isLoading
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('حفظ وتسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            : Text(l10n.saveAndLogin, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ],

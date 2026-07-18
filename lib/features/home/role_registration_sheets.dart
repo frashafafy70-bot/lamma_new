@@ -1,75 +1,22 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:http/http.dart' as http;
 
-// 🟢 استيراد ProfileCubit بدلاً من HomeCubit
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
+// 🟢 استدعاء الـ DocumentService النظيف من الـ Core
+import 'package:lamma_new/core/services/document_service.dart';
+
+// 🟢 استيراد ProfileCubit
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
 
 class RoleRegistrationSheets {
   static const Color primaryNavy = Color(0xFF131E31); 
   static const Color goldAccent = Color(0xFFF3C444);
-  static final ImagePicker _picker = ImagePicker();
 
-  static const String _cloudVisionApiKey = String.fromEnvironment(
-    'CLOUD_VISION_API_KEY',
-    defaultValue: 'AIzaSyC7LVnuJ5QfXCAKjse-EbDxvKZITRa75AM',
-  );
-
-  static Future<bool> _analyzeImageWithCloudVision(String imagePath, List<String> requiredKeywords) async {
-    if (_cloudVisionApiKey.isEmpty) return false;
-    try {
-      List<int> imageBytes = await File(imagePath).readAsBytes();
-      String base64Image = base64Encode(imageBytes);
-      var requestBody = {
-        "requests": [
-          {
-            "image": {"content": base64Image},
-            "features": [{"type": "TEXT_DETECTION"}],
-            "imageContext": {"languageHints": ["ar"]}
-          }
-        ]
-      };
-      var response = await http.post(
-        Uri.parse('https://vision.googleapis.com/v1/images:annotate?key=$_cloudVisionApiKey'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(requestBody),
-      );
-      if (response.statusCode == 200) {
-        var jsonResponse = jsonDecode(response.body);
-        var responses = jsonResponse['responses'] ?? [];
-        if (responses.isNotEmpty && responses[0].containsKey('fullTextAnnotation')) {
-          String extractedText = responses[0]['fullTextAnnotation']['text'].toLowerCase();
-          return requiredKeywords.any((keyword) => extractedText.contains(keyword));
-        }
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  static Future<CroppedFile?> _cropDocumentImage(String path, String title) async {
-    return await ImageCropper().cropImage(
-      sourcePath: path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: title,
-          toolbarColor: primaryNavy,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-          activeControlsWidgetColor: goldAccent,
-        ),
-        IOSUiSettings(title: title),
-      ],
-    );
-  }
-
+  // 🟢 الدالة اللي بتدير الـ UI وتستدعي الـ Logic النظيف من الـ DocumentService
   static Future<void> _pickValidateAndCropImage({
     required BuildContext context,
     required StateSetter setModalState,
@@ -77,45 +24,47 @@ class RoleRegistrationSheets {
     required List<String> keywords,
     required String cropTitle,
   }) async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-      if (pickedFile == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    
+    try { 
+      // 1. التقاط الصورة
+      File? pickedFile = await DocumentService.pickImage(); 
+      if (pickedFile == null) return; 
 
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🤖 جاري فحص المستند سحابياً...', style: TextStyle(fontFamily: 'Cairo'))));
-
-      bool isValid = await _analyzeImageWithCloudVision(pickedFile.path, keywords);
+      if (!context.mounted) return; 
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.analyzingDocumentMsg, style: const TextStyle(fontFamily: 'Cairo')), duration: const Duration(seconds: 2))); 
       
-      if (!context.mounted) return;
-      if (!isValid) {
+      // 2. تحليل الصورة بالذكاء الاصطناعي
+      bool isValid = await DocumentService.analyzeImageWithCloudVision(pickedFile, keywords); 
+      if (!isValid) { 
+        if (!context.mounted) return; 
         bool? proceedAnyway = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-                  title: const Text('تنبيه فحص المستند ⚠️', textDirection: TextDirection.rtl, style: TextStyle(fontFamily: 'Cairo')),
-                  content: const Text('الذكاء الاصطناعي لم يتعرف على المستند. هل تريد إكمال الرفع للمراجعة اليدوية؟', textDirection: TextDirection.rtl, style: TextStyle(fontFamily: 'Cairo')),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo'))),
-                    ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: primaryNavy), child: const Text('نعم، المتابعة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo'))),
-                  ],
-                ));
-        if (proceedAnyway != true) return;
-      }
-
-      CroppedFile? cropped = await _cropDocumentImage(pickedFile.path, cropTitle);
-      if (cropped != null && context.mounted) {
-        setModalState(() {
-          onValidImage(File(cropped.path));
-        });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ تم إرفاق المستند بنجاح.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في جلب المستند', style: TextStyle(fontFamily: 'Cairo'))));
-      }
-    }
+          context: context, 
+          builder: (ctx) => AlertDialog(
+            title: Text(l10n.docValidationAlertTitle, style: const TextStyle(fontFamily: 'Cairo')), 
+            content: Text(l10n.docValidationAlertBody, style: const TextStyle(fontFamily: 'Cairo')), 
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel, style: const TextStyle(fontFamily: 'Cairo'))), 
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: primaryNavy), child: Text(l10n.yesContinue, style: const TextStyle(color: Colors.white, fontFamily: 'Cairo'))),
+            ],
+          )
+        ); 
+        if (proceedAnyway != true) return; 
+      } 
+      
+      // 3. قص الصورة
+      File? cropped = await DocumentService.cropDocumentImage(pickedFile, cropTitle); 
+      if (cropped != null) { 
+        setModalState(() { onValidImage(cropped); }); 
+        if (!context.mounted) return; 
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.docAttachedSuccessfully, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green)); 
+      } 
+    } catch (e) { 
+      if (!context.mounted) return; 
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorFetchingDoc, style: const TextStyle(fontFamily: 'Cairo')))); 
+    } 
   }
 
-  // 🟢 استبدال HomeCubit بـ ProfileCubit
   static void showDriver(BuildContext pageContext, ProfileCubit cubit, String fullName) {
     Navigator.push(pageContext, MaterialPageRoute(builder: (context) => DriverRegistrationPage(cubit: cubit, fullName: fullName)));
   }
@@ -149,7 +98,7 @@ class RoleRegistrationSheets {
     );
   }
 
-  static Widget buildDarkImageButton(String title, File? file, VoidCallback onTap) {
+  static Widget buildDarkImageButton(String title, File? file, VoidCallback onTap, String attachedText) {
     bool isUploaded = file != null;
     return InkWell(
       onTap: onTap,
@@ -171,7 +120,7 @@ class RoleRegistrationSheets {
               child: Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isUploaded ? Colors.green : Colors.white, fontFamily: 'Cairo')),
             ),
             if (isUploaded)
-              const Text('تم الإرفاق', style: TextStyle(color: Colors.green, fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold))
+              Text(attachedText, style: const TextStyle(color: Colors.green, fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold))
           ],
         ),
       ),
@@ -182,7 +131,7 @@ class RoleRegistrationSheets {
 // -----------------------------------------------------------------------------
 // 1. صفحة السائق
 class DriverRegistrationPage extends StatefulWidget {
-  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
+  final ProfileCubit cubit; final String fullName; 
   const DriverRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<DriverRegistrationPage> createState() => _DriverRegistrationPageState();
 }
@@ -191,8 +140,9 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
   File? carLicenseFront, carLicenseBack, personalIdFront, personalIdBack; bool _isLoading = false;
 
   Future<void> _submitData() async {
+    final l10n = AppLocalizations.of(context)!;
     if (vehicleController.text.isEmpty || plateController.text.isEmpty || carLicenseFront == null || carLicenseBack == null || personalIdFront == null || personalIdBack == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء استكمال جميع البيانات', style: TextStyle(fontFamily: 'Cairo')))); return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFieldsWarning, style: const TextStyle(fontFamily: 'Cairo')))); return;
     }
     setState(() => _isLoading = true);
     try {
@@ -202,35 +152,33 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
         widget.cubit.uploadDocument(role: 'driver', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'driver', docName: 'personal_id_back', file: personalIdBack!),
       ]);
-      Map<String, dynamic> data = {'displayName': 'كابتن ${widget.fullName.trim().split(' ').first}', 'vehicle': vehicleController.text, 'plate': plateController.text, 'isVerified': true, 'rating': 5.0, 'carLicenseFrontUrl': uploads[0], 'carLicenseBackUrl': uploads[1], 'personalIdFrontUrl': uploads[2], 'personalIdBackUrl': uploads[3]};
+      Map<String, dynamic> data = {'displayName': l10n.captainPrefix(widget.fullName.trim().split(' ').first), 'vehicle': vehicleController.text, 'plate': plateController.text, 'isVerified': true, 'rating': 5.0, 'carLicenseFrontUrl': uploads[0], 'carLicenseBackUrl': uploads[1], 'personalIdFrontUrl': uploads[2], 'personalIdBackUrl': uploads[3]};
       await widget.cubit.submitRoleRegistration(role: 'driver', profileData: data);
       if (mounted) Navigator.pop(context);
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'))); } finally { if (mounted) setState(() => _isLoading = false); }
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorOccurredWithDetails(e.toString())))); } finally { if (mounted) setState(() => _isLoading = false); }
   }
 
   @override Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: RoleRegistrationSheets.primaryNavy,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent, 
-          elevation: 0, 
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
-          title: const Text('تفعيل حساب كابتن 🚖', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-          centerTitle: true
-        ),
-        body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
-          RoleRegistrationSheets.buildDarkTextField(controller: vehicleController, label: 'نوع السيارة', icon: Icons.directions_car_rounded), const SizedBox(height: 16),
-          RoleRegistrationSheets.buildDarkTextField(controller: plateController, label: 'رقم اللوحة', icon: Icons.pin_rounded), const SizedBox(height: 24),
-          RoleRegistrationSheets.buildDarkImageButton('رخصة المركبة (أمامي)', carLicenseFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseFront = f, keywords: ['رخصة'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('رخصة المركبة (خلفي)', carLicenseBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseBack = f, keywords: ['فحص'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
-          const SizedBox(height: 40),
-          SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: const Text('تفعيل الحساب والبدء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
-        ])),
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: RoleRegistrationSheets.primaryNavy,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
+        title: Text(l10n.activateCaptainAccount, style: const TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+        centerTitle: true
       ),
+      body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
+        RoleRegistrationSheets.buildDarkTextField(controller: vehicleController, label: l10n.carType, icon: Icons.directions_car_rounded), const SizedBox(height: 16),
+        RoleRegistrationSheets.buildDarkTextField(controller: plateController, label: l10n.plateNumber, icon: Icons.pin_rounded), const SizedBox(height: 24),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.carLicenseFront, carLicenseFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseFront = f, keywords: ['رخصة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.carLicenseBack, carLicenseBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => carLicenseBack = f, keywords: ['فحص'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdFront, personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdBack, personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        const SizedBox(height: 40),
+        SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: Text(l10n.activateAccountAndStart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
+      ])),
     );
   }
 }
@@ -238,7 +186,7 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 2. صفحة المحامي
 class LawyerRegistrationPage extends StatefulWidget {
-  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
+  final ProfileCubit cubit; final String fullName; 
   const LawyerRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<LawyerRegistrationPage> createState() => _LawyerRegistrationPageState();
 }
@@ -247,8 +195,9 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
   File? personalIdFront, personalIdBack, barIdFront; bool _isLoading = false;
 
   Future<void> _submitData() async {
+    final l10n = AppLocalizations.of(context)!;
     if (degreeController.text.isEmpty || registrationNumController.text.isEmpty || personalIdFront == null || personalIdBack == null || barIdFront == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء استكمال جميع البيانات والصور', style: TextStyle(fontFamily: 'Cairo')))); return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFieldsAndImagesWarning, style: const TextStyle(fontFamily: 'Cairo')))); return;
     }
     setState(() => _isLoading = true);
     try {
@@ -257,34 +206,32 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'lawyer', docName: 'personal_id_back', file: personalIdBack!),
       ]);
-      Map<String, dynamic> data = {'displayName': 'الأستاذ / ${widget.fullName}', 'degree': degreeController.text, 'registrationNumber': registrationNumController.text, 'isVerified': true, 'barIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
+      Map<String, dynamic> data = {'displayName': l10n.lawyerPrefix(widget.fullName), 'degree': degreeController.text, 'registrationNumber': registrationNumController.text, 'isVerified': true, 'barIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
       await widget.cubit.submitRoleRegistration(role: 'lawyer', profileData: data);
       if (mounted) Navigator.pop(context);
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'))); } finally { if (mounted) setState(() => _isLoading = false); }
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorOccurredWithDetails(e.toString())))); } finally { if (mounted) setState(() => _isLoading = false); }
   }
 
   @override Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: RoleRegistrationSheets.primaryNavy,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent, 
-          elevation: 0, 
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
-          title: const Text('اعتماد حساب المحامي ⚖️', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-          centerTitle: true
-        ),
-        body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
-          RoleRegistrationSheets.buildDarkTextField(controller: degreeController, label: 'درجة القيد', icon: Icons.school_rounded), const SizedBox(height: 16),
-          RoleRegistrationSheets.buildDarkTextField(controller: registrationNumController, label: 'رقم القيد بالنقابة', icon: Icons.numbers_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', barIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => barIdFront = f, keywords: ['نقابة'], cropTitle: 'تعديل')),
-          const SizedBox(height: 40),
-          SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: const Text('تفعيل الحساب والبدء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
-        ])),
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: RoleRegistrationSheets.primaryNavy,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
+        title: Text(l10n.activateLawyerAccount, style: const TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+        centerTitle: true
       ),
+      body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
+        RoleRegistrationSheets.buildDarkTextField(controller: degreeController, label: l10n.barDegree, icon: Icons.school_rounded), const SizedBox(height: 16),
+        RoleRegistrationSheets.buildDarkTextField(controller: registrationNumController, label: l10n.barRegistrationNumber, icon: Icons.numbers_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdFront, personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdBack, personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.attachSyndicateId, barIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => barIdFront = f, keywords: ['نقابة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        const SizedBox(height: 40),
+        SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: Text(l10n.activateAccountAndStart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
+      ])),
     );
   }
 }
@@ -292,7 +239,7 @@ class _LawyerRegistrationPageState extends State<LawyerRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 3. صفحة الطبيب
 class DoctorRegistrationPage extends StatefulWidget {
-  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
+  final ProfileCubit cubit; final String fullName; 
   const DoctorRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<DoctorRegistrationPage> createState() => _DoctorRegistrationPageState();
 }
@@ -301,8 +248,9 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
   File? personalIdFront, personalIdBack, medicalIdFront; bool _isLoading = false;
 
   Future<void> _submitData() async {
+    final l10n = AppLocalizations.of(context)!;
     if (specialtyController.text.isEmpty || licenseController.text.isEmpty || personalIdFront == null || personalIdBack == null || medicalIdFront == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء استكمال جميع البيانات والصور', style: TextStyle(fontFamily: 'Cairo')))); return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFieldsAndImagesWarning, style: const TextStyle(fontFamily: 'Cairo')))); return;
     }
     setState(() => _isLoading = true);
     try {
@@ -311,34 +259,32 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
         widget.cubit.uploadDocument(role: 'doctor', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'doctor', docName: 'personal_id_back', file: personalIdBack!),
       ]);
-      Map<String, dynamic> data = {'displayName': 'دكتور / ${widget.fullName}', 'specialty': specialtyController.text, 'licenseNumber': licenseController.text, 'isVerified': true, 'medicalIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
+      Map<String, dynamic> data = {'displayName': l10n.doctorPrefix(widget.fullName), 'specialty': specialtyController.text, 'licenseNumber': licenseController.text, 'isVerified': true, 'medicalIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
       await widget.cubit.submitRoleRegistration(role: 'doctor', profileData: data);
       if (mounted) Navigator.pop(context);
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'))); } finally { if (mounted) setState(() => _isLoading = false); }
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorOccurredWithDetails(e.toString())))); } finally { if (mounted) setState(() => _isLoading = false); }
   }
 
   @override Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: RoleRegistrationSheets.primaryNavy,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent, 
-          elevation: 0, 
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
-          title: const Text('اعتماد حساب الطبيب 👨‍⚕️', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-          centerTitle: true
-        ),
-        body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
-          RoleRegistrationSheets.buildDarkTextField(controller: specialtyController, label: 'التخصص', icon: Icons.healing_rounded), const SizedBox(height: 16),
-          RoleRegistrationSheets.buildDarkTextField(controller: licenseController, label: 'رقم ترخيص مزاولة المهنة', icon: Icons.assignment_ind_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', medicalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => medicalIdFront = f, keywords: ['أطباء'], cropTitle: 'تعديل')),
-          const SizedBox(height: 40),
-          SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: const Text('تفعيل الحساب والبدء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
-        ])),
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: RoleRegistrationSheets.primaryNavy,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
+        title: Text(l10n.activateDoctorAccount, style: const TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+        centerTitle: true
       ),
+      body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
+        RoleRegistrationSheets.buildDarkTextField(controller: specialtyController, label: l10n.specialty, icon: Icons.healing_rounded), const SizedBox(height: 16),
+        RoleRegistrationSheets.buildDarkTextField(controller: licenseController, label: l10n.medicalLicenseNumber, icon: Icons.assignment_ind_rounded, keyboardType: TextInputType.number), const SizedBox(height: 24),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdFront, personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdBack, personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.attachSyndicateId, medicalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => medicalIdFront = f, keywords: ['أطباء'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        const SizedBox(height: 40),
+        SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: Text(l10n.activateAccountAndStart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
+      ])),
     );
   }
 }
@@ -346,7 +292,7 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage> {
 // -----------------------------------------------------------------------------
 // 4. صفحة التمريض
 class NurseRegistrationPage extends StatefulWidget {
-  final ProfileCubit cubit; final String fullName; // 🟢 التعديل لـ ProfileCubit
+  final ProfileCubit cubit; final String fullName; 
   const NurseRegistrationPage({super.key, required this.cubit, required this.fullName});
   @override State<NurseRegistrationPage> createState() => _NurseRegistrationPageState();
 }
@@ -355,8 +301,9 @@ class _NurseRegistrationPageState extends State<NurseRegistrationPage> {
   File? personalIdFront, personalIdBack, nurseIdFront; bool _isLoading = false;
 
   Future<void> _submitData() async {
+    final l10n = AppLocalizations.of(context)!;
     if (qualificationController.text.isEmpty || nurseLicenseController.text.isEmpty || personalIdFront == null || personalIdBack == null || nurseIdFront == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء استكمال جميع البيانات والصور', style: TextStyle(fontFamily: 'Cairo')))); return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFieldsAndImagesWarning, style: const TextStyle(fontFamily: 'Cairo')))); return;
     }
     setState(() => _isLoading = true);
     try {
@@ -365,34 +312,32 @@ class _NurseRegistrationPageState extends State<NurseRegistrationPage> {
         widget.cubit.uploadDocument(role: 'nurse', docName: 'personal_id_front', file: personalIdFront!),
         widget.cubit.uploadDocument(role: 'nurse', docName: 'personal_id_back', file: personalIdBack!),
       ]);
-      Map<String, dynamic> data = {'displayName': 'ممرض(ة) / ${widget.fullName}', 'qualification': qualificationController.text, 'licenseNumber': nurseLicenseController.text, 'isVerified': true, 'nurseIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
+      Map<String, dynamic> data = {'displayName': l10n.nursePrefix(widget.fullName), 'qualification': qualificationController.text, 'licenseNumber': nurseLicenseController.text, 'isVerified': true, 'nurseIdFrontUrl': uploads[0], 'personalIdFrontUrl': uploads[1], 'personalIdBackUrl': uploads[2]};
       await widget.cubit.submitRoleRegistration(role: 'nurse', profileData: data);
       if (mounted) Navigator.pop(context);
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'))); } finally { if (mounted) setState(() => _isLoading = false); }
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorOccurredWithDetails(e.toString())))); } finally { if (mounted) setState(() => _isLoading = false); }
   }
 
   @override Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: RoleRegistrationSheets.primaryNavy,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent, 
-          elevation: 0, 
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
-          title: const Text('اعتماد حساب التمريض 🩺', style: TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-          centerTitle: true
-        ),
-        body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
-          RoleRegistrationSheets.buildDarkTextField(controller: qualificationController, label: 'المؤهل (أخصائي / فني)', icon: Icons.assignment_rounded), const SizedBox(height: 16),
-          RoleRegistrationSheets.buildDarkTextField(controller: nurseLicenseController, label: 'رقم ترخيص النقابة', icon: Icons.pin_outlined, keyboardType: TextInputType.number), const SizedBox(height: 24),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (أمامي)', personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('البطاقة الشخصية (خلفي)', personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: 'تعديل')),
-          RoleRegistrationSheets.buildDarkImageButton('إرفاق صورة الكارنيه', nurseIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => nurseIdFront = f, keywords: ['تمريض'], cropTitle: 'تعديل')),
-          const SizedBox(height: 40),
-          SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: const Text('تفعيل الحساب والبدء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
-        ])),
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: RoleRegistrationSheets.primaryNavy,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: RoleRegistrationSheets.goldAccent), onPressed: () => Navigator.pop(context)),
+        title: Text(l10n.activateNurseAccount, style: const TextStyle(color: RoleRegistrationSheets.goldAccent, fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+        centerTitle: true
       ),
+      body: _isLoading ? const Center(child: CircularProgressIndicator(color: RoleRegistrationSheets.goldAccent)) : SingleChildScrollView(padding: const EdgeInsets.all(24.0), child: Column(children: [
+        RoleRegistrationSheets.buildDarkTextField(controller: qualificationController, label: l10n.nurseQualification, icon: Icons.assignment_rounded), const SizedBox(height: 16),
+        RoleRegistrationSheets.buildDarkTextField(controller: nurseLicenseController, label: l10n.nurseLicenseNumber, icon: Icons.pin_outlined, keyboardType: TextInputType.number), const SizedBox(height: 24),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdFront, personalIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdFront = f, keywords: ['بطاقة'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.personalIdBack, personalIdBack, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => personalIdBack = f, keywords: ['شخصية'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        RoleRegistrationSheets.buildDarkImageButton(l10n.attachSyndicateId, nurseIdFront, () => RoleRegistrationSheets._pickValidateAndCropImage(context: context, setModalState: setState, onValidImage: (f) => nurseIdFront = f, keywords: ['تمريض'], cropTitle: l10n.edit), l10n.attachedSuccessfully),
+        const SizedBox(height: 40),
+        SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: RoleRegistrationSheets.goldAccent, foregroundColor: RoleRegistrationSheets.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: _submitData, child: Text(l10n.activateAccountAndStart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')))),
+      ])),
     );
   }
 }

@@ -1,5 +1,5 @@
 import '../../data/models/trip_model.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 abstract class PassengerMyRequestsState {}
 
 class PassengerMyRequestsInitial extends PassengerMyRequestsState {}
@@ -7,7 +7,7 @@ class PassengerMyRequestsInitial extends PassengerMyRequestsState {}
 class PassengerMyRequestsLoading extends PassengerMyRequestsState {}
 
 class PassengerMyRequestsLoaded extends PassengerMyRequestsState {
-  final List<TripModel> requests;
+  final List<TripEntity> requests;
   final bool hasReachedMax;
   final bool isFetchingMore;
 
@@ -18,7 +18,7 @@ class PassengerMyRequestsLoaded extends PassengerMyRequestsState {
   });
 
   PassengerMyRequestsLoaded copyWith({
-    List<TripModel>? requests,
+    List<TripEntity>? requests,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {

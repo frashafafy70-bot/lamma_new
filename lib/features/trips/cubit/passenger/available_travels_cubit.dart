@@ -1,25 +1,29 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import '../../domain/usecases/get_available_travels_usecase.dart';
-import '../../data/models/trip_model.dart';
+import '../../domain/usecases/book_seat_in_driver_post_usecase.dart'; // 🟢 الـ UseCase الصحيحة
 import 'available_travels_state.dart'; 
 
 class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   final GetAvailableTravelsUseCase _getAvailableTravelsUseCase;
+  final BookSeatInDriverPostUseCase _bookSeatInDriverPostUseCase; // 🟢 تمرير الـ UseCase هنا
 
   Position? _passengerPosition;
   bool _showOnlyNearby = false;
   final double _nearbyRadiusInMeters = 20000;
   String _currentUserId = '';
 
-  List<TripModel> _rawTrips = [];
+  List<TripEntity> _rawTrips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   final int _limit = 20;
 
-  AvailableTravelsCubit(this._getAvailableTravelsUseCase) : super(AvailableTravelsInitial());
+  AvailableTravelsCubit(
+    this._getAvailableTravelsUseCase,
+    this._bookSeatInDriverPostUseCase,
+  ) : super(AvailableTravelsInitial());
 
   void init(String userId) {
     _currentUserId = userId;
@@ -137,10 +141,10 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
 
     List<ProcessedTrip> processedTrips = [];
 
-    for (TripModel trip in _rawTrips) {
+    for (TripEntity trip in _rawTrips) {
       if (trip.driverId == _currentUserId) continue;
 
-      int availableSeats = int.tryParse(trip.availableSeats ?? '0') ?? 0;
+      int availableSeats = trip.availableSeats ?? 0;
       if (availableSeats <= 0) continue;
 
       DateTime? tripDate = trip.travelDate;
@@ -157,7 +161,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
         distance = Geolocator.distanceBetween(
           _passengerPosition!.latitude,
           _passengerPosition!.longitude,
-          trip.fromLocation!.latitude,
+          trip.fromLocation!.latitude, 
           trip.fromLocation!.longitude,
         );
       }
@@ -176,5 +180,35 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       hasReachedMax: _hasReachedMax,
       isFetchingMore: _isFetchingMore,
     ));
+  }
+
+  // 🟢 دالة الحجز المربوطة بالدومين الصحيح
+  Future<bool> bookDriverPost(String tripId, {int seatsToBook = 1}) async {
+    String targetDriverId = '';
+    
+    // استخراج معرّف السائق من الرحلة المحفوظة في القائمة
+    try {
+      // ⚠️ استبدل `.id` بـ `.docId` لو ده اسم المتغير عندك في TripEntity
+      final trip = _rawTrips.firstWhere((t) => t.id == tripId); 
+      targetDriverId = trip.driverId ?? '';
+    } catch (e) {
+      emit(AvailableTravelsError('الرحلة غير موجودة أو تم حذفها', trips: state.trips));
+      return false;
+    }
+
+    final result = await _bookSeatInDriverPostUseCase(
+      tripId: tripId,
+      driverId: targetDriverId,
+      passengerId: _currentUserId,
+      seatsToBook: seatsToBook,
+    );
+    
+    return result.fold(
+      (failure) {
+        emit(AvailableTravelsError('حدث خطأ أثناء الحجز، يرجى المحاولة مرة أخرى', trips: state.trips));
+        return false;
+      },
+      (_) => true,
+    );
   }
 }

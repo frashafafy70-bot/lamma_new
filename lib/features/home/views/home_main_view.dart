@@ -3,15 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🟢 تم الإضافة لجلب الـ driverId
+import 'package:lamma_new/l10n/app_localizations.dart'; 
 
-// مسارات الكوبيت والستيت
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
-
-// مسارات الميزات الأخرى والـ Widgets المستخدمة
 import 'package:lamma_new/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:lamma_new/features/trips/presentation/pages/trips_services_page.dart';
-import 'package:lamma_new/core/theme/app_colors.dart'; 
+import 'package:lamma_new/core/theme/app_theme.dart'; // 🟢 استدعاء الثيم المركزي
 import 'package:lamma_new/features/trips/presentation/widgets/modern_service_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/wide_service_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/travel_service_card.dart';
@@ -20,8 +19,6 @@ import 'package:lamma_new/features/trips/presentation/widgets/fade_slide_animato
 import 'package:lamma_new/features/trips/presentation/widgets/driver_radar_card.dart'; 
 import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_page.dart'; 
 import 'package:lamma_new/features/home/views/widgets/home_shimmer_loading.dart';
-
-// مسار الـ Widget المحلي لتبديل الحساب
 import 'account_switch_widget.dart'; 
 
 class HomeMainView extends StatefulWidget {
@@ -68,11 +65,10 @@ class _HomeMainViewState extends State<HomeMainView> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.backgroundLight, 
-        appBar: _buildAppBar(),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 🟢 ربط بالثيم
+        appBar: _buildAppBar(context),
         body: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
-            // يعرض الـ Shimmer فقط أثناء التحميل الفعلي
             if (state.status == HomeStatus.loading) {
               return const HomeShimmerLoading();
             }
@@ -111,15 +107,19 @@ class _HomeMainViewState extends State<HomeMainView> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final extColors = Theme.of(context).extension<AppColorsExtension>()!; // 🟢 استدعاء الألوان المخصصة
+    
     return AppBar(
       backgroundColor: Colors.transparent, 
       elevation: 0,
       automaticallyImplyLeading: false,
       flexibleSpace: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppColors.primaryDark, AppColors.royalGreen], 
+            colors: [colorScheme.primary, extColors.royalGreen], // 🟢 ربط بالثيم
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
           ),
@@ -129,14 +129,14 @@ class _HomeMainViewState extends State<HomeMainView> {
         children: [
           CircleAvatar(
             radius: 18.r,
-            backgroundColor: AppColors.accentGold, 
+            backgroundColor: extColors.accentGold, // 🟢 ربط بالثيم
             backgroundImage: widget.profileImageUrl.isNotEmpty ? NetworkImage(widget.profileImageUrl) : null,
-            child: widget.profileImageUrl.isEmpty ? Icon(Icons.person, color: AppColors.primaryDark, size: 20.sp) : null,
+            child: widget.profileImageUrl.isEmpty ? Icon(Icons.person, color: colorScheme.primary, size: 20.sp) : null,
           ),
           SizedBox(width: 10.w),
           Expanded(
             child: Text(
-              'مرحباً، ${widget.userName}', 
+              l10n?.welcomeUser(widget.userName) ?? 'مرحباً، ${widget.userName}', 
               style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold), 
               overflow: TextOverflow.ellipsis
             )
@@ -148,7 +148,7 @@ class _HomeMainViewState extends State<HomeMainView> {
           icon: Badge(
             isLabelVisible: widget.unreadCount > 0, 
             label: Text(widget.unreadCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
-            backgroundColor: AppColors.error,
+            backgroundColor: colorScheme.error, // 🟢 ربط بالثيم
             child: const Icon(Icons.notifications_none, color: Colors.white),
           ),
           onPressed: widget.onOpenNotifications,
@@ -167,28 +167,37 @@ class _RoleHeaderCard extends StatelessWidget {
     required this.onSwitchTap,
   });
 
-  static String _getRoleArabicName(String role) {
+  static String _getRoleName(BuildContext context, String role) {
+    final l10n = AppLocalizations.of(context);
     switch (role) {
-      case 'client': return 'عميل'; 
-      case 'driver': return 'كابتن'; 
-      case 'lawyer': return 'محامي';
-      case 'doctor': return 'طبيب';
-      case 'nurse': return 'تمريض';
-      default: return 'مقدم خدمة';
+      case 'client': return l10n?.clientRoleName ?? 'عميل'; 
+      case 'driver': return l10n?.captainRoleName ?? 'كابتن'; 
+      case 'lawyer': return l10n?.lawyerRoleName ?? 'محامي';
+      case 'doctor': return l10n?.doctorRoleName ?? 'طبيب';
+      case 'nurse': return l10n?.nurseRoleName ?? 'تمريض';
+      default: return l10n?.serviceProviderRoleName ?? 'مقدم خدمة';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final extColors = Theme.of(context).extension<AppColorsExtension>()!;
+    
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w), 
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primaryDark, AppColors.royalGreen], begin: Alignment.topRight, end: Alignment.bottomLeft),
+        gradient: LinearGradient(
+          colors: [colorScheme.primary, extColors.royalGreen], // 🟢 ربط بالثيم
+          begin: Alignment.topRight, 
+          end: Alignment.bottomLeft
+        ),
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: const Color(0x26FFFFFF), width: 1.w),
+        border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.w),
         boxShadow: [
-          BoxShadow(color: AppColors.royalGreenLight, blurRadius: 20, offset: const Offset(0, 10))
+          BoxShadow(color: extColors.royalGreenLight, blurRadius: 20, offset: const Offset(0, 10)) // 🟢 ربط بالثيم
         ]
       ),
       child: Row(
@@ -197,22 +206,31 @@ class _RoleHeaderCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('وضع الحساب الحالي', style: TextStyle(color: Colors.white70, fontSize: 12.sp, fontFamily: 'Cairo')),
+              Text(
+                l10n?.currentAccountMode ?? 'وضع الحساب الحالي', 
+                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12.sp, fontFamily: 'Cairo')
+              ),
               SizedBox(height: 2.h),
-              Text(_getRoleArabicName(activeRole), style: TextStyle(color: AppColors.accentGold, fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+              Text(
+                _getRoleName(context, activeRole), 
+                style: TextStyle(color: extColors.accentGold, fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')
+              ),
             ],
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentGold, 
-              foregroundColor: AppColors.primaryDark,
+              backgroundColor: extColors.accentGold, // 🟢 ربط بالثيم
+              foregroundColor: colorScheme.primary, // 🟢 ربط بالثيم
               elevation: 0,
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r))
             ),
             onPressed: onSwitchTap,
             icon: Icon(Icons.swap_horiz_rounded, size: 18.sp),
-            label: const Text('تبديل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13)),
+            label: Text(
+              l10n?.switchBtn ?? 'تبديل', 
+              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13)
+            ),
           ),
         ],
       ),
@@ -266,9 +284,13 @@ class _DriverDashboard extends StatelessWidget {
       context: context,
       isScrollControlled: true, 
       useSafeArea: true, 
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 🟢 ربط بالثيم
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
-      builder: (ctx) => AddTravelBottomSheet(userName: uName),
+      builder: (ctx) => AddTravelBottomSheet(
+        userName: uName,
+        // 🟢 تمرير الـ driverId المطلوب لحل الـ Error القاتل
+        driverId: FirebaseAuth.instance.currentUser?.uid ?? '', 
+      ),
     );
   }
 }
@@ -284,6 +306,9 @@ class _ClientDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final extColors = Theme.of(context).extension<AppColorsExtension>()!;
     int totalAlerts = activeOrdersCount + availableTravels;
 
     return Column(
@@ -291,11 +316,11 @@ class _ClientDashboard extends StatelessWidget {
         FadeSlideAnimator(
           delayMs: 100,
           child: WideServiceCard(
-            title: 'توصيل ورحلات', 
-            subtitle: 'اطلب كابتن فوراً لرحلتك', 
+            title: l10n?.deliveryAndTrips ?? 'توصيل ورحلات', 
+            subtitle: l10n?.requestCaptainNow ?? 'اطلب كابتن فوراً لرحلتك', 
             imagePath: 'assets/images/taxi_3d.png', 
             fallbackIcon: Icons.local_taxi_rounded, 
-            fallbackColor: AppColors.accentGold,
+            fallbackColor: extColors.accentGold, // 🟢 ربط بالثيم
             badgeCount: totalAlerts, 
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const TripsServicesPage()));
@@ -311,26 +336,36 @@ class _ClientDashboard extends StatelessWidget {
             children: [
               Expanded(
                 child: ModernServiceCard(
-                  title: 'خدمات طبية', 
-                  subtitle: 'أطباء وعيادات', 
+                  title: l10n?.medicalServices ?? 'خدمات طبية', 
+                  subtitle: l10n?.doctorsAndClinics ?? 'أطباء وعيادات', 
                   imagePath: 'assets/images/medical_3d.png', 
                   fallbackIcon: Icons.health_and_safety_rounded, 
-                  fallbackColor: AppColors.medicalTeal, 
+                  fallbackColor: extColors.medicalTeal, // 🟢 ربط بالثيم
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سيتم تفعيل القسم الطبي قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.medicalTeal));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n?.medicalSectionComingSoon ?? 'سيتم تفعيل القسم الطبي قريباً', style: const TextStyle(fontFamily: 'Cairo')), 
+                        backgroundColor: extColors.medicalTeal
+                      )
+                    );
                   }
                 ),
               ),
               SizedBox(width: 16.w), 
               Expanded(
                 child: ModernServiceCard(
-                  title: 'خدمات قانونية', 
-                  subtitle: 'استشارات وتوكيلات', 
+                  title: l10n?.legalServices ?? 'خدمات قانونية', 
+                  subtitle: l10n?.consultationsAndPowerOfAttorney ?? 'استشارات وتوكيلات', 
                   imagePath: 'assets/images/law_3d.png', 
                   fallbackIcon: Icons.gavel_rounded, 
-                  fallbackColor: AppColors.primaryDark, 
+                  fallbackColor: colorScheme.primary, // 🟢 ربط بالثيم
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سيتم تفعيل قسم الخدمات القانونية قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.primaryDark));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n?.legalSectionComingSoon ?? 'سيتم تفعيل قسم الخدمات القانونية قريباً', style: const TextStyle(fontFamily: 'Cairo')), 
+                        backgroundColor: colorScheme.primary
+                      )
+                    );
                   }
                 ),
               ),
@@ -343,13 +378,18 @@ class _ClientDashboard extends StatelessWidget {
         FadeSlideAnimator(
           delayMs: 500,
           child: WideServiceCard(
-            title: 'شوب ومتاجر', 
-            subtitle: 'تسوق أفضل المنتجات بسهولة', 
+            title: l10n?.shopAndStores ?? 'شوب ومتاجر', 
+            subtitle: l10n?.shopBestProductsEasily ?? 'تسوق أفضل المنتجات بسهولة', 
             imagePath: 'assets/images/shop_3d.png', 
             fallbackIcon: Icons.storefront_rounded, 
-            fallbackColor: AppColors.royalGreen,
+            fallbackColor: extColors.royalGreen, // 🟢 ربط بالثيم
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قسم المتاجر تحت الإنشاء', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.royalGreen));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n?.storesSectionUnderConstruction ?? 'قسم المتاجر تحت الإنشاء', style: const TextStyle(fontFamily: 'Cairo')), 
+                  backgroundColor: extColors.royalGreen
+                )
+              );
             }
           ),
         ),
@@ -363,15 +403,20 @@ class _LawyerDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return FadeSlideAnimator(
       delayMs: 100,
       child: ModernServiceCard(
-        title: 'لوحة التحكم', 
-        subtitle: 'الاستشارات والتوكيلات', 
+        title: l10n?.dashboardTitle ?? 'لوحة التحكم', 
+        subtitle: l10n?.consultationsAndAgencies ?? 'الاستشارات والتوكيلات', 
         imagePath: 'assets/images/law_3d.png', 
         fallbackIcon: Icons.gavel_rounded, 
-        fallbackColor: AppColors.primaryDark, 
-        onTap: () {}
+        fallbackColor: colorScheme.primary, // 🟢 ربط بالثيم
+        onTap: () {
+          // TODO: تفعيل لوحة تحكم المحامي لاحقاً 
+        }
       ),
     );
   }

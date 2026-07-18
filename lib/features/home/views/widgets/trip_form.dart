@@ -1,11 +1,13 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:io'; // 🟢 ضروري عشان الريكورد
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
 
-// 🟢 استدعاء الويدجت الجديد بتاع الريكورد (تأكد من المسار لو مختلف)
+// 🟢 استدعاء ملف الترجمة
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 import 'package:lamma_new/features/trips/presentation/widgets/order_input_widget.dart';
 
 class TripForm extends StatefulWidget {
@@ -24,7 +26,6 @@ class TripForm extends StatefulWidget {
   final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
-  // 🟢 ضفنا هنا دالة استقبال الملف الصوتي عشان نقدر نرفعه
   final Function(File?)? onAudioRecorded; 
 
   const TripForm({
@@ -44,7 +45,7 @@ class TripForm extends StatefulWidget {
     required this.onVehicleChanged,
     required this.onOpenMapSelection,
     required this.onSubmit,
-    this.onAudioRecorded, // 🟢 تم إضافتها هنا
+    this.onAudioRecorded, 
   });
 
   @override
@@ -52,10 +53,11 @@ class TripForm extends StatefulWidget {
 }
 
 class _TripFormState extends State<TripForm> {
-  // 🔴 تم مسح كل أكواد الـ SpeechToText من هنا لأننا مش محتاجينها خلاص
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
       child: SingleChildScrollView( 
@@ -72,8 +74,8 @@ class _TripFormState extends State<TripForm> {
               ),
               child: Row(
                 children: [
-                  _buildCategoryChip('داخلي', 'توصيل', Icons.local_taxi_rounded),
-                  _buildCategoryChip('طلبات', 'شراء طلبات', Icons.shopping_bag_rounded),
+                  _buildCategoryChip('داخلي', l10n.deliveryDisplay, Icons.local_taxi_rounded),
+                  _buildCategoryChip('طلبات', l10n.buyOrdersDisplay, Icons.shopping_bag_rounded),
                 ],
               ),
             ),
@@ -84,11 +86,11 @@ class _TripFormState extends State<TripForm> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildVehicleChip('سيارة', 'assets/images/car.png'),
+                  _buildVehicleChip('سيارة', l10n.carVehicle, 'assets/images/car.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('موتوسيكل', 'assets/images/motorcycle.png'),
+                  _buildVehicleChip('موتوسيكل', l10n.motorcycleVehicle, 'assets/images/motorcycle.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('توكتوك', 'assets/images/tuktuk.png'),
+                  _buildVehicleChip('توكتوك', l10n.tuktukVehicle, 'assets/images/tuktuk.png'),
                 ],
               ),
               SizedBox(height: 24.h),
@@ -97,7 +99,7 @@ class _TripFormState extends State<TripForm> {
             // 3. نقطة الانطلاق
             _buildInputField(
               controller: widget.pickupController,
-              label: 'موقعك الحالي / مكان الاستلام',
+              label: l10n.pickupLocationLabel,
               icon: Icons.my_location_rounded,
               iconColor: AppColors.accentGold,
               readOnly: true,
@@ -108,7 +110,7 @@ class _TripFormState extends State<TripForm> {
             // 4. نقطة الوصول
             _buildInputField(
               controller: widget.destinationController,
-              label: 'مكان الوصول / تسليم الطلب',
+              label: l10n.destinationLocationLabel,
               icon: Icons.location_on_rounded,
               iconColor: AppColors.primaryDark,
               readOnly: true,
@@ -118,7 +120,6 @@ class _TripFormState extends State<TripForm> {
 
             // 5. حقول خاصة بقسم "طلبات"
             if (widget.tripCategory == 'طلبات') ...[
-              // 🟢 تم دمج الويدجت الذكي الخاص بك هنا للريكورد الفعلي
               OrderInputWidget(
                 controller: widget.errandDetailsController,
                 onAudioRecorded: (file) {
@@ -132,7 +133,7 @@ class _TripFormState extends State<TripForm> {
               // حقل التكلفة التقريبية للطلبات
               _buildInputField(
                 controller: widget.errandEstimatedCostController,
-                label: 'سعر الطلبات التقريبي (للشراء)',
+                label: l10n.estimatedOrderPriceLabel,
                 icon: Icons.receipt_long_rounded,
                 iconColor: AppColors.primaryDark,
                 keyboardType: TextInputType.number,
@@ -144,7 +145,7 @@ class _TripFormState extends State<TripForm> {
             _buildInputField(
               controller: widget.priceController,
               focusNode: widget.priceFocusNode,
-              label: 'أجرة التوصيل للسائق',
+              label: l10n.deliveryFareLabel,
               icon: Icons.payments_rounded,
               iconColor: AppColors.accentGold,
               keyboardType: TextInputType.number,
@@ -166,7 +167,7 @@ class _TripFormState extends State<TripForm> {
                 child: widget.isSubmittingTrip
                     ? SizedBox(width: 25.w, height: 25.w, child: const CircularProgressIndicator(color: AppColors.accentGold, strokeWidth: 3))
                     : Text(
-                        widget.tripCategory == 'طلبات' ? 'إرسال طلب المشتروات للسائق' : 'إرسال الطلب للسائق',
+                        widget.tripCategory == 'طلبات' ? l10n.sendPurchaseRequestBtn : l10n.sendRequestBtn,
                         style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: AppColors.accentGold),
                       ),
               ),
@@ -243,12 +244,12 @@ class _TripFormState extends State<TripForm> {
     );
   }
 
-  // ودجت السيارات الفرعي 
-  Widget _buildVehicleChip(String title, String imagePath) {
-    bool isSelected = widget.vehicleType == title;
+  // ودجت السيارات الفرعي (تم فصل الكلمة البرمجية عن كلمة العرض)
+  Widget _buildVehicleChip(String logicTitle, String displayTitle, String imagePath) {
+    bool isSelected = widget.vehicleType == logicTitle;
     return Expanded(
       child: InkWell(
-        onTap: () => widget.onVehicleChanged(title),
+        onTap: () => widget.onVehicleChanged(logicTitle),
         borderRadius: BorderRadius.circular(15.r),
         child: Container(
           padding: EdgeInsets.symmetric(vertical: 10.h),
@@ -267,7 +268,7 @@ class _TripFormState extends State<TripForm> {
               ),
               SizedBox(height: 6.h),
               Text(
-                title,
+                displayTitle,
                 style: TextStyle(
                   fontFamily: 'Cairo',
                   fontWeight: FontWeight.bold,

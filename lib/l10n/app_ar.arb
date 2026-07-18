@@ -1,0 +1,453 @@
+{
+  "@@locale": "ar",
+  "noInternetConnection": "لا يوجد اتصال بالإنترنت",
+  "lammaPlatform": "منصة لَمَّة الشاملة",
+  "loginSubtitle": "كل خدماتك في مكان واحد، يرجى تسجيل الدخول",
+  "loginTitle": "تسجيل الدخول",
+  "identifierLabel": "البريد أو الهاتف أو اسم المستخدم",
+  "emptyIdentifierError": "برجاء إدخال البيانات",
+  "passwordLabel": "كلمة المرور",
+  "emptyPasswordError": "برجاء إدخال كلمة المرور",
+  "rememberMe": "تذكرني",
+  "forgotPassword": "نسيت كلمة المرور؟",
+  "loginButton": "دخول",
+  "or": "أو",
+  "loginWithGoogle": "الدخول باستخدام Google",
+  "noAccount": "ليس لديك حساب؟",
+  "registerNow": "سجل الآن",
+  "fullNameRequiredError": "برجاء كتابة الاسم بالكامل",
+  "invalidEmailError": "برجاء إدخال بريد إلكتروني صحيح",
+  "invalidPhoneError": "برجاء إدخال رقم هاتف صحيح",
+  "otpSentSuccess": "تم إرسال كود التحقق بنجاح! 💬",
+  "createNewAccount": "إنشاء حساب جديد",
+  "joinLammaFamily": "انضم إلى عائلة لَمَّة واستمتع بكافة الخدمات",
+  "passengerRole": "راكب",
+  "captainRole": "كابتن",
+  "fullNameHint": "الاسم بالكامل",
+  "emailHint": "البريد الإلكتروني",
+  "registerNewAccount": "تسجيل حساب جديد",
+  "signUpWithGoogle": "التسجيل باستخدام Google",
+  "signUpWithEmailOnly": "التسجيل باستخدام البريد الإلكتروني فقط",
+  "alreadyHaveAccount": "لديك حساب بالفعل؟",
+  "loginNow": "تسجيل الدخول",
+  "fillAllFieldsError": "برجاء إكمال جميع البيانات",
+  "passwordLengthError": "كلمة المرور يجب ألا تقل عن 6 أحرف",
+  "registrationSuccess": "تم التسجيل بنجاح",
+  "completeDataTitle": "استكمال البيانات",
+  "completeDataSubtitle": "أدخل بريدك الإلكتروني وكلمة المرور لإنشاء حسابك",
+  "saveAndActivate": "حفظ البيانات والتفعيل",
+  "forgotPasswordAppBar": "استعادة كلمة المرور",
+  "activationCodeSentMsg": "تم إرسال كود التفعيل بنجاح 💬",
+  "sendSuccess": "تم الإرسال بنجاح",
+  "forgotPasswordHeader": "هل نسيت كلمة المرور؟",
+  "forgotPasswordDescription": "اختر طريقة الاستعادة المناسبة لك لإعادة تعيين كلمة المرور بكل سهولة.",
+  "emailMethod": "بريد إلكتروني",
+  "phoneMethod": "رقم الهاتف",
+  "emailExampleHint": "example@mail.com",
+  "phoneExampleHint": "10xxxxxxxxx",
+  "sendResetLink": "إرسال رابط الاستعادة",
+  "sendVerificationCode": "إرسال كود التحقق",
+  "otpLengthError": "برجاء إدخال كود التحقق كاملاً المكون من 6 أرقام",
+  "loginSuccess": "تم تسجيل الدخول بنجاح",
+  "otpVerifiedNeedPassword": "تم تأكيد الرقم بنجاح، يرجى كتابة كلمة المرور",
+  "verifyPhoneTitle": "تأكيد رقم الهاتف",
+  "verifyPhoneSubtitle": "أدخل كود التحقق المكون من 6 أرقام\nالذي تم إرساله إلى الرقم {phone}",
+  "@verifyPhoneSubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyAndActivate": "تحقق وتفعيل الحساب",
+  "didntReceiveCode": "لم يصلك الكود؟",
+  "resendingCode": "جاري إعادة الإرسال...",
+  "resendCode": "إعادة إرسال",
+  "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+  "passwordResetSuccess": "تم تغيير كلمة المرور بنجاح! 🎉 يرجى تسجيل الدخول.",
+  "setNewPasswordTitle": "تعيين كلمة مرور جديدة",
+  "setNewPasswordSubtitle": "أدخل كود التحقق المرسل إلى {phone}\nثم قم بتعيين كلمة المرور الجديدة",
+  "@setNewPasswordSubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "newPasswordHint": "كلمة المرور الجديدة",
+  "confirmPasswordHint": "تأكيد كلمة المرور",
+  "saveAndLogin": "حفظ وتسجيل الدخول",
+  "notificationsTitle": "الإشعارات",
+  "noNotifications": "لا توجد إشعارات حالياً 🔕",
+  "loading": "جاري التحميل...",
+  "navHome": "الرئيسية",
+  "navRadar": "الرادار",
+  "navActive": "النشطة",
+  "navHistory": "السجل",
+  "navSearch": "البحث",
+  "navOrders": "الطلبات",
+  "navAccount": "الحساب",
+  "changePasswordTitle": "تغيير كلمة المرور",
+  "chooseRecoveryMethod": "اختر طريقة الاستعادة لإعادة تعيين كلمة المرور:",
+  "sendEmailLink": "إرسال رابط للبريد",
+  "emailNotAvailable": "البريد الإلكتروني غير متوفر، يرجى استكمال بياناتك.",
+  "sendPhoneCode": "إرسال كود للهاتف",
+  "phoneNotAvailable": "رقم الهاتف غير متوفر، يرجى استكمال بياناتك.",
+  "cancel": "إلغاء",
+  "supportTitle": "الدعم الفني والشكاوى",
+  "supportHint": "اكتب شكوتك، مشكلتك، أو مقترحك هنا...",
+  "sendSupport": "إرسال الدعم",
+  "operationSuccess": "تمت العملية بنجاح",
+  "errorOccurred": "حدث خطأ",
+  "analyzingDocumentMsg": "🤖 جاري فحص المستند سحابياً...",
+  "docValidationAlertTitle": "تنبيه فحص المستند ⚠️",
+  "docValidationAlertBody": "الذكاء الاصطناعي لم يتعرف على الكارنيه. هل تريد إكمال الرفع للمراجعة اليدوية؟",
+  "yesContinue": "نعم، المتابعة",
+  "docAttachedSuccessfully": "✅ تم إرفاق المستند بنجاح.",
+  "errorFetchingDoc": "حدث خطأ في جلب المستند",
+  "fillAllFieldsWarning": "برجاء استكمال جميع البيانات",
+  "fillAllFieldsAndImagesWarning": "برجاء استكمال جميع البيانات والصور",
+  "errorOccurredWithDetails": "خطأ: {error}",
+  "@errorOccurredWithDetails": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activateAccountAndStart": "تفعيل الحساب والبدء",
+  "personalIdFront": "البطاقة الشخصية (أمامي)",
+  "personalIdBack": "البطاقة الشخصية (خلفي)",
+  "edit": "تعديل",
+  "attachedSuccessfully": "تم الإرفاق",
+  "activateCaptainAccount": "تفعيل حساب كابتن 🚖",
+  "carType": "نوع السيارة",
+  "plateNumber": "رقم اللوحة",
+  "carLicenseFront": "رخصة المركبة (أمامي)",
+  "carLicenseBack": "رخصة المركبة (خلفي)",
+  "captainPrefix": "كابتن {name}",
+  "@captainPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateLawyerAccount": "اعتماد حساب المحامي ⚖️",
+  "barDegree": "درجة القيد",
+  "barRegistrationNumber": "رقم القيد بالنقابة",
+  "attachSyndicateId": "إرفاق صورة الكارنيه",
+  "lawyerPrefix": "الأستاذ / {name}",
+  "@lawyerPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateDoctorAccount": "اعتماد حساب الطبيب 👨‍⚕️",
+  "specialty": "التخصص",
+  "medicalLicenseNumber": "رقم ترخيص مزاولة المهنة",
+  "doctorPrefix": "دكتور / {name}",
+  "@doctorPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activateNurseAccount": "اعتماد حساب التمريض 🩺",
+  "nurseQualification": "المؤهل (أخصائي / فني)",
+  "nurseLicenseNumber": "رقم ترخيص النقابة",
+  "nursePrefix": "ممرض(ة) / {name}",
+  "@nursePrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeUser": "مرحباً، {name}",
+  "@welcomeUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clientRoleName": "عميل",
+  "captainRoleName": "كابتن",
+  "lawyerRoleName": "محامي",
+  "doctorRoleName": "طبيب",
+  "nurseRoleName": "تمريض",
+  "serviceProviderRoleName": "مقدم خدمة",
+  "currentAccountMode": "وضع الحساب الحالي",
+  "switchBtn": "تبديل",
+  "deliveryAndTrips": "توصيل ورحلات",
+  "requestCaptainNow": "اطلب كابتن فوراً لرحلتك",
+  "medicalServices": "خدمات طبية",
+  "doctorsAndClinics": "أطباء وعيادات",
+  "medicalSectionComingSoon": "سيتم تفعيل القسم الطبي قريباً",
+  "legalServices": "خدمات قانونية",
+  "consultationsAndPowerOfAttorney": "استشارات وتوكيلات",
+  "legalSectionComingSoon": "سيتم تفعيل قسم الخدمات القانونية قريباً",
+  "shopAndStores": "شوب ومتاجر",
+  "shopBestProductsEasily": "تسوق أفضل المنتجات بسهولة",
+  "storesSectionUnderConstruction": "قسم المتاجر تحت الإنشاء",
+  "dashboardTitle": "لوحة التحكم",
+  "consultationsAndAgencies": "الاستشارات والتوكيلات",
+  "accountSwitchTitle": "تبديل الحساب",
+  "currentRoleLabel": "الدور الحالي",
+  "switchToOtherRole": "التبديل إلى دور آخر",
+  "activeNow": "نشط الآن",
+  "lammaDefaultUserName": "مستخدم لَمَّة",
+  "loadingDataPleaseWait": "جاري تحميل بياناتك، يرجى المحاولة بعد قليل...",
+  "passwordResetConfirmation": "هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني؟",
+  "sendLink": "إرسال الرابط",
+  "supportSentSuccess": "تم إرسال رسالتك للدعم الفني بنجاح ✅",
+  "supportSendError": "حدث خطأ أثناء الإرسال ❌",
+  "activeOrdersTitle": "متابعة طلباتي النشطة",
+  "errorLoadingOrders": "حدث خطأ في تحميل الطلبات",
+  "noActiveOrdersCurrent": "ليس لديك أي طلبات نشطة حالية",
+  "requestCaptainNowSub": "اطلب كابتن الآن وستظهر رحلتك هنا",
+  "tripWord": "رحلة",
+  "determinedLater": "يحدد لاحقاً",
+  "statusPending": "قيد الانتظار",
+  "statusAccepted": "تم القبول",
+  "statusNegotiating": "جاري التفاوض",
+  "statusArrived": "السائق بالخارج",
+  "statusInProgress": "الرحلة مستمرة",
+  "pickupLocationPlaceholder": "موقع الانطلاق",
+  "dropoffLocationPlaceholder": "وجهة الوصول",
+  "priceWithCurrency": "{price} ج.م",
+  "@priceWithCurrency": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeGreeting": "أهلاً بك 👋",
+  "loadingDataPlaceholder": "جاري تحميل البيانات...",
+  "editPersonalData": "تعديل البيانات الشخصية",
+  "savedAddresses": "العناوين المحفوظة",
+  "familySubscription": "الاشتراك العائلي (تتبع الأبناء)",
+  "logoutFromPlatform": "تسجيل الخروج من المنصة",
+  "bookingLoadingMsg": "جاري إرسال طلب الحجز...",
+  "searchForTripTitle": "البحث عن رحلة سفر",
+  "fromCity": "من مدينة",
+  "toCity": "إلى مدينة",
+  "enterCitiesWarning": "الرجاء إدخال مدينة الانطلاق والوصول",
+  "searchTripsButton": "بحث عن الرحلات",
+  "noTripsAvailable": "لا توجد رحلات متاحة لهذا المسار حالياً.",
+  "notSpecified": "غير محدد",
+  "bookAction": "حجز",
+  "searchPrompt": "حدد مسار رحلتك واضغط بحث للبدء",
+  "tripRoute": "{from} ➔ {to}",
+  "@tripRoute": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "Object"
+      }
+    }
+  },
+  "tripDetailsSubtitle": "السائق: {driver} | السعر: {price} ج.م",
+  "@tripDetailsSubtitle": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSuccessMsg": "تم تسجيل الدخول بنجاح! 🚀",
+  "welcomeToLamma": "مرحباً بك في لَمَّة",
+  "loginToContinue": "سجل دخولك للمتابعة",
+  "passwordHint": "كلمة المرور",
+  "myLocationMarker": "موقعي",
+  "driverMarker": "السائق",
+  "addNewAddress": "إضافة عنوان جديد",
+  "editAddressTitle": "تعديل العنوان",
+  "addressNameHint": "اسم العنوان (مثال: المنزل، العمل)",
+  "addressDetailsHint": "تفاصيل العنوان",
+  "setAsDefaultAddress": "تعيين كعنوان أساسي",
+  "saveAddress": "حفظ العنوان",
+  "deleteAddressTitle": "حذف العنوان",
+  "deleteAddressConfirmation": "هل أنت متأكد من حذف هذا العنوان بشكل نهائي؟",
+  "delete": "حذف",
+  "noSavedAddresses": "لا توجد عناوين محفوظة",
+  "defaultAddressLabel": "الأساسي",
+  "allCategory": "الكل",
+  "tripsAndDeliveryCategory": "رحلات وتوصيل",
+  "legalConsultationsCategory": "استشارات قانونية",
+  "storesCategory": "متاجر",
+  "medicalServicesCategory": "خدمات طبية",
+  "requestDriverService": "طلب سائق فوراً",
+  "deliveryService": "توصيل طلبات (دليفري)",
+  "lawyerConsultationService": "استشارة محامي",
+  "officialPowerOfAttorneyService": "توكيل رسمي",
+  "marketShoppingService": "تسوق من الماركت",
+  "pharmaciesService": "صيدليات",
+  "bookMedicalAppointmentService": "حجز كشف طبي",
+  "comprehensiveSearch": "البحث الشامل",
+  "searchHint": "عن ماذا تبحث؟ (سائق، محامي، توصيل...)",
+  "typeToStartSearching": "اكتب ما تبحث عنه للبدء",
+  "noMatchingResults": "لا توجد نتائج مطابقة لبحثك",
+  "serviceUnderPreparation": "هذه الخدمة قيد التجهيز",
+  "deliveryDisplay": "توصيل",
+  "buyOrdersDisplay": "شراء طلبات",
+  "carVehicle": "سيارة",
+  "motorcycleVehicle": "موتوسيكل",
+  "tuktukVehicle": "توكتوك",
+  "pickupLocationLabel": "موقعك الحالي / مكان الاستلام",
+  "destinationLocationLabel": "مكان الوصول / تسليم الطلب",
+  "estimatedOrderPriceLabel": "سعر الطلبات التقريبي (للشراء)",
+  "deliveryFareLabel": "أجرة التوصيل للسائق",
+  "sendPurchaseRequestBtn": "إرسال طلب المشتروات للسائق",
+  "sendRequestBtn": "إرسال الطلب للسائق",
+  "deleteTripTitle": "مسح الطلب",
+  "deleteTripConfirmation": "هل أنت متأكد من إزالة هذا الطلب من القائمة عندك؟",
+  "goBack": "تراجع",
+  "yesDelete": "نعم، امسح",
+  "cancelTripTitle": "إلغاء الرحلة",
+  "cancelTripConfirmation": "هل أنت متأكد من إلغاء هذه الرحلة؟ سيتم إبلاغ الطرف الآخر.",
+  "yesCancel": "نعم، إلغاء",
+  "tripCancelledSuccessfully": "تم إلغاء الرحلة بنجاح",
+  "errorDuringCancellation": "حدث خطأ أثناء الإلغاء",
+  "negotiateFareTitle": "التفاوض على الأجرة",
+  "suggestedPriceHint": "اكتب سعرك المقترح",
+  "currencyEGP": "جنيه",
+  "sendBtn": "إرسال",
+  "tripEndedTitle": "تم إنهاء الرحلة!",
+  "submitRatingBtn": "إرسال التقييم",
+  "travel_preBooking": "حجز مسبق",
+  "travel_travelingSoon": "مسافر لمحافظة تانية قريباً؟",
+  "travel_travelDescription": "حدد مسارك وتاريخ رحلتك، وخلي العملاء تحجز معاك مقدماً وتشاركك التكلفة.",
+  "travel_addTravelTrip": "إضافة رحلة سفر",
+  "travel_publishNewTrip": "نشر رحلة سفر جديدة",
+  "travel_individualSeats": "مقاعد فردية",
+  "travel_fullCar": "سيارة كاملة",
+  "travel_availableSeatsCount": "عدد المقاعد المتاحة:",
+  "travel_departurePoint": "نقطة التحرك (من)",
+  "travel_destinationPoint": "وجهة السفر (إلى)",
+  "travel_dateAndTime": "تاريخ ووقت التحرك",
+  "travel_fullTripPrice": "سعر الرحلة بالكامل (ج.م)",
+  "travel_singleSeatPrice": "سعر المقعد الواحد (ج.م)",
+  "travel_publishBtn": "نشر الرحلة",
+  "travel_selectDateError": "برجاء تحديد تاريخ ووقت الرحلة",
+  "travel_activeTripExistError": "عفواً، لا يمكنك نشر رحلة جديدة لوجود رحلة نشطة بالفعل.",
+  "travel_enterDepartureError": "برجاء إدخال نقطة التحرك",
+  "travel_enterDestinationError": "برجاء إدخال وجهة السفر",
+  "travel_enterPriceError": "برجاء إدخال السعر",
+  "tripForm_deliveryName": "توصيل",
+  "tripForm_buyOrdersName": "شراء طلبات",
+  "tripForm_travelName": "سفر",
+  "tripForm_travelServicesSoon": "خدمات السفر قريباً...",
+  "tripMap_locating": "جاري تحديد الموقع...",
+  "tripMap_pickupPoint": "نقطة الانطلاق",
+  "tripMap_dropoffPoint": "وجهة الوصول",
+  "tripMap_gpsDisabled": "خدمة الموقع (GPS) مغلقة، يرجى تفعيلها.",
+  "tripMap_permissionDenied": "تم رفض صلاحية الوصول للموقع.",
+  "tripMap_permissionDeniedForever": "صلاحيات الموقع مرفوضة نهائياً، يرجى تعديلها من الإعدادات.",
+  "tripMap_errorFetchingLocation": "حدث خطأ أثناء جلب الموقع",
+  "tripMap_unknownLocation": "موقع غير معروف",
+  "tripMap_regularTrip": "رحلة عادية",
+  "tripMap_governoratesTravel": "سفر للمحافظات",
+  "tripMap_confirmThisAddress": "تأكيد هذا العنوان",
+  "tripMap_confirmPickupHere": "تأكيد الانطلاق من هنا",
+  "tripMap_home": "المنزل",
+  "tripMap_addHomeAddress": "إضافة عنوان المنزل",
+  "tripMap_work": "العمل",
+  "tripMap_addWorkAddress": "إضافة عنوان العمل",
+  "locationPermissionTitle": "صلاحية الموقع",
+  "locationPermissionMessage": "لقد قمت برفض صلاحية الموقع بشكل دائم. لكي تتمكن من استخدام التطبيق، يرجى التفعيل من الإعدادات.",
+  "openSettings": "فتح الإعدادات",
+  "sendingRequest": "جاري إرسال طلبك...",
+  "pickupLocation": "نقطة الانطلاق",
+  "destinationLocation": "وجهة الوصول",
+  "locatingMap": "جاري تحديد الموقع...",
+  "fetchingAddress": "جاري جلب العنوان...",
+  "confirmLocation": "تأكيد الموقع 🚖",
+  "errorSelectPickup": "الرجاء تحديد نقطة الانطلاق أولاً",
+  "errorSelectDestination": "الرجاء تحديد مكان الوصول",
+  "errorProvideOrderDetails": "الرجاء كتابة أو تسجيل تفاصيل الطلبات",
+  "errorEnterPrice": "الرجاء إدخال السعر المقترح",
+  "errorInvalidPrice": "الرجاء إدخال سعر صحيح (أرقام فقط)",
+  "requestSentSuccess": "تم إرسال طلبك بنجاح! 🚀",
+  "activeTripsTabTitle": "الرحلات النشطة",
+  "travelBookingRequests": "طلبات حجز السفر",
+  "yourCurrentTrips": "رحلاتك الحالية",
+  "noActiveTripsCurrently": "لا توجد رحلات نشطة حالياً",
+  "cancelBookingTitle": "إلغاء الحجز",
+  "cancelBookingConfirmation": "هل أنت متأكد من إلغاء هذا الحجز وإزالة الراكب؟",
+  "backBtn": "تراجع",
+  "unspecified": "غير محدد",
+  "fullCarBookingRequest": "طلب حجز رحلة كاملة",
+  "seatsBookingRequest": "طلب حجز مقاعد",
+  "pendingSeatsRequest": "⏳ قيد الانتظار - العميل يطلب {seats} مقاعد",
+  "@pendingSeatsRequest": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptedSeatsRequest": "✅ تم القبول - العميل حاجز {seats} مقاعد",
+  "@acceptedSeatsRequest": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "requestTime": "وقت الطلب: {time}",
+  "@requestTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptBtn": "قبول",
+  "rejectBtn": "رفض",
+  "messageClient": "مراسلة العميل",
+  "pickupLocationDefault": "موقع الانطلاق",
+  "dropoffLocationDefault": "وجهة الوصول",
+  "fullSeats": "مكتمل 🔴",
+  "availableSeats": "متاح {seats} مقاعد",
+  "@availableSeats": {
+    "placeholders": {
+      "seats": {
+        "type": "String"
+      }
+    }
+  },
+  "searchingForPassengers": "جاري البحث عن ركاب",
+  "clientProposesNewPrice": "العميل يقترح سعراً جديداً",
+  "waitingForClientResponse": "في انتظار رد العميل",
+  "proposedPrice": "السعر المقترح: {price} ج.م",
+  "@proposedPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "finalPrice": "السعر النهائي: {price} ج.م",
+  "@finalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "agreeWithPrice": "موافق بالسعر",
+  "negotiateBtn": "تفاوض",
+  "activateActiveTrip": "تفعيل الرحلة النشطة",
+  "detailsAndMap": "التفاصيل والخريطة"
+}

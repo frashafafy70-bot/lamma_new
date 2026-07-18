@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/repositories/trip_booking_repository.dart';
 import 'trip_search_state.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 class TripSearchCubit extends Cubit<TripSearchState> {
   final TripBookingRepository _repository;
 

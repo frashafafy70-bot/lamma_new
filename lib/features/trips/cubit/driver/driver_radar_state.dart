@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 @immutable
 abstract class DriverRadarState {}
 
@@ -9,7 +9,7 @@ class DriverRadarInitial extends DriverRadarState {}
 class DriverRadarLoading extends DriverRadarState {}
 
 class DriverRadarLoaded extends DriverRadarState {
-  final List<TripModel> radarTrips; 
+  final List<TripEntity> radarTrips; 
   final bool hasReachedMax;     
   final bool isFetchingMore;    
 
@@ -20,7 +20,7 @@ class DriverRadarLoaded extends DriverRadarState {
   });
 
   DriverRadarLoaded copyWith({
-    List<TripModel>? radarTrips,
+    List<TripEntity>? radarTrips,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {

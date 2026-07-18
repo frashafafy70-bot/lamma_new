@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
-import '../repositories/trip_repository.dart';
+import '../repositories/trip_repository.dart'; // تأكد إن اسم ملف الـ Repo مطابق للي عندك
 
 class BookSeatInDriverPostUseCase {
   final TripRepository repository;

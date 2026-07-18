@@ -2,12 +2,12 @@ import 'package:auto_route/auto_route.dart';
 
 // 🟢 استيراد ملف الحارس الذي أنشأناه للتو
 import 'auth_guard.dart'; 
-
+import 'package:lamma_new/features/home/views/notifications_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/sign_up_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/home/home_page.dart';
-import '../../features/trips/presentation/pages/passenger_search_page.dart';
+import 'package:lamma_new/features/trips/presentation/pages/passenger_search_page.dart';
 
 part 'app_router.gr.dart';
 

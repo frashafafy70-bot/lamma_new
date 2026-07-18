@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
-import '../../data/models/trip_model.dart';
 import '../entities/trip_entity.dart';
 
 abstract class TripRepository {
@@ -38,39 +36,42 @@ abstract class TripRepository {
     required String pickupAddress,
     required String dropoffAddress,
     required String price,
-    required GeoPoint pickupLocation,
+    required double pickupLat,
+    required double pickupLng,
   });
   
-  Future<Either<Failure, void>> addTravelTrip(TripModel trip);
+  Future<Either<Failure, void>> addTravelTrip(TripEntity trip);
   
+  Future<Either<Failure, void>> publishTravelTrip(TripEntity trip);
+
   // ==========================================
   // 3. دوال الجلب (Streams & Queries)
   // ==========================================
-  Stream<List<TripModel>> getTripsStream(String userId, {bool isPassenger = true});
+  Stream<List<TripEntity>> getTripsStream(String userId, {bool isPassenger = true});
   Stream<int> getDriverActiveOrdersCountStream(String uid);
   Stream<int> getPassengerActiveOrdersCountStream(String uid);
   
-  Future<Either<Failure, List<TripModel>>> getDriverActiveTrips({
+  Future<Either<Failure, List<TripEntity>>> getDriverActiveTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip,
+    TripEntity? lastTrip,
   });
   
-  Future<Either<Failure, List<TripModel>>> getPassengerActiveTrips({
+  Future<Either<Failure, List<TripEntity>>> getPassengerActiveTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip,
+    TripEntity? lastTrip,
   });
   
-  Future<Either<Failure, List<TripModel>>> getDriverHistoryTrips({
+  Future<Either<Failure, List<TripEntity>>> getDriverHistoryTrips({
     required String uid,
     required int limit,
-    TripModel? lastTrip,
+    TripEntity? lastTrip,
   });
   
-  Future<Either<Failure, List<TripModel>>> getAvailableTravels({
+  Future<Either<Failure, List<TripEntity>>> getAvailableTravels({
     required int limit,
-    TripModel? lastTrip,
+    TripEntity? lastTrip,
   });
 
   // ==========================================
@@ -118,8 +119,7 @@ abstract class TripRepository {
   Future<Either<Failure, void>> rejectTripOffer({
     required String tripId,
   });
-
-  // 🟢 الدالة الجديدة لحجز مقعد في رحلة سفر
+  
   Future<Either<Failure, void>> bookSeatInDriverPost({
     required String tripId,
     required String driverId,
@@ -150,6 +150,4 @@ abstract class TripRepository {
     required double rating,
     required String comment,
   });
-  
-  Future<Either<Failure, void>> publishTravelTrip(TripModel trip);
 }

@@ -289,7 +289,7 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
         }
 
         var processedTrip = processedTrips[index];
-        TripModel trip = processedTrip.trip;
+        TripEntity trip = processedTrip.trip;
         
         double dist = processedTrip.distance;
         String distanceText = dist != double.infinity ? 'يبعد: ${(dist / 1000).toStringAsFixed(1)} كم' : '';

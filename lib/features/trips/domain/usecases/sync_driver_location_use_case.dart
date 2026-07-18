@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../repositories/trip_repository.dart';
@@ -8,7 +7,8 @@ class SyncDriverLocationUseCase {
 
   SyncDriverLocationUseCase(this.repository);
 
-  Future<Either<Failure, void>> call(String tripId, GeoPoint location) async {
-    return await repository.syncDriverLocation(tripId, location.latitude, location.longitude);
+  // 🟢 الدالة بقت بتاخد lat و lng مباشر
+  Future<Either<Failure, void>> call(String tripId, double lat, double lng) async {
+    return await repository.syncDriverLocation(tripId, lat, lng);
   }
 }

@@ -5,6 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 // 🟢 استدعاءات الـ AutoRoute 
 import 'package:auto_route/auto_route.dart';
 import 'package:lamma_new/core/routes/app_router.dart';
@@ -95,6 +98,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🟢 تعريف المتغير الخاص باللغات لسهولة الاستخدام
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
@@ -141,9 +147,9 @@ class _LoginPageState extends State<LoginPage> {
                           child: Icon(Icons.widgets_rounded, size: 60.sp, color: goldAccent),
                         ),
                         SizedBox(height: 24.h),
-                        Text('منصة لَمَّة الشاملة', style: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Cairo')),
+                        Text(l10n.lammaPlatform, style: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Cairo')),
                         SizedBox(height: 8.h),
-                        Text('كل خدماتك في مكان واحد، يرجى تسجيل الدخول', style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade400, fontFamily: 'Cairo')),
+                        Text(l10n.loginSubtitle, style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade400, fontFamily: 'Cairo')),
                         SizedBox(height: 40.h),
 
                         // Form Section
@@ -158,7 +164,7 @@ class _LoginPageState extends State<LoginPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text('تسجيل الدخول', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.black87, fontFamily: 'Cairo')),
+                                  Text(l10n.loginTitle, style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.black87, fontFamily: 'Cairo')),
                                   SizedBox(height: 20.h),
                                   
                                   Autocomplete<String>(
@@ -183,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
                                         textInputAction: TextInputAction.next,
                                         style: TextStyle(fontSize: 14.sp, fontFamily: 'Cairo'),
                                         decoration: InputDecoration(
-                                          labelText: 'البريد أو الهاتف أو اسم المستخدم', 
+                                          labelText: l10n.identifierLabel, 
                                           labelStyle: TextStyle(fontSize: 14.sp),
                                           prefixIcon: Icon(Icons.how_to_reg_rounded, color: primaryNavy, size: 24.sp), 
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)), 
@@ -199,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 )
                                               : null,
                                         ),
-                                        validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال البيانات' : null,
+                                        validator: (value) => (value == null || value.isEmpty) ? l10n.emptyIdentifierError : null,
                                       );
                                     },
                                     optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<String> onSelected, Iterable<String> options) {
@@ -247,14 +253,14 @@ class _LoginPageState extends State<LoginPage> {
                                     onFieldSubmitted: (_) => _login(),
                                     style: TextStyle(fontSize: 14.sp, fontFamily: 'Cairo'),
                                     decoration: InputDecoration(
-                                      labelText: 'كلمة المرور',
+                                      labelText: l10n.passwordLabel,
                                       labelStyle: TextStyle(fontSize: 14.sp),
                                       prefixIcon: Icon(Icons.lock_outline_rounded, color: primaryNavy, size: 24.sp),
                                       suffixIcon: IconButton(icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 24.sp), onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured)),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
                                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide(color: goldAccent, width: 2))
                                     ),
-                                    validator: (value) => (value == null || value.isEmpty) ? 'برجاء إدخال كلمة المرور' : null,
+                                    validator: (value) => (value == null || value.isEmpty) ? l10n.emptyPasswordError : null,
                                   ),
                                   
                                   Row(
@@ -267,13 +273,13 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       GestureDetector(
                                         onTap: () => setState(() => _rememberMe = !_rememberMe),
-                                        child: Text('تذكرني', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
+                                        child: Text(l10n.rememberMe, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp)),
                                       ),
                                       const Spacer(),
                                       TextButton(
                                         // 🟢 تم إزالة const
                                         onPressed: () => context.router.push(ForgotPasswordRoute()),
-                                        child: Text('نسيت كلمة المرور؟', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13.sp)),
+                                        child: Text(l10n.forgotPassword, style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold, fontFamily: 'Cairo', fontSize: 13.sp)),
                                       ),
                                     ],
                                   ),
@@ -290,7 +296,7 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     child: isLoading && _passwordController.text.isNotEmpty 
                                         ? SizedBox(height: 24.h, width: 24.w, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) 
-                                        : Text('دخول', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                                        : Text(l10n.loginButton, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
                                   ),
 
                                   SizedBox(height: 16.h),
@@ -300,7 +306,7 @@ class _LoginPageState extends State<LoginPage> {
                                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                                       Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 16.w),
-                                        child: Text('أو', style: TextStyle(color: Colors.grey.shade500, fontFamily: 'Cairo', fontSize: 14.sp)),
+                                        child: Text(l10n.or, style: TextStyle(color: Colors.grey.shade500, fontFamily: 'Cairo', fontSize: 14.sp)),
                                       ),
                                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                                     ],
@@ -336,7 +342,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                               ),
                                               SizedBox(width: 12.w),
-                                              Text('الدخول باستخدام Google', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.black87, fontFamily: 'Cairo')),
+                                              Text(l10n.loginWithGoogle, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.black87, fontFamily: 'Cairo')),
                                             ],
                                           ),
                                   ),
@@ -350,11 +356,11 @@ class _LoginPageState extends State<LoginPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('ليس لديك حساب؟', style: TextStyle(color: Colors.grey.shade300, fontFamily: 'Cairo', fontSize: 14.sp)),
+                            Text(l10n.noAccount, style: TextStyle(color: Colors.grey.shade300, fontFamily: 'Cairo', fontSize: 14.sp)),
                             TextButton(
                               // 🟢 تم إزالة const
                               onPressed: () => context.router.push(SignUpRoute()),
-                              child: Text('سجل الآن', style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
+                              child: Text(l10n.registerNow, style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
                             ),
                           ],
                         ),

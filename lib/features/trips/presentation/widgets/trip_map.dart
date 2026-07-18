@@ -7,25 +7,25 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lamma_new/l10n/app_localizations.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/core/constants/app_constants.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/lamma_google_map.dart'; 
-
 import 'package:lamma_new/features/trips/data/repositories/map_repository_impl.dart';
 
 class TripMap extends StatefulWidget {
   final LatLng? pickupPoint;
   final LatLng? dropoffPoint;
   final bool isTrackingMode;
-  final bool isAddressSelectionMode; // 🟢 تمت الإضافة
+  final bool isAddressSelectionMode; 
 
   const TripMap({
     super.key, 
     this.pickupPoint, 
     this.dropoffPoint, 
     this.isTrackingMode = false,
-    this.isAddressSelectionMode = false, // 🟢 تمت الإضافة بافتراضي false
+    this.isAddressSelectionMode = false, 
   });
 
   @override
@@ -36,20 +36,26 @@ class _TripMapState extends State<TripMap> {
   GoogleMapController? _mapController;
   
   LatLng _centerPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
-  String _currentAddress = 'جاري تحديد الموقع...';
+  String? _currentAddress; // 🟢 أصبحت Nullable
   bool _isLoadingAddress = true;
   bool _isGettingLocation = false;
+  bool _isInit = false; // 🟢 متغير لضمان تشغيل دالة didChangeDependencies مرة واحدة
 
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+  late AppLocalizations localizations;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.isTrackingMode && widget.pickupPoint != null && widget.dropoffPoint != null) {
-      _setupTrackingMode();
-    } else {
-      _getCurrentUserLocation();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInit) {
+      localizations = AppLocalizations.of(context)!;
+      if (widget.isTrackingMode && widget.pickupPoint != null && widget.dropoffPoint != null) {
+        _setupTrackingMode();
+      } else {
+        _getCurrentUserLocation();
+      }
+      _isInit = true;
     }
   }
 
@@ -68,14 +74,14 @@ class _TripMapState extends State<TripMap> {
         markerId: const MarkerId('pickup'),
         position: widget.pickupPoint!,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: const InfoWindow(title: 'نقطة الانطلاق'),
+        infoWindow: InfoWindow(title: localizations.tripMap_pickupPoint),
       ));
       
       _markers.add(Marker(
         markerId: const MarkerId('dropoff'),
         position: widget.dropoffPoint!,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'وجهة الوصول'),
+        infoWindow: InfoWindow(title: localizations.tripMap_dropoffPoint),
       ));
     });
 
@@ -97,13 +103,11 @@ class _TripMapState extends State<TripMap> {
 
     final mapRepository = MapRepositoryImpl(); 
     
-    // 🟢 التعديل: استقبال Either واستخدام fold للتعامل الآمن مع مسار الخريطة
     final routeResult = await mapRepository.getRouteCoordinates(widget.pickupPoint!, widget.dropoffPoint!);
 
     routeResult.fold(
       (failure) {
         debugPrint("Error fetching route: ${failure.message}");
-        // يمكنك إظهار رسالة خطأ هنا إذا أردت
       },
       (routePoints) {
         if (routePoints.isNotEmpty && mounted) {
@@ -127,7 +131,7 @@ class _TripMapState extends State<TripMap> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showError('خدمة الموقع (GPS) مغلقة، يرجى تفعيلها.');
+        _showError(localizations.tripMap_gpsDisabled);
         return;
       }
 
@@ -135,13 +139,13 @@ class _TripMapState extends State<TripMap> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showError('تم رفض صلاحية الوصول للموقع.');
+          _showError(localizations.tripMap_permissionDenied);
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showError('صلاحيات الموقع مرفوضة نهائياً، يرجى تعديلها من الإعدادات.');
+        _showError(localizations.tripMap_permissionDeniedForever);
         return;
       }
 
@@ -163,7 +167,7 @@ class _TripMapState extends State<TripMap> {
       await _getAddressFromLatLng(currentLatLng);
 
     } catch (e) {
-      _showError('حدث خطأ أثناء جلب الموقع');
+      _showError(localizations.tripMap_errorFetchingLocation);
     } finally {
       if (mounted) setState(() => _isGettingLocation = false);
     }
@@ -188,14 +192,14 @@ class _TripMapState extends State<TripMap> {
         }
         
         setState(() {
-          _currentAddress = address.trim().isEmpty ? 'موقع غير معروف' : address.trim();
-          if (_currentAddress.endsWith('،')) {
-            _currentAddress = _currentAddress.substring(0, _currentAddress.length - 1);
+          _currentAddress = address.trim().isEmpty ? localizations.tripMap_unknownLocation : address.trim();
+          if (_currentAddress!.endsWith('،')) {
+            _currentAddress = _currentAddress!.substring(0, _currentAddress!.length - 1);
           }
         });
       }
     } catch (e) {
-      setState(() => _currentAddress = 'موقع غير معروف');
+      setState(() => _currentAddress = localizations.tripMap_unknownLocation);
     } finally {
       setState(() => _isLoadingAddress = false);
     }
@@ -271,9 +275,9 @@ class _TripMapState extends State<TripMap> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('نقطة الانطلاق', style: TextStyle(color: AppColors.textMuted.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                                  Text(localizations.tripMap_pickupPoint, style: TextStyle(color: AppColors.textMuted.shade600, fontSize: 11.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
                                   Text(
-                                    _currentAddress,
+                                    _currentAddress ?? localizations.tripMap_locating,
                                     style: TextStyle(color: AppColors.textDark, fontSize: 13.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -320,7 +324,7 @@ class _TripMapState extends State<TripMap> {
               heroTag: 'gps_btn',
               backgroundColor: Colors.white,
               elevation: 4,
-              onPressed: _getCurrentUserLocation,
+              onPressed: () => _getCurrentUserLocation(),
               child: _isGettingLocation 
                   ? const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(color: AppColors.primaryDark, strokeWidth: 2))
                   : const Icon(Icons.near_me_outlined, color: AppColors.textDark),
@@ -351,13 +355,12 @@ class _TripMapState extends State<TripMap> {
                       ),
                       SizedBox(height: 20.h),
                       
-                      // 🟢 إخفاء كروت نوع الرحلة في حالة اختيار العنوان
                       if (!widget.isTrackingMode && !widget.isAddressSelectionMode) ...[
                         Row(
                           children: [
-                            _buildServiceTypeCard('رحلة عادية', Icons.directions_car_rounded, true), 
+                            _buildServiceTypeCard(localizations.tripMap_regularTrip, Icons.directions_car_rounded, true), 
                             SizedBox(width: 12.w),
-                            _buildServiceTypeCard('سفر للمحافظات', Icons.emoji_transportation_rounded, false),
+                            _buildServiceTypeCard(localizations.tripMap_governoratesTravel, Icons.emoji_transportation_rounded, false),
                           ],
                         ),
                         SizedBox(height: 20.h),
@@ -379,8 +382,7 @@ class _TripMapState extends State<TripMap> {
                             });
                           },
                           child: Text(
-                            // 🟢 تغيير النص بناءً على الحالة
-                            widget.isAddressSelectionMode ? 'تأكيد هذا العنوان' : 'تأكيد الانطلاق من هنا',
+                            widget.isAddressSelectionMode ? localizations.tripMap_confirmThisAddress : localizations.tripMap_confirmPickupHere,
                             style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
                           ),
                         ),
@@ -391,15 +393,15 @@ class _TripMapState extends State<TripMap> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.home_rounded, color: AppColors.textDark)),
-                        title: const Text('المنزل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                        subtitle: const Text('إضافة عنوان المنزل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
+                        title: Text(localizations.tripMap_home, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                        subtitle: Text(localizations.tripMap_addHomeAddress, style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
                       ),
                       const Divider(),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(backgroundColor: AppColors.backgroundLight, child: const Icon(Icons.work_rounded, color: AppColors.textDark)),
-                        title: const Text('العمل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                        subtitle: const Text('إضافة عنوان العمل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
+                        title: Text(localizations.tripMap_work, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+                        subtitle: Text(localizations.tripMap_addWorkAddress, style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12)),
                       ),
                     ],
                   ),

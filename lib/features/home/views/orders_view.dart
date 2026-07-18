@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
-import 'package:lamma_new/theme/app_colors.dart';
+// 🟢 استدعاء الترجمة
+import 'package:lamma_new/l10n/app_localizations.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
 
 class OrdersView extends StatefulWidget {
   final String activeRole;
@@ -16,7 +19,6 @@ class OrdersView extends StatefulWidget {
 }
 
 class _OrdersViewState extends State<OrdersView> {
-  // 🟢 فصل الستريم عن دالة البناء لعدم إعادة إنشائه
   late final Stream<List<DocumentSnapshot>> _activeOrdersStream;
 
   @override
@@ -24,21 +26,19 @@ class _OrdersViewState extends State<OrdersView> {
     super.initState();
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // 🟢 عملت الفلترة والترتيب جوا الستريم نفسه عشان نخفف الحمل عن واجهة المستخدم (UI)
     _activeOrdersStream = FirebaseFirestore.instance
         .collection('trips')
         .where('passengerId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) {
       var allDocs = snapshot.docs;
-      // الفلترة
+      
       var activeOrders = allDocs.where((doc) {
         final data = doc.data() as Map<String, dynamic>? ?? {};
         final status = data['status'] ?? '';
         return status != 'completed' && status != 'cancelled' && status != 'canceled';
       }).toList();
 
-      // الترتيب
       activeOrders.sort((a, b) {
         var dataA = a.data() as Map<String, dynamic>;
         var dataB = b.data() as Map<String, dynamic>;
@@ -47,7 +47,7 @@ class _OrdersViewState extends State<OrdersView> {
         if (timeA == null && timeB == null) return 0;
         if (timeA == null) return 1;
         if (timeB == null) return -1;
-        return timeB.compareTo(timeA); // الأحدث فوق
+        return timeB.compareTo(timeA); 
       });
 
       return activeOrders;
@@ -56,8 +56,10 @@ class _OrdersViewState extends State<OrdersView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
-      color: LammaColors.backgroundLight,
+      color: AppColors.backgroundLight,
       child: Column(
         children: [
           Container(
@@ -65,7 +67,7 @@ class _OrdersViewState extends State<OrdersView> {
             padding: EdgeInsets.only(top: 60.h, bottom: 20.h),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [LammaColors.primaryNavy, LammaColors.royalGreen],
+                colors: [AppColors.primaryNavy, AppColors.royalGreen],
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
               ),
@@ -73,9 +75,9 @@ class _OrdersViewState extends State<OrdersView> {
                 bottomLeft: Radius.circular(30.r), 
                 bottomRight: Radius.circular(30.r)
               ),
-              boxShadow: const [ // 🟢 استخدام Const للظل لتحسين الأداء
+              boxShadow: const [ 
                 BoxShadow(
-                  color: Color(0x4D1B4332), // Hex لـ royalGreen withOpacity(0.3)
+                  color: Color(0x4D1B4332), 
                   blurRadius: 15,
                   offset: Offset(0, 5),
                 )
@@ -83,7 +85,7 @@ class _OrdersViewState extends State<OrdersView> {
             ),
             child: Center(
               child: Text(
-                'متابعة طلباتي النشطة', 
+                l10n.activeOrdersTitle, 
                 style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),
@@ -91,22 +93,22 @@ class _OrdersViewState extends State<OrdersView> {
 
           Expanded(
             child: StreamBuilder<List<DocumentSnapshot>>(
-              stream: _activeOrdersStream, // 🟢 الستريم المفلتر والجاهز
+              stream: _activeOrdersStream, 
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: LammaColors.accentGold));
+                  return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
                 }
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text('حدث خطأ في تحميل الطلبات', style: TextStyle(fontFamily: 'Cairo', color: LammaColors.error, fontSize: 16.sp))
+                    child: Text(l10n.errorLoadingOrders, style: TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontSize: 16.sp))
                   );
                 }
 
                 var activeOrders = snapshot.data ?? [];
 
                 if (activeOrders.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(l10n);
                 }
 
                 return ListView.builder(
@@ -115,7 +117,7 @@ class _OrdersViewState extends State<OrdersView> {
                   itemCount: activeOrders.length,
                   itemBuilder: (context, index) {
                     var orderData = activeOrders[index].data() as Map<String, dynamic>? ?? {};
-                    return _buildOrderCard(orderData);
+                    return _buildOrderCard(orderData, l10n);
                   },
                 );
               },
@@ -126,7 +128,7 @@ class _OrdersViewState extends State<OrdersView> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -135,53 +137,53 @@ class _OrdersViewState extends State<OrdersView> {
             padding: EdgeInsets.all(30.w),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0x1AD4AF37), // Hex لـ accentGold withOpacity(0.1)
+              color: Color(0x1AD4AF37), 
             ),
-            child: Icon(Icons.receipt_long_rounded, size: 80.sp, color: LammaColors.accentGold),
+            child: Icon(Icons.receipt_long_rounded, size: 80.sp, color: AppColors.accentGold),
           ),
           SizedBox(height: 24.h),
           Text(
-            'ليس لديك أي طلبات نشطة حالية', 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: LammaColors.textDark, fontWeight: FontWeight.bold),
+            l10n.noActiveOrdersCurrent, 
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: AppColors.textDark, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8.h),
           Text(
-            'اطلب كابتن الآن وستظهر رحلتك هنا', 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.textMuted),
+            l10n.requestCaptainNowSub, 
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> orderData) {
+  Widget _buildOrderCard(Map<String, dynamic> orderData, AppLocalizations l10n) {
     String status = orderData['status'] ?? 'pending';
-    String category = orderData['tripCategory'] ?? 'رحلة';
-    String price = orderData['price']?.toString() ?? 'يحدد لاحقاً';
+    String category = orderData['tripCategory'] ?? l10n.tripWord;
+    String price = orderData['price']?.toString() ?? l10n.determinedLater;
     
-    String statusText = 'قيد الانتظار';
-    Color statusColor = LammaColors.warning;
-    Color statusBgColor = const Color(0x1AFFA000); // Default Warning bg
+    String statusText = l10n.statusPending;
+    Color statusColor = AppColors.warning;
+    Color statusBgColor = const Color(0x1AFFA000); 
 
     switch (status) {
       case 'accepted': 
-        statusText = 'تم القبول'; 
-        statusColor = LammaColors.info; 
+        statusText = l10n.statusAccepted; 
+        statusColor = AppColors.info; 
         statusBgColor = const Color(0x1A29B6F6); 
         break;
       case 'negotiating': 
-        statusText = 'جاري التفاوض'; 
+        statusText = l10n.statusNegotiating; 
         statusColor = Colors.purple; 
         statusBgColor = const Color(0x1A9C27B0); 
         break;
       case 'arrived': 
-        statusText = 'السائق بالخارج'; 
-        statusColor = LammaColors.success; 
+        statusText = l10n.statusArrived; 
+        statusColor = AppColors.success; 
         statusBgColor = const Color(0x1A4CAF50); 
         break;
       case 'in_progress': 
-        statusText = 'الرحلة مستمرة'; 
-        statusColor = LammaColors.accentGold; 
+        statusText = l10n.statusInProgress; 
+        statusColor = AppColors.accentGold; 
         statusBgColor = const Color(0x1AD4AF37); 
         break;
     }
@@ -195,9 +197,9 @@ class _OrdersViewState extends State<OrdersView> {
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
-        color: LammaColors.cardWhite,
+        color: AppColors.cardWhite,
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: LammaColors.dividerColor),
+        border: Border.all(color: AppColors.dividerColor),
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 15, offset: Offset(0, 5))],
       ),
       child: Padding(
@@ -212,11 +214,11 @@ class _OrdersViewState extends State<OrdersView> {
                   children: [
                     CircleAvatar(
                       radius: 18.r,
-                      backgroundColor: const Color(0x1A0F172A), // LammaColors.primaryNavy withOpacity(0.1)
-                      child: Icon(Icons.local_taxi_rounded, size: 20.sp, color: LammaColors.primaryNavy),
+                      backgroundColor: const Color(0x1A0F172A), 
+                      child: Icon(Icons.local_taxi_rounded, size: 20.sp, color: AppColors.primaryNavy),
                     ),
                     SizedBox(width: 10.w),
-                    Text(category, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: LammaColors.textDark)),
+                    Text(category, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.textDark)),
                   ],
                 ),
                 Container(
@@ -229,34 +231,38 @@ class _OrdersViewState extends State<OrdersView> {
             SizedBox(height: 16.h),
             Row(
               children: [
-                Icon(Icons.my_location_rounded, size: 18.sp, color: LammaColors.info),
+                Icon(Icons.my_location_rounded, size: 18.sp, color: AppColors.info),
                 SizedBox(width: 8.w),
-                Expanded(child: Text(orderData['pickupAddress'] ?? 'موقع الانطلاق', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: LammaColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(orderData['pickupAddress'] ?? l10n.pickupLocationPlaceholder, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: AppColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
             SizedBox(height: 10.h),
             Row(
               children: [
-                Icon(Icons.location_on_rounded, size: 18.sp, color: LammaColors.error),
+                Icon(Icons.location_on_rounded, size: 18.sp, color: AppColors.error),
                 SizedBox(width: 8.w),
-                Expanded(child: Text(orderData['dropoffAddress'] ?? 'وجهة الوصول', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: LammaColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(orderData['dropoffAddress'] ?? l10n.dropoffLocationPlaceholder, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: AppColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
             Padding(
               padding: EdgeInsets.symmetric(vertical: 12.h),
-              child: const Divider(height: 1, color: LammaColors.dividerColor),
+              child: const Divider(height: 1, color: AppColors.dividerColor),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.access_time_rounded, size: 16.sp, color: LammaColors.textMuted),
+                    Icon(Icons.access_time_rounded, size: 16.sp, color: AppColors.textMuted),
                     SizedBox(width: 6.w),
-                    Text(formattedTime, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: LammaColors.textMuted)),
+                    Text(formattedTime, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: AppColors.textMuted)),
                   ],
                 ),
-                Text('$price ج.م', style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, fontWeight: FontWeight.bold, color: LammaColors.success)),
+                // 🟢 معالجة عرض السعر باستخدام متغيرات اللغة
+                Text(
+                  price == l10n.determinedLater ? price : l10n.priceWithCurrency(price), 
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, fontWeight: FontWeight.bold, color: AppColors.success)
+                ),
               ],
             ),
           ],

@@ -5,6 +5,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 import '../../cubit/auth_cubit.dart'; 
 import '../../cubit/auth_state.dart'; 
 import '../../../home/home_page.dart'; 
@@ -82,23 +85,25 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
   void _validateAndSubmit() {
     FocusScope.of(context).unfocus(); 
     
+    final l10n = AppLocalizations.of(context)!;
+    
     String name = _nameController.text.trim();
     String phone = _phoneController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
     if (name.isEmpty || phone.isEmpty || email.isEmpty || password.isEmpty) {
-      _showFloatingSnackBar('برجاء إكمال جميع البيانات', Colors.red);
+      _showFloatingSnackBar(l10n.fillAllFieldsError, Colors.red);
       return;
     }
 
     if (!email.contains('@') || !email.contains('.')) {
-      _showFloatingSnackBar('برجاء إدخال بريد إلكتروني صحيح', Colors.red);
+      _showFloatingSnackBar(l10n.invalidEmailError, Colors.red);
       return;
     }
     
     if (password.length < 6) {
-      _showFloatingSnackBar('كلمة المرور يجب ألا تقل عن 6 أحرف', Colors.red);
+      _showFloatingSnackBar(l10n.passwordLengthError, Colors.red);
       return;
     }
 
@@ -125,6 +130,8 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -133,7 +140,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
             if (state is AuthError) {
               _showFloatingSnackBar(state.message, Colors.red);
             } else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message ?? 'تم التسجيل بنجاح', Colors.green);
+              _showFloatingSnackBar(state.message ?? l10n.registrationSuccess, Colors.green);
               
               if (state.role == 'captain' || state.role == 'كابتن' || _selectedRole == 'captain') {
                 Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
@@ -167,13 +174,13 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                     Icon(Icons.alternate_email_rounded, size: 60.sp, color: primaryNavy), 
                     SizedBox(height: 16.h),
                     Text(
-                      'استكمال البيانات',
+                      l10n.completeDataTitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 26.sp, fontWeight: FontWeight.bold, color: primaryNavy),
                     ),
                     SizedBox(height: 8.h),
                     Text(
-                      'أدخل بريدك الإلكتروني وكلمة المرور لإنشاء حسابك',
+                      l10n.completeDataSubtitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600),
                     ),
@@ -198,7 +205,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                                 children: [
                                   Icon(Icons.person_rounded, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade600, size: 22.sp),
                                   SizedBox(width: 8.w),
-                                  Text('راكب', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.passengerRole, style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -222,7 +229,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                                 children: [
                                   Icon(Icons.directions_car_rounded, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade600, size: 22.sp),
                                   SizedBox(width: 8.w),
-                                  Text('كابتن', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.captainRole, style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -234,7 +241,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
 
                     _buildTextField(
                       controller: _nameController, 
-                      hintText: 'الاسم بالكامل', 
+                      hintText: l10n.fullNameHint, 
                       icon: Icons.person_outline_rounded,
                       isLoading: isLoading,
                     ),
@@ -277,7 +284,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
 
                     _buildTextField(
                       controller: _emailController, 
-                      hintText: 'البريد الإلكتروني', 
+                      hintText: l10n.emailHint, 
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       textDirection: TextDirection.ltr,
@@ -300,7 +307,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                         textAlign: TextAlign.left,
                         style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                         decoration: InputDecoration(
-                          hintText: 'كلمة المرور',
+                          hintText: l10n.passwordLabel,
                           hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                           prefixIcon: IconButton(
                             icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
@@ -324,7 +331,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                         onPressed: isLoading ? null : _validateAndSubmit,
                         child: isLoading 
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('حفظ البيانات والتفعيل', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            : Text(l10n.saveAndActivate, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ],

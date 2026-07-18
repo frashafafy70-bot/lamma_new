@@ -65,7 +65,7 @@ class ActiveTripCard extends StatelessWidget {
     String finalPrice = data['finalPrice']?.toString() ?? data['negotiationPrice']?.toString() ?? data['price']?.toString() ?? 'غير محدد';
     
     String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    TripModel tripModel = TripModel.fromMap(data, docId);
+    TripEntity TripEntity = TripEntity.fromMap(data, docId);
 
     return Card(
       elevation: 4, 
@@ -228,7 +228,7 @@ class ActiveTripCard extends StatelessWidget {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(backgroundColor: royalGreen, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))), 
                                 onPressed: () {
-                                  context.read<TripActionsCubit>().acceptOffer(tripModel, isDriver, currentUserId);
+                                  context.read<TripActionsCubit>().acceptOffer(TripEntity, isDriver, currentUserId);
                                 }, 
                                 child: Text('موافق', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontSize: 13.sp))
                               )

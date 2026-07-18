@@ -6,7 +6,7 @@ class AddTravelTripUseCase {
 
   AddTravelTripUseCase(this.repository);
 
-  Future<void> call(TripModel trip) {
+  Future<void> call(TripEntity trip) {
     return repository.addTravelTrip(trip);
   }
 }

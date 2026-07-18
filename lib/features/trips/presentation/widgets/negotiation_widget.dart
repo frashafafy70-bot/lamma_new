@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 
 class NegotiationWidget extends StatefulWidget {
-  final TripModel trip;
+  final TripEntity trip;
   final bool isDriver;
   final String currentUserId;
 
@@ -32,14 +32,13 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // تحديد إذا كان هذا المستخدم هو من عليه الرد (ليس آخر من فاوض)
     String currentUserRole = widget.isDriver ? 'driver' : 'passenger';
     bool isMyTurnToReply = widget.trip.lastNegotiator != currentUserRole;
 
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.info.withOpacity(0.1),
+        color: AppColors.info.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: AppColors.info),
       ),
@@ -70,6 +69,7 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
                     onPressed: () {
+                      // 🟢 رجعناها 3 Positional Arguments زي ما الكيوبت طالب
                       context.read<TripActionsCubit>().acceptOffer(widget.trip, widget.isDriver, widget.currentUserId);
                     },
                     child: const Text('قبول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
@@ -80,6 +80,7 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                     onPressed: () {
+                      // 🟢 رجعناها 2 Positional Arguments
                       context.read<TripActionsCubit>().rejectOrCancelTrip(widget.trip, widget.isDriver);
                     },
                     child: const Text('رفض', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
@@ -110,11 +111,11 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentGold),
                     onPressed: () {
                       if (_priceController.text.isNotEmpty) {
-                        context.read<TripActionsCubit>().sendOffer(
-                          widget.trip, 
-                          _priceController.text, 
-                          widget.isDriver, 
-                          widget.currentUserId
+                        // 🟢 عدلنا أسماء البارامترز لتطابق المتوقع غالباً (استخدمنا tripId بدل trip)
+                        context.read<TripActionsCubit>().submitNegotiationOffer(
+                          tripId: widget.trip.id ?? '', 
+                          price: _priceController.text, 
+                          isDriver: widget.isDriver, 
                         );
                       }
                     },

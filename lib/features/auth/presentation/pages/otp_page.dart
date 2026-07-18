@@ -5,6 +5,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 import '../../cubit/auth_cubit.dart';
 import '../../cubit/auth_state.dart';
 import '../../../home/home_page.dart';
@@ -64,12 +67,13 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
-  void _verifyOtp() {
+  void _verifyOtp(BuildContext context) {
     FocusScope.of(context).unfocus();
+    final l10n = AppLocalizations.of(context)!;
     String smsCode = _controllers.map((c) => c.text).join();
 
     if (smsCode.length < 6) {
-      _showFloatingSnackBar('برجاء إدخال كود التحقق كاملاً المكون من 6 أرقام', Colors.red);
+      _showFloatingSnackBar(l10n.otpLengthError, Colors.red);
       return;
     }
 
@@ -96,6 +100,8 @@ class _OtpPageState extends State<OtpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -106,12 +112,12 @@ class _OtpPageState extends State<OtpPage> {
             } 
             // 🟢 لو الحساب قديم وموجود، هيدخل الرئيسية علطول
             else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message ?? 'تم تسجيل الدخول بنجاح', Colors.green);
+              _showFloatingSnackBar(state.message ?? l10n.loginSuccess, Colors.green);
               Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
             } 
             // 🟢 لو ده حساب جديد (الـ OTP صح بس لسه مفيش باسورد)، هيوجهه لصفحة استكمال البيانات
             else if (state is AuthNeedsPasswordAndProfile) {
-              _showFloatingSnackBar('تم تأكيد الرقم بنجاح، يرجى كتابة كلمة المرور', Colors.green);
+              _showFloatingSnackBar(l10n.otpVerifiedNeedPassword, Colors.green);
               
               Navigator.pushReplacement(
                 context,
@@ -161,14 +167,14 @@ class _OtpPageState extends State<OtpPage> {
                     SizedBox(height: 24.h),
                     
                     Text(
-                      'تأكيد رقم الهاتف',
+                      l10n.verifyPhoneTitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 28.sp, fontWeight: FontWeight.bold, color: primaryNavy),
                     ),
                     SizedBox(height: 12.h),
                     
                     Text(
-                      'أدخل كود التحقق المكون من 6 أرقام\nالذي تم إرساله إلى الرقم ${widget.phone}',
+                      l10n.verifyPhoneSubtitle(widget.phone),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, color: Colors.grey.shade600, height: 1.5),
                       textDirection: TextDirection.rtl,
@@ -224,10 +230,10 @@ class _OtpPageState extends State<OtpPage> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                           elevation: 0,
                         ),
-                        onPressed: isLoading ? null : _verifyOtp,
+                        onPressed: isLoading ? null : () => _verifyOtp(context),
                         child: isLoading
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('تحقق وتفعيل الحساب', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            : Text(l10n.verifyAndActivate, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
 
@@ -236,17 +242,17 @@ class _OtpPageState extends State<OtpPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('لم يصلك الكود؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
+                        Text(l10n.didntReceiveCode, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
                         TextButton(
                           onPressed: isLoading ? null : () {
-                            _showFloatingSnackBar('جاري إعادة الإرسال...', primaryNavy);
+                            _showFloatingSnackBar(l10n.resendingCode, primaryNavy);
                             context.read<AuthCubit>().sendSignUpOtp(phone: widget.phone);
                             for (var controller in _controllers) {
                               controller.clear();
                             }
                             FocusScope.of(context).requestFocus(_focusNodes[0]);
                           },
-                          child: Text('إعادة إرسال', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy, decoration: TextDecoration.underline)),
+                          child: Text(l10n.resendCode, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy, decoration: TextDecoration.underline)),
                         ),
                       ],
                     ),

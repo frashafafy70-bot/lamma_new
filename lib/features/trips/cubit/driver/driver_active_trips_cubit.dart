@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import '../../domain/usecases/get_driver_active_trips_usecase.dart'; 
 import '../../domain/usecases/accept_passenger_booking_usecase.dart';
 import '../../domain/usecases/reject_passenger_booking_usecase.dart';
@@ -12,7 +12,6 @@ import '../../domain/usecases/check_has_active_trip_usecase.dart';
 import '../../domain/usecases/update_trip_status_usecase.dart';
 import '../../domain/usecases/sync_driver_location_use_case.dart';
 
-import '../../data/models/trip_model.dart';
 import 'driver_active_trips_state.dart';
 
 class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
@@ -26,7 +25,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   final SyncDriverLocationUseCase syncDriverLocationUseCase;
   
   String _currentUserId = '';
-  final List<TripModel> _trips = [];
+  final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   static const int _limit = 15; 
@@ -63,7 +62,11 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
       
       result.fold(
         (failure) => emit(DriverActiveTripsError(failure.message ?? 'حدث خطأ أثناء جلب الرحلات النشطة.')),
-        (trips) => _handleNewTrips(trips),
+        (trips) {
+          _trips.addAll(trips);
+          _hasReachedMax = trips.length < _limit;
+          emit(_buildLoadedState());
+        },
       );
     } catch (e) {
       if (!isClosed) emit(DriverActiveTripsError('حدث خطأ غير متوقع: $e'));
@@ -96,7 +99,13 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
         },
         (newTrips) {
           _isFetchingMore = false;
-          _handleNewTrips(newTrips, isPagination: true);
+          if (newTrips.isEmpty) {
+            _hasReachedMax = true;
+          } else {
+            _trips.addAll(newTrips);
+            _hasReachedMax = newTrips.length < _limit;
+          }
+          emit(_buildLoadedState());
         },
       );
     } catch (e) {
@@ -121,7 +130,6 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     
     result.fold(
       (failure) {
-        // حماية إضافية لو الـ failure ملوش message
         final errorMessage = (failure is dynamic && failure.message != null) 
             ? failure.message 
             : 'حدث خطأ غير متوقع';
@@ -177,18 +185,48 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   }
 
   Future<void> syncLocation(String tripId, double lat, double lng) async {
-    await syncDriverLocationUseCase(tripId, GeoPoint(lat, lng));
+    final result = await syncDriverLocationUseCase(tripId, lat, lng);
+    result.fold(
+      (failure) {
+        if (kDebugMode) {
+          print('⚠️ فشل مزامنة الموقع: ${failure.message}');
+        }
+      },
+      (_) {}, 
+    );
+  }
+
+  void updateSingleTripLocally(String tripId, TripEntity updatedTrip) {
+    final index = _trips.indexWhere((t) => t.id == tripId);
+    if (index != -1) {
+      _trips[index] = updatedTrip;
+      emit(_buildLoadedState());
+    }
+  }
+
+  void _smartMergeTrips(List<TripEntity> fetchedTrips) {
+    for (var fetchedTrip in fetchedTrips) {
+      final index = _trips.indexWhere((t) => t.id == fetchedTrip.id);
+      if (index != -1) {
+        _trips[index] = fetchedTrip; 
+      } else {
+        if (!_trips.any((t) => t.id == fetchedTrip.id)) {
+           _trips.insert(0, fetchedTrip); 
+        }
+      }
+    }
+    emit(_buildLoadedState());
   }
 
   Future<void> _backgroundRefresh() async {
-    final result = await getDriverActiveTripsUseCase(uid: _currentUserId, limit: _trips.length > _limit ? _trips.length : _limit);
+    final result = await getDriverActiveTripsUseCase(
+        uid: _currentUserId, limit: _trips.length > _limit ? _trips.length : _limit);
     if (isClosed) return;
     
     result.fold(
       (failure) => debugPrint('⚠️ فشل التحديث بالخلفية: $failure'), 
-      (trips) {
-        _trips.clear();
-        _handleNewTrips(trips);
+      (fetchedTrips) {
+        _smartMergeTrips(fetchedTrips); 
       },
     );
   }
@@ -197,16 +235,6 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     _trips.clear();
     _hasReachedMax = false;
     _isFetchingMore = false;
-  }
-
-  void _handleNewTrips(List<TripModel> newTrips, {bool isPagination = false}) {
-    if (newTrips.isEmpty && isPagination) {
-      _hasReachedMax = true;
-    } else {
-      _trips.addAll(newTrips);
-      _hasReachedMax = newTrips.length < _limit;
-    }
-    emit(_buildLoadedState());
   }
 
   DriverActiveTripsLoaded _buildLoadedState() {

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
-import '../../family/presentation/pages/family_page.dart';
 
+// 🟢 استدعاء الترجمة
+import 'package:lamma_new/l10n/app_localizations.dart';
+
+import '../../family/presentation/pages/family_page.dart';
 import '../../trips/cubit/passenger/passenger_my_requests_cubit.dart';
 import '../../profile/presentation/cubit/profile_cubit.dart';
-
-import 'package:lamma_new/theme/app_colors.dart';
-
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
 import 'saved_addresses_page.dart';
 
 class ProfileView extends StatelessWidget {
@@ -38,9 +40,9 @@ class ProfileView extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
-        color: LammaColors.cardWhite, 
+        color: AppColors.cardWhite, 
         borderRadius: BorderRadius.circular(15.r), 
-        border: Border.all(color: LammaColors.dividerColor),
+        border: Border.all(color: AppColors.dividerColor),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
         ],
@@ -55,8 +57,8 @@ class ProfileView extends StatelessWidget {
           ), 
           child: Icon(icon, color: color, size: 24.sp),
         ),
-        title: Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: LammaColors.textDark)),
-        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: LammaColors.textMuted),
+        title: Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: AppColors.textDark)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: AppColors.textMuted),
         onTap: onTap,
       ),
     );
@@ -64,17 +66,21 @@ class ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🟢 تعريف الـ l10n
+    final l10n = AppLocalizations.of(context)!;
+
     if (isLoadingProfile) {
-      return const Center(child: CircularProgressIndicator(color: LammaColors.accentGold));
+      return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
     }
 
-    String displayRole = 'عميل';
+    // 🟢 استخدام متغيرات الأدوار من الترجمة
+    String displayRole = l10n.clientRoleName;
     if (activeRole.toLowerCase() == 'driver' || activeRole == 'كابتن') {
-      displayRole = 'كابتن';
+      displayRole = l10n.captainRoleName;
     }
 
     return Container(
-      color: LammaColors.backgroundLight,
+      color: AppColors.backgroundLight,
       child: Column(
         children: [
           // الهيدر
@@ -88,7 +94,7 @@ class ProfileView extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [LammaColors.primaryNavy, LammaColors.royalGreen],
+                colors: [AppColors.primaryNavy, AppColors.royalGreen],
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
               ),
@@ -98,7 +104,7 @@ class ProfileView extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: LammaColors.royalGreen.withOpacity(0.3),
+                  color: AppColors.royalGreen.withOpacity(0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 )
@@ -114,7 +120,7 @@ class ProfileView extends StatelessWidget {
                       padding: EdgeInsets.all(2.w), 
                       decoration: BoxDecoration(
                         shape: BoxShape.circle, 
-                        border: Border.all(color: LammaColors.accentGold, width: 2)
+                        border: Border.all(color: AppColors.accentGold, width: 2)
                       ), 
                       child: CircleAvatar(
                         radius: 35.r, 
@@ -128,7 +134,7 @@ class ProfileView extends StatelessWidget {
                       child: Container(
                         padding: EdgeInsets.all(6.w),
                         decoration: BoxDecoration(
-                          color: LammaColors.accentGold, 
+                          color: AppColors.accentGold, 
                           shape: BoxShape.circle, 
                           border: Border.all(color: Colors.white, width: 2)
                         ),
@@ -146,19 +152,19 @@ class ProfileView extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'أهلاً بك 👋', 
-                        style: TextStyle(color: LammaColors.accentGold, fontSize: 12.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                        l10n.welcomeGreeting, // 🟢 تم التعديل
+                        style: TextStyle(color: AppColors.accentGold, fontSize: 12.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        userName.isNotEmpty ? userName : 'مستخدم لَمَّة', 
+                        userName.isNotEmpty ? userName : l10n.lammaDefaultUserName, // 🟢 تم التعديل
                         style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
                         maxLines: 1, 
                         overflow: TextOverflow.ellipsis,
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        userEmail.isNotEmpty ? userEmail : 'جاري تحميل البيانات...', 
+                        userEmail.isNotEmpty ? userEmail : l10n.loadingDataPlaceholder, // 🟢 تم التعديل
                         style: TextStyle(color: Colors.white70, fontSize: 12.sp, fontFamily: 'Cairo'),
                         maxLines: 1, 
                         overflow: TextOverflow.ellipsis,
@@ -167,13 +173,13 @@ class ProfileView extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                         decoration: BoxDecoration(
-                          color: LammaColors.accentGold.withOpacity(0.15),
+                          color: AppColors.accentGold.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(15.r),
-                          border: Border.all(color: LammaColors.accentGold.withOpacity(0.5), width: 1),
+                          border: Border.all(color: AppColors.accentGold.withOpacity(0.5), width: 1),
                         ),
                         child: Text(
                           displayRole, 
-                          style: TextStyle(color: LammaColors.accentGold, fontSize: 11.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                          style: TextStyle(color: AppColors.accentGold, fontSize: 11.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
                         ),
                       ),
                     ],
@@ -201,16 +207,14 @@ class ProfileView extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 120.h),
               children: [
-                _buildListTile(icon: Icons.person_outline_rounded, color: LammaColors.primaryNavy, title: 'تعديل البيانات الشخصية', onTap: onEditProfile),
+                _buildListTile(icon: Icons.person_outline_rounded, color: AppColors.primaryNavy, title: l10n.editPersonalData, onTap: onEditProfile),
                 
-                // 🟢 تم حذف زر إضافة الرقم من هنا 🚀
-
-                _buildListTile(icon: Icons.lock_outline_rounded, color: LammaColors.info, title: 'تغيير كلمة المرور', onTap: onPasswordReset),
+                _buildListTile(icon: Icons.lock_outline_rounded, color: AppColors.info, title: l10n.changePasswordTitle, onTap: onPasswordReset),
                 
                 _buildListTile(
                   icon: Icons.location_on_outlined, 
-                  color: LammaColors.success, 
-                  title: 'العناوين المحفوظة', 
+                  color: AppColors.success, 
+                  title: l10n.savedAddresses, 
                   onTap: () {
                     Navigator.push(
                       context,
@@ -222,7 +226,7 @@ class ProfileView extends StatelessWidget {
                 _buildListTile(
                   icon: Icons.family_restroom_outlined, 
                   color: Colors.purpleAccent, 
-                  title: 'الاشتراك العائلي (تتبع الأبناء)', 
+                  title: l10n.familySubscription, 
                   onTap: () {
                     Navigator.push(
                       context,
@@ -232,7 +236,7 @@ class ProfileView extends StatelessWidget {
                     );
                   },
                 ),
-                _buildListTile(icon: Icons.support_agent_rounded, color: LammaColors.warning, title: 'الدعم الفني والشكاوى', onTap: onSupport),
+                _buildListTile(icon: Icons.support_agent_rounded, color: AppColors.warning, title: l10n.supportTitle, onTap: onSupport),
                 
                 SizedBox(height: 24.h), 
                 ElevatedButton.icon(
@@ -252,14 +256,14 @@ class ProfileView extends StatelessWidget {
                     onLogout();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: LammaColors.error.withOpacity(0.1), 
-                    foregroundColor: LammaColors.error, 
+                    backgroundColor: AppColors.error.withOpacity(0.1), 
+                    foregroundColor: AppColors.error, 
                     padding: EdgeInsets.symmetric(vertical: 14.h), 
                     elevation: 0, 
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                   ),
                   icon: Icon(Icons.logout_rounded, size: 24.sp), 
-                  label: Text('تسجيل الخروج من المنصة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
+                  label: Text(l10n.logoutFromPlatform, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
                 )
               ],
             ),

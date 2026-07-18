@@ -1,17 +1,18 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../repositories/trip_repository.dart';
-import '../../data/models/trip_model.dart';
+import '../entities/trip_entity.dart'; // 🟢 استدعاء الـ Entity بدل الـ Model
 
 class GetDriverActiveTripsUseCase {
   final TripRepository repository;
 
   GetDriverActiveTripsUseCase(this.repository);
 
-  Future<Either<Failure, List<TripModel>>> call({
+  // 🟢 تم إصلاح القوس الناقص هنا وإضافة List<TripEntity>
+  Future<Either<Failure, List<TripEntity>>> call({
     required String uid,
     required int limit,
-    TripModel? lastTrip,
+    TripEntity? lastTrip, // 🟢 تم التعديل
   }) async {
     return await repository.getDriverActiveTrips(
       uid: uid,

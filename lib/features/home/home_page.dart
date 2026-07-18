@@ -6,12 +6,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// 🟢 استدعاء الـ GetIt لحقن الـ Cubit
+import 'package:lamma_new/l10n/app_localizations.dart';
 import 'package:lamma_new/core/di/injection_container.dart';
 
-// 🟢 استدعاءات AutoRoute 
 import 'package:auto_route/auto_route.dart';
-import 'package:lamma_new/core/routes/app_router.dart';
+import 'package:lamma_new/core/routes/app_router.dart'; // 🟢 الاستدعاء الأساسي فقط
 import 'package:lamma_new/core/extensions/context_extension.dart';
 
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
@@ -58,7 +57,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // 🟢 إنشاء نسخة جديدة من HomeCubit عبر GetIt بدلاً من البحث عنها في الـ context
     _homeCubit = sl<HomeCubit>();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,66 +74,14 @@ class _HomePageState extends State<HomePage> {
 
   void _openNotifications(BuildContext context) {
     context.read<NotificationCubit>().markAllNotificationsAsRead();
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
-      builder: (bottomSheetContext) {
-        return SizedBox(
-          height: bottomSheetContext.height * 0.65, 
-          child: Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              children: [
-                Container(
-                  width: 40.w, 
-                  height: 5.h, 
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r))
-                ),
-                SizedBox(height: 16.h),
-                Text('الإشعارات', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy, fontFamily: 'Cairo')),
-                const Divider(),
-                Expanded(
-                  child: BlocBuilder<NotificationCubit, notif.NotificationState>(
-                    builder: (context, state) {
-                      if (state.status == notif.NotificationStatus.loading) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (state.notifications.isEmpty) {
-                        return Center(child: Text('لا توجد إشعارات حالياً 🔕', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp)));
-                      }
-                      return ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: state.notifications.length,
-                        itemBuilder: (context, index) {
-                          var notify = state.notifications[index];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: goldAccent.withOpacity(0.2), 
-                              child: const Icon(Icons.notifications_active, color: Color(0xFFD4AF37))
-                            ), 
-                            // 🟢 التعديل هنا: قراءة البيانات من الـ Entity
-                            title: Text(notify.title, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
-                            subtitle: Text(notify.body, style: const TextStyle(fontFamily: 'Cairo')),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    // 🟢 إزالة الـ const من الـ Route لأن الكلاس المولد لا يدعمها
+    context.router.push(NotificationsRoute());
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🟢 استخدام BlocProvider لضمان إغلاق الـ Cubit عند خروج المستخدم من الشاشة
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocProvider(
       create: (context) => _homeCubit,
       child: MultiBlocListener(
@@ -157,7 +103,7 @@ class _HomePageState extends State<HomePage> {
               else if (state is AuthSuccess) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(state.message ?? 'تمت العملية بنجاح', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                    content: Text(state.message ?? l10n.operationSuccess, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
                     backgroundColor: Colors.green,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
@@ -167,7 +113,7 @@ class _HomePageState extends State<HomePage> {
               else if (state is AuthError) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(state.message ?? 'حدث خطأ', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
+                    content: Text(state.message ?? l10n.errorOccurred, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
                     backgroundColor: Colors.red.shade800,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
@@ -212,7 +158,7 @@ class _HomePageState extends State<HomePage> {
                     final bool isDriver = profileState.activeRole == 'driver';
 
                     final homeMainView = HomeMainView(
-                      userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...', 
+                      userName: profileState.userName.isNotEmpty ? profileState.userName : l10n.loading, 
                       activeRole: profileState.activeRole, 
                       profileImageUrl: profileState.profileImageUrl, 
                       unreadCount: notifState.unreadNotificationsCount, 
@@ -242,7 +188,7 @@ class _HomePageState extends State<HomePage> {
                             activeRole: profileState.activeRole,
                             isLoadingProfile: profileState.status == prof.ProfileStatus.loading,
                             profileImageUrl: profileState.profileImageUrl,
-                            userName: profileState.userName.isNotEmpty ? profileState.userName : 'جاري التحميل...',
+                            userName: profileState.userName.isNotEmpty ? profileState.userName : l10n.loading,
                             userEmail: profileState.userEmail,
                             onEditProfile: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfilePage())),
                             onPasswordReset: () {
@@ -253,8 +199,8 @@ class _HomePageState extends State<HomePage> {
                             onSupport: () => _showSupportDialog(context),
                             onLogout: () async {
                               await FirebaseAuth.instance.signOut();
-                              // 🟢 التوجيه باستخدام AutoRoute مع const
-                              context.router.replaceAll([const LoginRoute()]);
+                              // 🟢 إزالة const من Route هنا أيضاً للضمان
+                              context.router.replaceAll([LoginRoute()]);
                             },
                           ),
                         ],
@@ -300,16 +246,16 @@ class _HomePageState extends State<HomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: isDriver
                                   ? [
-                                      _buildNavItem(0, Icons.home_rounded, 'الرئيسية', homeState),
-                                      _buildBadgedNavItem(1, Icons.radar_rounded, 'الرادار', homeState, profileState, notifState),
-                                      _buildBadgedNavItem(2, Icons.play_circle_fill_rounded, 'النشطة', homeState, profileState, notifState),
-                                      _buildNavItem(3, Icons.history_rounded, 'السجل', homeState),
+                                      _buildNavItem(0, Icons.home_rounded, l10n.navHome, homeState),
+                                      _buildBadgedNavItem(1, Icons.radar_rounded, l10n.navRadar, homeState, badgeCount: homeState.radarBadgeCount, showGeneralIndicator: false),
+                                      _buildBadgedNavItem(2, Icons.play_circle_fill_rounded, l10n.navActive, homeState, badgeCount: homeState.activeTripsBadgeCount, showGeneralIndicator: notifState.hasNewNotification),
+                                      _buildNavItem(3, Icons.history_rounded, l10n.navHistory, homeState),
                                     ]
                                   : [
-                                      _buildNavItem(0, Icons.home_rounded, 'الرئيسية', homeState),
-                                      _buildNavItem(1, Icons.search_rounded, 'البحث', homeState),
-                                      _buildBadgedNavItem(2, Icons.receipt_long_rounded, 'الطلبات', homeState, profileState, notifState), 
-                                      _buildNavItem(3, Icons.person_rounded, 'الحساب', homeState),
+                                      _buildNavItem(0, Icons.home_rounded, l10n.navHome, homeState),
+                                      _buildNavItem(1, Icons.search_rounded, l10n.navSearch, homeState),
+                                      _buildBadgedNavItem(2, Icons.receipt_long_rounded, l10n.navOrders, homeState, badgeCount: homeState.clientRequestsBadgeCount + homeState.activeOrdersCount, showGeneralIndicator: notifState.hasNewNotification), 
+                                      _buildNavItem(3, Icons.person_rounded, l10n.navAccount, homeState),
                                     ],
                               ),
                             ),
@@ -357,19 +303,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState homeState, prof.ProfileState profileState, notif.NotificationState notifState) {
+  Widget _buildBadgedNavItem(int index, IconData icon, String label, HomeState homeState, {required int badgeCount, required bool showGeneralIndicator}) {
     bool isSelected = homeState.bottomNavIndex == index;
-    int count = 0;
-
-    if (label == 'الرادار') {
-      count = homeState.radarBadgeCount;
-    } else if (label == 'النشطة') {
-      count = homeState.activeTripsBadgeCount;
-    } else if (label == 'الطلبات') {
-      count = homeState.clientRequestsBadgeCount + homeState.activeOrdersCount;
-    }
-
-    bool showBadge = count > 0 || (label != 'الرادار' && notifState.hasNewNotification);
+    bool showBadge = badgeCount > 0 || showGeneralIndicator;
 
     return GestureDetector(
       onTap: () {
@@ -391,7 +327,7 @@ class _HomePageState extends State<HomePage> {
               decoration: BoxDecoration(color: isSelected ? goldAccent : Colors.transparent, shape: BoxShape.circle),
               child: Badge(
                 isLabelVisible: showBadge, 
-                label: count > 0 ? Text(count.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
+                label: badgeCount > 0 ? Text(badgeCount.toString(), style: TextStyle(fontFamily: 'Cairo', fontSize: 9.sp)) : null,
                 backgroundColor: Colors.redAccent,
                 child: Icon(icon, color: isSelected ? primaryNavy : Colors.white.withOpacity(0.6), size: 22.sp),
               ),
@@ -405,6 +341,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _confirmPasswordReset(BuildContext pageContext, String phone, String email) {
+    final l10n = AppLocalizations.of(pageContext)!;
+
     showDialog(
       context: pageContext, 
       builder: (ctx) => AlertDialog(
@@ -414,16 +352,16 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Icons.lock_reset_rounded, color: primaryNavy), 
             SizedBox(width: 8.w), 
-            const Text('تغيير كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18))
+            Text(l10n.changePasswordTitle, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18))
           ]
         ), 
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'اختر طريقة الاستعادة لإعادة تعيين كلمة المرور:', 
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 14), 
+            Text(
+              l10n.chooseRecoveryMethod, 
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 14), 
               textDirection: TextDirection.rtl
             ),
             SizedBox(height: 16.h),
@@ -436,13 +374,13 @@ class _HomePageState extends State<HomePage> {
                 padding: EdgeInsets.symmetric(vertical: 10.h)
               ),
               icon: const Icon(Icons.email_outlined),
-              label: const Text('إرسال رابط للبريد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+              label: Text(l10n.sendEmailLink, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
               onPressed: () {
                 ctx.pop(); 
                 if (email.isNotEmpty) {
                   pageContext.read<AuthCubit>().sendPasswordResetEmail(email: email);
                 } else {
-                  ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('البريد الإلكتروني غير متوفر، يرجى استكمال بياناتك.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(pageContext).showSnackBar(SnackBar(content: Text(l10n.emailNotAvailable, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
                 }
               },
             ),
@@ -455,14 +393,14 @@ class _HomePageState extends State<HomePage> {
                 padding: EdgeInsets.symmetric(vertical: 10.h)
               ),
               icon: const Icon(Icons.phone_android_rounded),
-              label: const Text('إرسال كود للهاتف', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+              label: Text(l10n.sendPhoneCode, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
               onPressed: () {
                 ctx.pop(); 
                 if (phone.isNotEmpty) {
                   String fullPhone = phone.startsWith('+20') ? phone : '+20${phone.replaceFirst(RegExp(r'^0+'), '')}';
                   pageContext.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
                 } else {
-                  ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('رقم الهاتف غير متوفر، يرجى استكمال بياناتك.', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(pageContext).showSnackBar(SnackBar(content: Text(l10n.phoneNotAvailable, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
                 }
               },
             ),
@@ -471,7 +409,7 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () => ctx.pop(), 
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))
+            child: Text(l10n.cancel, style: const TextStyle(fontFamily: 'Cairo', color: Colors.grey))
           ), 
         ],
       )
@@ -479,7 +417,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showSupportDialog(BuildContext pageContext) {
+    final l10n = AppLocalizations.of(pageContext)!;
     final TextEditingController complaintCtrl = TextEditingController();
+
     showDialog(
       context: pageContext, 
       builder: (ctx) => AlertDialog(
@@ -489,7 +429,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Icon(Icons.support_agent_rounded, color: Colors.orange), 
             SizedBox(width: 8.w), 
-            const Text('الدعم الفني والشكاوى', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16))
+            Text(l10n.supportTitle, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16))
           ]
         ), 
         content: TextField(
@@ -497,14 +437,14 @@ class _HomePageState extends State<HomePage> {
           maxLines: 4, 
           textDirection: TextDirection.rtl, 
           decoration: InputDecoration(
-            hintText: 'اكتب شكوتك، مشكلتك، أو مقترحك هنا...', 
+            hintText: l10n.supportHint, 
             hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13), 
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)), 
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: BorderSide(color: royalGreen, width: 2))
           ),
         ), 
         actions: [
-          TextButton(onPressed: () => ctx.pop(), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
+          TextButton(onPressed: () => ctx.pop(), child: Text(l10n.cancel, style: const TextStyle(fontFamily: 'Cairo', color: Colors.grey))), 
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: royalGreen, foregroundColor: Colors.white), 
             onPressed: () { 
@@ -512,7 +452,7 @@ class _HomePageState extends State<HomePage> {
               ctx.pop(); 
               pageContext.read<ProfileCubit>().sendSupportTicket(message: complaintCtrl.text.trim());
             }, 
-            child: const Text('إرسال الدعم', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+            child: Text(l10n.sendSupport, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
           ),
         ],
       )

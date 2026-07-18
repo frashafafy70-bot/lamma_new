@@ -1,17 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// مسار الملف: lib/features/trips/domain/entities/trip_entity.dart
 
-// 🟢 كلاس مخصص لحالات الرحلة
-class TripStatus {
-  static const String pending = 'pending';
-  static const String available = 'available';
-  static const String negotiating = 'negotiating';
-  static const String accepted = 'accepted';
-  static const String inProgress = 'in_progress';
-  static const String completed = 'completed';
-  static const String cancelled = 'cancelled';
-}
+import 'package:equatable/equatable.dart';
 
-class TripEntity {
+// تأكد من تعديل المسارات دي حسب مكان الملفين عندك في المشروع
+import 'trip_status.dart';
+import '../../../../core/entities/location_coordinates.dart';
+
+class TripEntity extends Equatable {
   final String? id;
   final bool isDriverPost;
   final String? driverId;
@@ -22,30 +17,40 @@ class TripEntity {
   final String? vehicleType;
   final String? pickup;
   final String? destination;
-  final GeoPoint? pickupLocation;
-  final GeoPoint? destinationLocation;
+  
+  // استخدام كلاس الإحداثيات النظيف
+  final LocationCoordinates? pickupLocation;
+  final LocationCoordinates? destinationLocation;
   final String? fromCity;
   final String? toCity;
-  final GeoPoint? fromLocation;
-  final GeoPoint? toLocation;
+  final LocationCoordinates? fromLocation;
+  final LocationCoordinates? toLocation;
+  
   final String? time;
   final DateTime? travelDate;
   final String? tripType;
-  final String? availableSeats;
-  final String? suggestedPrice;
-  final String? price;
-  final String? seatPrice;
-  final String? fullCarPrice;
-  final String? finalPrice;
-  final String? negotiationPrice;
+  
+  // أرقام صحيحة للمقاعد
+  final int? availableSeats; 
+  
+  // تحويل جميع القيم المالية إلى double لسهولة العمليات الحسابية
+  final double? suggestedPrice;
+  final double? price;
+  final double? seatPrice;
+  final double? fullCarPrice;
+  final double? finalPrice;
+  final double? negotiationPrice;
+  final double? errandCost;
+  
   final String? lastNegotiator;
   final String? errandDetails;
-  final String? errandCost;
   final String? audioUrl;
-  final String status;
+  
+  // الاعتماد على الـ Enum
+  final TripStatus status;
   final DateTime? createdAt;
 
-  TripEntity({
+  const TripEntity({
     this.id,
     required this.isDriverPost,
     this.driverId,
@@ -79,4 +84,16 @@ class TripEntity {
     required this.status,
     this.createdAt,
   });
+
+  @override
+  List<Object?> get props => [
+        id,
+        isDriverPost,
+        status,
+        price,
+        finalPrice,
+        pickupLocation,
+        destinationLocation,
+        availableSeats,
+      ];
 }

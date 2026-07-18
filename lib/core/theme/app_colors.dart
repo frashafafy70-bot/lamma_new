@@ -2,37 +2,49 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // ==========================================
-  // الألوان الأساسية (Primary & Secondary)
+  // الألوان الأساسية (الهوية: كحلي، أخضر ملكي، ذهبي)
   // ==========================================
-  static const Color primaryDark = Color(0xFF131E31); // الكحلي الفخم
-  static const Color royalGreen = Color(0xFF1A3B2A); // الأخضر الملكي للرحلات
-  static const Color accentGold = Color(0xFFF3C444); // الذهبي المميز
+  static const Color primaryNavy = Color(0xFF0F172A); // الكحلي الفخم
+  static const Color primaryDark = Color(0xFF0F172A); // (بديل لنفس اللون لتوافق الكود)
+  static const Color royalGreen = Color(0xFF1B4332);  // الأخضر الملكي
+  static const Color accentGold = Color(0xFFD4AF37);  // الذهبي
   static const Color medicalTeal = Color(0xFF0D9488); // لون القسم الطبي
 
-  // درجات فاتحة (شفافة) مفيدة جداً للخلفيات في الأيقونات وتأثيرات الرادار
-  static final Color primaryDarkLight = const Color(0xFF131E31).withValues(alpha: 0.1);
-  static final Color royalGreenLight = const Color(0xFF1A3B2A).withValues(alpha: 0.1);
-  static final Color accentGoldLight = const Color(0xFFF3C444).withValues(alpha: 0.1);
-  static final Color medicalTealLight = const Color(0xFF0D9488).withValues(alpha: 0.1); 
+  // ==========================================
+  // درجات شفافة (مكتوبة بـ Hex لدعم الـ const)
+  // 1A = 10% Opacity
+  // ==========================================
+  static const Color primaryDarkLight = Color(0x1A0F172A);
+  static const Color royalGreenLight = Color(0x1A1B4332);
+  static const Color accentGoldLight = Color(0x1AD4AF37);
+  static const Color medicalTealLight = Color(0x1A0D9488);
 
   // ==========================================
-  // ألوان الخلفيات والنصوص
+  // ألوان الخلفيات والكروت
   // ==========================================
   static const Color backgroundLight = Color(0xFFF8FAFC);
-  static const Color textDark = Color(0xFF0F172A);
-  
+  static const Color backgroundDark = Color(0xFF121212);
+  static const Color cardWhite = Colors.white;
+  static const Color cardDark = Color(0xFF1E1E1E);
+
   // ==========================================
-  // ألوان الحالات والنصوص الفرعية (MaterialColor)
-  // (تم الحفاظ عليها لدعم درجات مثل shade400)
+  // ألوان النصوص
   // ==========================================
+  static const Color textDark = Color(0xFF1E293B); 
+  static const Color textWhite = Colors.white;
+  // تم إعادتها إلى MaterialColor لحل مشكلة shade300 و shade600
   static const MaterialColor textMuted = Colors.grey; 
+
+  // ==========================================
+  // ألوان الحالات (MaterialColor)
+  // ==========================================
   static const MaterialColor success = Colors.green;
   static const MaterialColor error = Colors.red;
   static const MaterialColor warning = Colors.orange;
   static const MaterialColor info = Colors.blue;
 
   // ==========================================
-  // ألوان الحدود والفواصل (Borders & Dividers)
+  // ألوان الحدود والفواصل
   // ==========================================
-  static const Color dividerColor = Color(0xFFE9ECEF);
+  static const Color dividerColor = Color(0xFFE2E8F0);
 }

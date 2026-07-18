@@ -10,7 +10,7 @@ import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
 class SmartTripCard extends StatefulWidget {
-  final TripModel trip;
+  final TripEntity trip;
   final bool isDriver; 
   final String currentUserId;
   final VoidCallback onChatPressed;

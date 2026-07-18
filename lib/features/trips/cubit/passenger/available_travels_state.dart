@@ -1,34 +1,34 @@
-import '../../data/models/trip_model.dart'; 
+import 'package:geolocator/geolocator.dart';
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 
+// 🟢 كلاس مساعد لربط الرحلة بالمسافة بتاعتها
 class ProcessedTrip {
-  final TripModel trip;
+  final TripEntity trip;
   final double distance;
 
   ProcessedTrip({required this.trip, required this.distance});
 }
 
 abstract class AvailableTravelsState {
-  final List<ProcessedTrip> trips; 
-  AvailableTravelsState({this.trips = const []});
+  final List<ProcessedTrip> trips;
+  const AvailableTravelsState({this.trips = const []});
 }
 
-class AvailableTravelsInitial extends AvailableTravelsState {
-  AvailableTravelsInitial() : super(trips: []);
-}
+class AvailableTravelsInitial extends AvailableTravelsState {}
 
 class AvailableTravelsLoading extends AvailableTravelsState {
-  AvailableTravelsLoading({super.trips}); 
+  const AvailableTravelsLoading({super.trips});
 }
 
 class AvailableTravelsLoaded extends AvailableTravelsState {
   final bool showOnlyNearby;
-  final dynamic passengerPosition;
+  final Position? passengerPosition;
   final bool hasReachedMax;
   final bool isFetchingMore;
 
-  AvailableTravelsLoaded({
+  const AvailableTravelsLoaded({
     required super.trips,
-    this.showOnlyNearby = false,
+    required this.showOnlyNearby,
     this.passengerPosition,
     this.hasReachedMax = false,
     this.isFetchingMore = false,
@@ -37,7 +37,7 @@ class AvailableTravelsLoaded extends AvailableTravelsState {
   AvailableTravelsLoaded copyWith({
     List<ProcessedTrip>? trips,
     bool? showOnlyNearby,
-    dynamic passengerPosition,
+    Position? passengerPosition,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {
@@ -53,5 +53,5 @@ class AvailableTravelsLoaded extends AvailableTravelsState {
 
 class AvailableTravelsError extends AvailableTravelsState {
   final String message;
-  AvailableTravelsError(this.message, {super.trips});
+  const AvailableTravelsError(this.message, {super.trips});
 }

@@ -1,10 +1,15 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 🟢 تم إضافة استيراد الـ Auth هنا لقفل الثغرة الأمنية
+import 'package:firebase_auth/firebase_auth.dart'; 
 
-import 'package:lamma_new/theme/app_colors.dart';
+// 🟢 استدعاء ملف الترجمة الخاص بالمشروع
+import 'package:lamma_new/l10n/app_localizations.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
 import '../../profile/presentation/cubit/address_cubit.dart'; 
 import 'package:lamma_new/features/trips/presentation/widgets/trip_map.dart';
 
@@ -30,15 +35,17 @@ class _SavedAddressesContent extends StatefulWidget {
 class _SavedAddressesContentState extends State<_SavedAddressesContent> {
 
   Map<String, dynamic> _getIconAndColor(String title) {
-    if (title.contains('منزل') || title.contains('بيت')) {
-      return {'icon': Icons.home_rounded, 'color': LammaColors.info};
-    } else if (title.contains('عمل') || title.contains('شغل') || title.contains('شركة')) {
-      return {'icon': Icons.work_rounded, 'color': LammaColors.warning};
+    final lowerTitle = title.toLowerCase();
+    if (lowerTitle.contains('منزل') || lowerTitle.contains('بيت') || lowerTitle.contains('home')) {
+      return {'icon': Icons.home_rounded, 'color': AppColors.info};
+    } else if (lowerTitle.contains('عمل') || lowerTitle.contains('شغل') || lowerTitle.contains('شركة') || lowerTitle.contains('work') || lowerTitle.contains('office')) {
+      return {'icon': Icons.work_rounded, 'color': AppColors.warning};
     }
-    return {'icon': Icons.location_on_rounded, 'color': LammaColors.success};
+    return {'icon': Icons.location_on_rounded, 'color': AppColors.success};
   }
 
   void _showAddressBottomSheet({Map<String, dynamic>? existingAddress}) {
+    final l10n = AppLocalizations.of(context)!;
     final titleController = TextEditingController(text: existingAddress?['title'] ?? '');
     final addressController = TextEditingController(text: existingAddress?['address'] ?? '');
     bool isDefault = existingAddress?['isDefault'] ?? false;
@@ -56,7 +63,7 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                 top: 20.h, left: 20.w, right: 20.w,
               ),
               decoration: BoxDecoration(
-                color: LammaColors.backgroundLight,
+                color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
               ),
               child: Column(
@@ -66,25 +73,25 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                   Center(
                     child: Container(
                       width: 50.w, height: 5.h,
-                      decoration: BoxDecoration(color: LammaColors.dividerColor, borderRadius: BorderRadius.circular(10.r)),
+                      decoration: BoxDecoration(color: AppColors.dividerColor, borderRadius: BorderRadius.circular(10.r)),
                     ),
                   ),
                   SizedBox(height: 20.h),
                   Text(
-                    existingAddress == null ? 'إضافة عنوان جديد' : 'تعديل العنوان',
-                    style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, fontWeight: FontWeight.bold, color: LammaColors.primaryNavy),
+                    existingAddress == null ? l10n.addNewAddress : l10n.editAddressTitle,
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
                   ),
                   SizedBox(height: 20.h),
                   
                   TextField(
                     controller: titleController,
                     decoration: InputDecoration(
-                      labelText: 'اسم العنوان (مثال: المنزل، العمل)',
-                      labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.textMuted),
-                      prefixIcon: const Icon(Icons.title_rounded, color: LammaColors.accentGold),
-                      filled: true, fillColor: LammaColors.cardWhite,
+                      labelText: l10n.addressNameHint,
+                      labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textMuted),
+                      prefixIcon: const Icon(Icons.title_rounded, color: AppColors.accentGold),
+                      filled: true, fillColor: AppColors.cardWhite,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: LammaColors.accentGold)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold)),
                     ),
                   ),
                   SizedBox(height: 16.h),
@@ -93,15 +100,14 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                     controller: addressController,
                     maxLines: 2,
                     decoration: InputDecoration(
-                      labelText: 'تفاصيل العنوان',
-                      labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.textMuted),
+                      labelText: l10n.addressDetailsHint,
+                      labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textMuted),
                       
                       prefixIcon: IconButton(
-                        icon: const Icon(Icons.location_on_outlined, color: LammaColors.accentGold),
+                        icon: const Icon(Icons.location_on_outlined, color: AppColors.accentGold),
                         onPressed: () async {
-                          FocusScope.of(context).unfocus(); // إخفاء الكيبورد
+                          FocusScope.of(context).unfocus(); 
 
-                          // استدعاء شاشة الخريطة مع تفعيل متغير اختيار العنوان
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const TripMap(isAddressSelectionMode: true)), 
@@ -115,17 +121,17 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                         },
                       ),
                       
-                      filled: true, fillColor: LammaColors.cardWhite,
+                      filled: true, fillColor: AppColors.cardWhite,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: LammaColors.accentGold)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold)),
                     ),
                   ),
                   SizedBox(height: 16.h),
 
                   SwitchListTile(
-                    title: Text('تعيين كعنوان أساسي', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: LammaColors.textDark)),
+                    title: Text(l10n.setAsDefaultAddress, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.textDark)),
                     value: isDefault,
-                    activeColor: LammaColors.accentGold,
+                    activeColor: AppColors.accentGold,
                     contentPadding: EdgeInsets.zero,
                     onChanged: (value) {
                       setModalState(() => isDefault = value);
@@ -139,7 +145,7 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                       onPressed: () {
                         if (titleController.text.isNotEmpty && addressController.text.isNotEmpty) {
                           final data = {
-                            'uid': FirebaseAuth.instance.currentUser?.uid, // 🟢 تم ربط الـ uid الخاص بالمستخدم هنا ليمر بأمان عبر الـ Rules المشفرة
+                            'uid': FirebaseAuth.instance.currentUser?.uid, 
                             'title': titleController.text,
                             'address': addressController.text,
                             'isDefault': isDefault,
@@ -155,11 +161,11 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: LammaColors.primaryNavy,
+                        backgroundColor: AppColors.primaryNavy,
                         padding: EdgeInsets.symmetric(vertical: 14.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
                       ),
-                      child: Text('حفظ العنوان', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text(l10n.saveAddress, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ],
@@ -172,6 +178,7 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
   }
 
   void _showDeleteDialog(String docId) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -179,16 +186,16 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: LammaColors.error, size: 28.sp),
+              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28.sp),
               SizedBox(width: 10.w),
-              Text('حذف العنوان', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: LammaColors.textDark)),
+              Text(l10n.deleteAddressTitle, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: AppColors.textDark)),
             ],
           ),
-          content: Text('هل أنت متأكد من حذف هذا العنوان بشكل نهائي؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.textMuted)),
+          content: Text(l10n.deleteAddressConfirmation, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textMuted)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: LammaColors.textMuted, fontWeight: FontWeight.bold)),
+              child: Text(l10n.cancel, style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -196,10 +203,10 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                 Navigator.pop(dialogContext);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: LammaColors.error,
+                backgroundColor: AppColors.error,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
               ),
-              child: Text('حذف', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(l10n.delete, style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -209,13 +216,15 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: LammaColors.backgroundLight,
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
         centerTitle: true,
-        title: Text('العناوين المحفوظة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 20.sp, color: Colors.white)),
+        title: Text(l10n.savedAddresses, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 20.sp, color: Colors.white)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -223,7 +232,7 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [LammaColors.primaryNavy, LammaColors.royalGreen],
+              colors: [AppColors.primaryNavy, AppColors.royalGreen],
               begin: Alignment.topRight, end: Alignment.bottomLeft,
             ),
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25.r), bottomRight: Radius.circular(25.r)),
@@ -234,9 +243,9 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
       body: BlocBuilder<AddressCubit, AddressState>(
         builder: (context, state) {
           if (state is AddressLoading) {
-            return const Center(child: CircularProgressIndicator(color: LammaColors.accentGold));
+            return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
           } else if (state is AddressError) {
-            return Center(child: Text(state.message, style: TextStyle(fontFamily: 'Cairo', color: LammaColors.error)));
+            return Center(child: Text(state.message, style: TextStyle(fontFamily: 'Cairo', color: AppColors.error)));
           } else if (state is AddressLoaded) {
             final addresses = state.addresses;
             
@@ -245,9 +254,9 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_off_rounded, size: 80.sp, color: LammaColors.dividerColor),
+                    Icon(Icons.location_off_rounded, size: 80.sp, color: AppColors.dividerColor),
                     SizedBox(height: 16.h),
-                    Text('لا توجد عناوين محفوظة', style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: LammaColors.textMuted, fontWeight: FontWeight.bold)),
+                    Text(l10n.noSavedAddresses, style: TextStyle(fontFamily: 'Cairo', fontSize: 18.sp, color: AppColors.textMuted, fontWeight: FontWeight.bold)),
                   ],
                 ),
               );
@@ -284,15 +293,15 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
         child: ElevatedButton.icon(
           onPressed: () => _showAddressBottomSheet(),
           style: ElevatedButton.styleFrom(
-            backgroundColor: LammaColors.primaryNavy,
+            backgroundColor: AppColors.primaryNavy,
             foregroundColor: Colors.white,
             padding: EdgeInsets.symmetric(vertical: 14.h),
             elevation: 5,
-            shadowColor: LammaColors.primaryNavy.withOpacity(0.4),
+            shadowColor: AppColors.primaryNavy.withOpacity(0.4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
           ),
-          icon: Icon(Icons.add_location_alt_rounded, size: 24.sp, color: LammaColors.accentGold),
-          label: Text('إضافة عنوان جديد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+          icon: Icon(Icons.add_location_alt_rounded, size: 24.sp, color: AppColors.accentGold),
+          label: Text(l10n.addNewAddress, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
         ),
       ),
     );
@@ -307,11 +316,13 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
     required bool isDefault,
     required Map<String, dynamic> fullAddressData,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       decoration: BoxDecoration(
-        color: LammaColors.cardWhite,
+        color: AppColors.cardWhite,
         borderRadius: BorderRadius.circular(15.r),
-        border: Border.all(color: LammaColors.dividerColor),
+        border: Border.all(color: AppColors.dividerColor),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: ListTile(
@@ -323,28 +334,28 @@ class _SavedAddressesContentState extends State<_SavedAddressesContent> {
         ),
         title: Row(
           children: [
-            Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: LammaColors.textDark)),
+            Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.textDark)),
             if (isDefault) ...[
               SizedBox(width: 8.w),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                decoration: BoxDecoration(color: LammaColors.primaryNavy.withOpacity(0.1), borderRadius: BorderRadius.circular(10.r)),
-                child: Text('الأساسي', style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold, color: LammaColors.primaryNavy)),
+                decoration: BoxDecoration(color: AppColors.primaryNavy.withOpacity(0.1), borderRadius: BorderRadius.circular(10.r)),
+                child: Text(l10n.defaultAddressLabel, style: TextStyle(fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold, color: AppColors.primaryNavy)),
               )
             ]
           ],
         ),
         subtitle: Padding(
           padding: EdgeInsets.only(top: 6.h),
-          child: Text(address, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: LammaColors.textMuted)),
+          child: Text(address, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: AppColors.textMuted)),
         ),
         trailing: PopupMenuButton<String>(
-          icon: Icon(Icons.more_vert_rounded, color: LammaColors.textMuted),
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.textMuted),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-          color: LammaColors.cardWhite,
+          color: AppColors.cardWhite,
           itemBuilder: (context) => [
-            PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20.sp, color: LammaColors.info), SizedBox(width: 8.w), Text('تعديل', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.textDark))])),
-            PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, size: 20.sp, color: LammaColors.error), SizedBox(width: 8.w), Text('حذف', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: LammaColors.error))])),
+            PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 20.sp, color: AppColors.info), SizedBox(width: 8.w), Text(l10n.edit, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textDark))])),
+            PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, size: 20.sp, color: AppColors.error), SizedBox(width: 8.w), Text(l10n.delete, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.error))])),
           ],
           onSelected: (value) {
             if (value == 'edit') {

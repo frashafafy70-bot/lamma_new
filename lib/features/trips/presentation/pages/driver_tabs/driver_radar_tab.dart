@@ -1,14 +1,16 @@
 // ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; 
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:audioplayers/audioplayers.dart'; 
 
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
+import 'package:lamma_new/features/trips/domain/entities/trip_status.dart'; // 🟢 تم إضافة استيراد حالة الرحلة
+
 import 'package:lamma_new/core/services/fcm_service.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/core/di/injection_container.dart'; // 🟢 إضافة الـ DI
+import 'package:lamma_new/core/di/injection_container.dart'; 
 
 import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
 import 'package:lamma_new/features/trips/data/models/trip_model.dart'; 
@@ -18,7 +20,6 @@ import 'package:lamma_new/features/trips/presentation/widgets/premium_tab_header
 import '../../../cubit/driver/driver_radar_cubit.dart';
 import '../../../cubit/driver/driver_radar_state.dart';
 
-// 🟢 استدعاءات الكيوبت الجديد الخاص بالأكشنز (التفاوض)
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_state.dart';
 
@@ -79,7 +80,6 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context); 
 
-    // 🟢 توفير الكيوبت للرادار والأكشنز معاً
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _radarCubit),
@@ -93,7 +93,6 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
               const PremiumTabHeader(title: 'الرادار'),
             
             Expanded(
-              // 🟢 الاستماع لـ TripActionsCubit لعرض تحميل/نجاح/خطأ التفاوض
               child: BlocListener<TripActionsCubit, TripActionsState>(
                 listener: (context, state) {
                   if (state is TripActionsLoading) {
@@ -228,16 +227,17 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
                               );
                             }
 
-                            TripModel trip = activeTrips[index];
+                            TripEntity trip = activeTrips[index];
                             
                             String timeStr = 'الآن';
                             if (trip.createdAt != null) {
                               timeStr = DateFormat('hh:mm a').format(trip.createdAt!);
                             }
 
-                            String displayPrice = trip.status == 'negotiating' && trip.negotiationPrice != null 
-                                ? trip.negotiationPrice!
-                                : trip.price ?? '0';
+                            // 🟢 تم التعديل: استخدام Enum بدلاً من النص وتحويل السعر النهائي لنص
+                            String displayPrice = trip.status == TripStatus.negotiating && trip.negotiationPrice != null 
+                                ? trip.negotiationPrice!.toString()
+                                : trip.price?.toString() ?? '0';
 
                             String clientName = trip.passengerName ?? 'عميل';
                             String pickupPoint = trip.pickup ?? 'موقع الانطلاق';
@@ -298,7 +298,8 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
                                       ],
                                     ),
                                     
-                                    if (trip.status == 'negotiating') ...[
+                                    // 🟢 تم التعديل: المقارنة مع Enum الـ Status
+                                    if (trip.status == TripStatus.negotiating) ...[
                                       SizedBox(height: 10.h),
                                       Container(
                                         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
@@ -346,7 +347,7 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
                                               _OrderAudioPlayer(audioUrl: trip.audioUrl!),
                                             ],
 
-                                            if (trip.errandCost != null && trip.errandCost!.isNotEmpty) ...[
+                                            if (trip.errandCost != null && trip.errandCost! > 0) ...[
                                               SizedBox(height: 8.h),
                                               Text('تكلفة المشتروات التقريبية: ${trip.errandCost} ج.م', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: AppColors.error)),
                                             ]
@@ -385,16 +386,16 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
                                             ),
                                             icon: Icon(Icons.handshake_rounded, size: 18.sp),
                                             label: Text('تفاوض', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold)),
-                                            // 🟢 استخدام Helper التفاوض النظيف
                                             onPressed: () async {
                                               final offer = await TripDialogsHelper.showNegotiationDialog(
                                                 context: context, 
                                                 royalGreen: AppColors.royalGreen,
                                               );
+                                              
                                               if (offer != null) {
                                                 context.read<TripActionsCubit>().submitNegotiationOffer(
-                                                  docId: trip.id!,
-                                                  offerPrice: offer,
+                                                  tripId: trip.id ?? '',
+                                                  price: offer.toString(),
                                                   isDriver: true,
                                                 );
                                               }
@@ -412,7 +413,8 @@ class _DriverRadarTabState extends State<DriverRadarTab> with AutomaticKeepAlive
                                             icon: Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18.sp),
                                             label: Text('موافق بالسعر', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                                             onPressed: () {
-                                              String? negotiatedPrice = trip.status == 'negotiating' ? displayPrice : null;
+                                              // 🟢 تم التعديل: استخدام الـ Enum هنا لضبط السعر المتفاوض عليه
+                                              String? negotiatedPrice = trip.status == TripStatus.negotiating ? displayPrice : null;
                                               context.read<DriverRadarCubit>().acceptTrip(trip.id!, negotiatedPrice: negotiatedPrice);
                                             },
                                           ),

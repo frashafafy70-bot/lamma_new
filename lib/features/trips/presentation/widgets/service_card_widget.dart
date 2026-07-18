@@ -4,7 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../data/models/trip_model.dart'; 
 
 class ServiceCardWidget extends StatelessWidget {
-  final TripModel serviceData;
+  final TripEntity serviceData;
 
   const ServiceCardWidget({super.key, required this.serviceData});
 

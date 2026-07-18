@@ -1,74 +1,150 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart'; // ⚠️ تأكد من مسار ملف الألوان
 
+// ==========================================
+// 1. Theme Extension (لدعم الألوان المخصصة بشكل احترافي)
+// ==========================================
+class AppColorsExtension extends ThemeExtension<AppColorsExtension> {
+  final Color primaryNavy;
+  final Color accentGold;
+  final Color royalGreen;
+  final Color royalGreenLight;
+  final Color medicalTeal;
+
+  const AppColorsExtension({
+    required this.primaryNavy,
+    required this.accentGold,
+    required this.royalGreen,
+    required this.royalGreenLight,
+    required this.medicalTeal,
+  });
+
+  @override
+  ThemeExtension<AppColorsExtension> copyWith({
+    Color? primaryNavy, 
+    Color? accentGold,
+    Color? royalGreen,
+    Color? royalGreenLight,
+    Color? medicalTeal,
+  }) {
+    return AppColorsExtension(
+      primaryNavy: primaryNavy ?? this.primaryNavy,
+      accentGold: accentGold ?? this.accentGold,
+      royalGreen: royalGreen ?? this.royalGreen,
+      royalGreenLight: royalGreenLight ?? this.royalGreenLight,
+      medicalTeal: medicalTeal ?? this.medicalTeal,
+    );
+  }
+
+  @override
+  ThemeExtension<AppColorsExtension> lerp(ThemeExtension<AppColorsExtension>? other, double t) {
+    if (other is! AppColorsExtension) return this;
+    return AppColorsExtension(
+      primaryNavy: Color.lerp(primaryNavy, other.primaryNavy, t)!,
+      accentGold: Color.lerp(accentGold, other.accentGold, t)!,
+      royalGreen: Color.lerp(royalGreen, other.royalGreen, t)!,
+      royalGreenLight: Color.lerp(royalGreenLight, other.royalGreenLight, t)!,
+      medicalTeal: Color.lerp(medicalTeal, other.medicalTeal, t)!,
+    );
+  }
+}
+
+// ==========================================
+// 2. الكلاس الأساسي للثيم (AppTheme)
+// ==========================================
 class AppTheme {
-  // الألوان الأساسية المستوحاة من الهوية الحمراء الأنيقة
-  static const Color primaryRed = Color(0xFFDD322F); // الأحمر الأساسي
-  static const Color accentRed = Color(0xFFFF5252);  // الأحمر الفاتح للتطعيم
-  static const Color darkRed = Color(0xFF9A0007);    // الأحمر الداكن (تم تصحيحه هنا ✅)
-
+  
+  // ------------------------------------------
   // إعدادات الوضع الفاتح (Light Mode)
+  // ------------------------------------------
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: primaryRed,
-      scaffoldBackgroundColor: const Color(0xFFF9F9F9), // خلفية بيضاء مريحة للعين
+      primaryColor: AppColors.primaryDark,
+      scaffoldBackgroundColor: AppColors.backgroundLight,
       
-      // إعدادات الألوان العامة
       colorScheme: const ColorScheme.light(
-        primary: primaryRed,
-        secondary: accentRed,
-        surface: Colors.white,
-        error: Color(0xFFD32F2F),
+        primary: AppColors.primaryDark,
+        secondary: AppColors.accentGold,
+        surface: AppColors.cardWhite,
+        error: AppColors.error,
       ),
 
-      // ثيم شريط التطبيق العلوي (AppBar)
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryRed,
+        backgroundColor: AppColors.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
       ),
 
-      // ثيم النصوص للوضع الفاتح
       textTheme: const TextTheme(
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-        bodyLarge: TextStyle(fontSize: 16, color: Colors.black87),
-        bodyMedium: TextStyle(fontSize: 14, color: Colors.black54),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark),
+        bodyLarge: TextStyle(fontSize: 16, color: AppColors.textDark),
+        bodyMedium: TextStyle(fontSize: 14, color: AppColors.textMuted),
       ),
+      
+      dividerTheme: const DividerThemeData(
+        color: AppColors.dividerColor,
+        thickness: 1,
+      ),
+
+      extensions: const [
+        AppColorsExtension(
+          primaryNavy: AppColors.primaryNavy,
+          accentGold: AppColors.accentGold,
+          royalGreen: Color(0xFF1B4332), // استبدلها بـ AppColors.royalGreen لو موجودة
+          royalGreenLight: Color(0xFF2D6A4F), // استبدلها بـ AppColors.royalGreenLight
+          medicalTeal: Color(0xFF008080), // استبدلها بـ AppColors.medicalTeal
+        ),
+      ],
     );
   }
 
+  // ------------------------------------------
   // إعدادات الوضع الداكن (Dark Mode)
+  // ------------------------------------------
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: primaryRed,
-      scaffoldBackgroundColor: const Color(0xFF121212), // خلفية داكنة مريحة
+      primaryColor: AppColors.primaryDark,
+      scaffoldBackgroundColor: AppColors.backgroundDark,
       
-      // إعدادات الألوان العامة للوضع الداكن
       colorScheme: const ColorScheme.dark(
-        primary: primaryRed,
-        secondary: accentRed,
-        surface: Color(0xFF1E1E1E),
-        error: Color(0xFFCF6679),
+        primary: AppColors.primaryDark,
+        secondary: AppColors.accentGold,
+        surface: AppColors.cardDark,
+        error: AppColors.error,
       ),
 
-      // ثيم شريط التطبيق العلوي للوضع الداكن
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: AppColors.cardDark,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
       ),
 
-      // ثيم النصوص للوضع الداكن
       textTheme: const TextTheme(
         headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
         bodyLarge: TextStyle(fontSize: 16, color: Colors.white70),
         bodyMedium: TextStyle(fontSize: 14, color: Colors.white54),
       ),
+      
+      dividerTheme: DividerThemeData(
+        color: AppColors.dividerColor.withOpacity(0.1),
+        thickness: 1,
+      ),
+
+      extensions: const [
+        AppColorsExtension(
+          primaryNavy: AppColors.primaryNavy,
+          accentGold: AppColors.accentGold,
+          royalGreen: Color(0xFF1B4332), 
+          royalGreenLight: Color(0xFF2D6A4F), 
+          medicalTeal: Color(0xFF008080), 
+        ),
+      ],
     );
   }
 }

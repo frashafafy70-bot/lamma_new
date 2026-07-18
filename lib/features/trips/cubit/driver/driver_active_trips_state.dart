@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 @immutable
 abstract class DriverActiveTripsState extends Equatable {
   const DriverActiveTripsState();
@@ -17,7 +17,7 @@ class DriverActiveTripsInitial extends DriverActiveTripsState {}
 class DriverActiveTripsLoading extends DriverActiveTripsState {}
 
 class DriverActiveTripsLoaded extends DriverActiveTripsState {
-  final List<TripModel> trips;
+  final List<TripEntity> trips;
   final bool hasReachedMax;
   final bool isFetchingMore;
 
@@ -28,7 +28,7 @@ class DriverActiveTripsLoaded extends DriverActiveTripsState {
   });
 
   DriverActiveTripsLoaded copyWith({
-    List<TripModel>? trips,
+    List<TripEntity>? trips,
     bool? hasReachedMax,
     bool? isFetchingMore,
   }) {

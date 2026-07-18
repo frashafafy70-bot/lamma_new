@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:audioplayers/audioplayers.dart'; 
-
+import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 // 🟢 استيراد المعمارية النظيفة (Use Cases)
 import '../../domain/usecases/get_passenger_active_trips_usecase.dart'; 
 import '../../domain/usecases/send_notification_usecase.dart';
@@ -21,7 +21,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
   StreamSubscription<RemoteMessage>? _notificationSubscription;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  final List<TripModel> _trips = [];
+  final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   static const int _limit = 15;
@@ -190,7 +190,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
     _isFetchingMore = false;
   }
 
-  void _handleNewTrips(List<TripModel> newTrips, {bool isPagination = false}) {
+  void _handleNewTrips(List<TripEntity> newTrips, {bool isPagination = false}) {
     if (newTrips.isEmpty && isPagination) {
       _hasReachedMax = true;
     } else {

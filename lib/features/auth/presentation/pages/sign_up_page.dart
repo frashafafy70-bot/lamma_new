@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 // 🟢 استدعاءات الـ AutoRoute 
 import 'package:auto_route/auto_route.dart';
 import 'package:lamma_new/core/routes/app_router.dart';
@@ -57,22 +60,24 @@ class _SignUpPageState extends State<SignUpPage> {
   void _validateAndSubmit(BuildContext context) {
     FocusScope.of(context).unfocus(); 
     
+    final l10n = AppLocalizations.of(context)!;
+    
     String name = _nameController.text.trim();
     String email = _emailController.text.trim();
     String phone = _phoneController.text.trim();
 
     if (name.isEmpty) {
-      _showFloatingSnackBar('برجاء كتابة الاسم بالكامل', Colors.red);
+      _showFloatingSnackBar(l10n.fullNameRequiredError, Colors.red);
       return;
     }
 
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      _showFloatingSnackBar('برجاء إدخال بريد إلكتروني صحيح', Colors.red);
+      _showFloatingSnackBar(l10n.invalidEmailError, Colors.red);
       return;
     }
 
     if (phone.isEmpty || phone.length < 10) {
-      _showFloatingSnackBar('برجاء إدخال رقم هاتف صحيح', Colors.red);
+      _showFloatingSnackBar(l10n.invalidPhoneError, Colors.red);
       return;
     }
 
@@ -81,6 +86,8 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -89,7 +96,7 @@ class _SignUpPageState extends State<SignUpPage> {
             if (state is AuthError) {
               _showFloatingSnackBar(state.message, Colors.red);
             } else if (state is AuthOtpSent) {
-              _showFloatingSnackBar('تم إرسال كود التحقق بنجاح! 💬', primaryNavy);
+              _showFloatingSnackBar(l10n.otpSentSuccess, primaryNavy);
               
               String formattedPhoneToPass = _phoneController.text.trim();
               if (formattedPhoneToPass.startsWith('0')) {
@@ -140,7 +147,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       child: IconButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          // 🟢 تم التغيير إلى maybePop
                           context.router.maybePop(); 
                         },
                         icon: Icon(Icons.arrow_back_ios_new_rounded, color: primaryNavy),
@@ -149,13 +155,13 @@ class _SignUpPageState extends State<SignUpPage> {
                     Icon(Icons.person_add_alt_1_rounded, size: 70.sp, color: primaryNavy), 
                     SizedBox(height: 20.h),
                     Text(
-                      'إنشاء حساب جديد',
+                      l10n.createNewAccount,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 28.sp, fontWeight: FontWeight.bold, color: primaryNavy),
                     ),
                     SizedBox(height: 8.h),
                     Text(
-                      'انضم إلى عائلة لَمَّة واستمتع بكافة الخدمات',
+                      l10n.joinLammaFamily,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600),
                     ),
@@ -180,7 +186,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                 children: [
                                   Icon(Icons.person_rounded, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade600, size: 22.sp),
                                   SizedBox(width: 8.w),
-                                  Text('راكب', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.passengerRole, style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'passenger' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -204,7 +210,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                 children: [
                                   Icon(Icons.directions_car_rounded, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade600, size: 22.sp),
                                   SizedBox(width: 8.w),
-                                  Text('كابتن', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.captainRole, style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: _selectedRole == 'captain' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -227,7 +233,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         textAlign: TextAlign.right,
                         style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                         decoration: InputDecoration(
-                          hintText: 'الاسم بالكامل',
+                          hintText: l10n.fullNameHint,
                           hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: Colors.grey.shade600),
                           border: InputBorder.none,
@@ -251,7 +257,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         textAlign: TextAlign.left,
                         style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                         decoration: InputDecoration(
-                          hintText: 'البريد الإلكتروني',
+                          hintText: l10n.emailHint,
                           hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                           prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
                           border: InputBorder.none,
@@ -311,7 +317,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         onPressed: isLoading ? null : () => _validateAndSubmit(context),
                         child: isLoading 
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('تسجيل حساب جديد', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            : Text(l10n.registerNewAccount, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
 
@@ -322,7 +328,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          child: Text('أو', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade500, fontSize: 16.sp)),
+                          child: Text(l10n.or, style: TextStyle(fontFamily: 'Cairo', color: Colors.grey.shade500, fontSize: 16.sp)),
                         ),
                         Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                       ],
@@ -364,7 +370,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                   ),
                                 ),
                                 SizedBox(width: 12.w),
-                                Text('التسجيل باستخدام Google', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                Text(l10n.signUpWithGoogle, style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.w600, color: Colors.black87)),
                               ]
                             ],
                           ),
@@ -383,7 +389,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           );
                         },
                         child: Text(
-                          'التسجيل باستخدام البريد الإلكتروني فقط',
+                          l10n.signUpWithEmailOnly,
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.w500, color: primaryNavy, decoration: TextDecoration.underline),
                         ),
                       ),
@@ -394,14 +400,13 @@ class _SignUpPageState extends State<SignUpPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('لديك حساب بالفعل؟', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
+                        Text(l10n.alreadyHaveAccount, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
                         TextButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            // 🟢 تم التغيير إلى maybePop
                             context.router.maybePop(); 
                           },
-                          child: Text('تسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
+                          child: Text(l10n.loginNow, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)),
                         ),
                       ],
                     ),

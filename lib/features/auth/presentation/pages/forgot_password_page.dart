@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+// 🟢 استدعاء ملف اللغات
+import 'package:lamma_new/l10n/app_localizations.dart';
+
 // 🟢 استدعاء الـ AutoRoute
 import 'package:auto_route/auto_route.dart';
 import 'package:lamma_new/core/extensions/context_extension.dart';
@@ -67,18 +70,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: primaryNavy,
-        title: const Text('استعادة كلمة المرور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        title: Text(l10n.forgotPasswordAppBar, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
       ),
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthOtpSent) {
-            _showFloatingSnackBar('تم إرسال كود التفعيل بنجاح 💬', Colors.green);
+            _showFloatingSnackBar(l10n.activationCodeSentMsg, Colors.green);
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -89,7 +94,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             );
           } else if (state is AuthSuccess) {
-            _showFloatingSnackBar(state.message ?? 'تم الإرسال بنجاح', Colors.green);
+            _showFloatingSnackBar(state.message ?? l10n.sendSuccess, Colors.green);
             // 🟢 استخدام auto_route للرجوع بأمان
             context.router.maybePop();
           } else if (state is AuthError) {
@@ -110,12 +115,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     Icon(Icons.phonelink_lock_rounded, size: 80.sp, color: goldAccent),
                     SizedBox(height: 24.h),
                     Text(
-                      'هل نسيت كلمة المرور؟',
+                      l10n.forgotPasswordHeader,
                       style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy),
                     ),
                     SizedBox(height: 12.h),
                     Text(
-                      'اختر طريقة الاستعادة المناسبة لك لإعادة تعيين كلمة المرور بكل سهولة.',
+                      l10n.forgotPasswordDescription,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600, fontFamily: 'Cairo', height: 1.5),
                     ),
@@ -139,7 +144,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 children: [
                                   Icon(Icons.email_outlined, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade600, size: 20.sp),
                                   SizedBox(width: 8.w),
-                                  Text('بريد إلكتروني', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.emailMethod, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -162,7 +167,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 children: [
                                   Icon(Icons.phone_android_rounded, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade600, size: 20.sp),
                                   SizedBox(width: 8.w),
-                                  Text('رقم الهاتف', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.phoneMethod, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -186,7 +191,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           textAlign: TextAlign.left,
                           style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
                           decoration: InputDecoration(
-                            hintText: 'example@mail.com',
+                            hintText: l10n.emailExampleHint,
                             hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
                             prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
                             border: InputBorder.none,
@@ -194,7 +199,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty || !value.contains('@')) {
-                              return 'برجاء إدخال بريد إلكتروني صحيح';
+                              return l10n.invalidEmailError;
                             }
                             return null;
                           },
@@ -227,14 +232,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 textAlign: TextAlign.left,
                                 style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, letterSpacing: 1),
                                 decoration: InputDecoration(
-                                  hintText: '10xxxxxxxxx',
+                                  hintText: l10n.phoneExampleHint,
                                   hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400, letterSpacing: 0),
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(horizontal: 16.w),
                                 ),
                                 validator: (value) {
                                   if (value == null || value.isEmpty || value.length < 10) {
-                                    return 'برجاء إدخال رقم هاتف صحيح';
+                                    return l10n.invalidPhoneError;
                                   }
                                   return null;
                                 },
@@ -256,7 +261,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         onPressed: isLoading ? null : _sendPasswordReset,
                         child: isLoading
                             ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text(_selectedMethod == 'email' ? 'إرسال رابط الاستعادة' : 'إرسال كود التحقق', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
+                            : Text(_selectedMethod == 'email' ? l10n.sendResetLink : l10n.sendVerificationCode, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
                       ),
                     ),
                   ],

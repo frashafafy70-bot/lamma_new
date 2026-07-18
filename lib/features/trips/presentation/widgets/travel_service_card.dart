@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/l10n/app_localizations.dart';
 
 class TravelServiceCard extends StatelessWidget {
   final VoidCallback onAddTravelTap;
@@ -12,6 +13,8 @@ class TravelServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+
     return Container(
       width: double.infinity,
       // 🔴 تم إزالة الـ margin من هنا الاعتماد على SizedBox في الرئيسية
@@ -51,7 +54,7 @@ class TravelServiceCard extends StatelessWidget {
                     ),
                     SizedBox(width: 6.w),
                     Text(
-                      'حجز مسبق',
+                      localizations.travel_preBooking,
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         color: Colors.blueAccent.shade100, 
@@ -74,7 +77,7 @@ class TravelServiceCard extends StatelessWidget {
           
           Center(
             child: Text(
-              'مسافر لمحافظة تانية قريباً؟',
+              localizations.travel_travelingSoon,
               style: TextStyle(
                 fontFamily: 'Cairo',
                 color: Colors.white,
@@ -86,7 +89,7 @@ class TravelServiceCard extends StatelessWidget {
           SizedBox(height: 4.h),
           Center(
             child: Text(
-              'حدد مسارك وتاريخ رحلتك، وخلي العملاء تحجز معاك مقدماً وتشاركك التكلفة.',
+              localizations.travel_travelDescription,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Cairo',
@@ -116,7 +119,7 @@ class TravelServiceCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'إضافة رحلة سفر',
+                      localizations.travel_addTravelTrip,
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 15.sp,
