@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
+
 @immutable
 abstract class DriverRadarState {}
 
@@ -9,9 +10,9 @@ class DriverRadarInitial extends DriverRadarState {}
 class DriverRadarLoading extends DriverRadarState {}
 
 class DriverRadarLoaded extends DriverRadarState {
-  final List<TripEntity> radarTrips; 
-  final bool hasReachedMax;     
-  final bool isFetchingMore;    
+  final List<TripEntity> radarTrips;
+  final bool hasReachedMax;
+  final bool isFetchingMore;
 
   DriverRadarLoaded({
     required this.radarTrips,

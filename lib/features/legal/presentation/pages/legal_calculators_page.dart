@@ -16,7 +16,8 @@ class _LegalCalculatorsPageState extends State<LegalCalculatorsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المنصة الحسابية الذكية 🧮', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+        title: const Text('المنصة الحسابية الذكية 🧮',
+            style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: primaryNavy,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -30,17 +31,29 @@ class _LegalCalculatorsPageState extends State<LegalCalculatorsPage> {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           children: [
-            _buildCalcCard('حساب الفوائد', Icons.percent_rounded, Colors.blue, () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const InterestCalculatorPage()));
+            _buildCalcCard('حساب الفوائد', Icons.percent_rounded, Colors.blue,
+                () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const InterestCalculatorPage()));
             }),
-            _buildCalcCard('حساب المواريث', Icons.account_balance_wallet_rounded, Colors.green, () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً: حاسبة المواريث الشرعية', style: TextStyle(fontFamily: 'Cairo'))));
+            _buildCalcCard('حساب المواريث',
+                Icons.account_balance_wallet_rounded, Colors.green, () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('قريباً: حاسبة المواريث الشرعية',
+                      style: TextStyle(fontFamily: 'Cairo'))));
             }),
-            _buildCalcCard('مكافأة الخدمة', Icons.work_history_rounded, Colors.orange, () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً: حاسبة مكافأة نهاية الخدمة', style: TextStyle(fontFamily: 'Cairo'))));
+            _buildCalcCard(
+                'مكافأة الخدمة', Icons.work_history_rounded, Colors.orange, () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('قريباً: حاسبة مكافأة نهاية الخدمة',
+                      style: TextStyle(fontFamily: 'Cairo'))));
             }),
             _buildCalcCard('رسوم الدعاوى', Icons.gavel_rounded, Colors.red, () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً: حاسبة رسوم الدعاوى', style: TextStyle(fontFamily: 'Cairo'))));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('قريباً: حاسبة رسوم الدعاوى',
+                      style: TextStyle(fontFamily: 'Cairo'))));
             }),
           ],
         ),
@@ -48,7 +61,8 @@ class _LegalCalculatorsPageState extends State<LegalCalculatorsPage> {
     );
   }
 
-  Widget _buildCalcCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildCalcCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -60,11 +74,16 @@ class _LegalCalculatorsPageState extends State<LegalCalculatorsPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, size: 40, color: color),
             ),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'Cairo')),
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    fontFamily: 'Cairo')),
           ],
         ),
       ),
@@ -82,9 +101,12 @@ class InterestCalculatorPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('حاسبة الفوائد', style: TextStyle(fontFamily: 'Cairo')),
+        title:
+            const Text('حاسبة الفوائد', style: TextStyle(fontFamily: 'Cairo')),
       ),
-      body: const Center(child: Text('واجهة حاسبة الفوائد (قيد التطوير)', style: TextStyle(fontFamily: 'Cairo'))),
+      body: const Center(
+          child: Text('واجهة حاسبة الفوائد (قيد التطوير)',
+              style: TextStyle(fontFamily: 'Cairo'))),
     );
   }
 }

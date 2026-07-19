@@ -7,7 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../domain/entities/chat_message_entity.dart';
 
 class MessageBubble extends StatefulWidget {
-  final ChatMessageEntity message; 
+  final ChatMessageEntity message;
   final bool isMe;
   final String? senderName; // 🟢 إضافة متغير اسم المرسل
 
@@ -31,7 +31,8 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   void initState() {
     super.initState();
-    if (widget.message.type == MessageType.audio && widget.message.audioUrl != null) {
+    if (widget.message.type == MessageType.audio &&
+        widget.message.audioUrl != null) {
       _audioPlayer.onPlayerStateChanged.listen((state) {
         if (mounted) {
           setState(() {
@@ -92,15 +93,20 @@ class _MessageBubbleState extends State<MessageBubble> {
     return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: EdgeInsets.only(bottom: 12.h, left: widget.isMe ? 40.w : 0, right: widget.isMe ? 0 : 40.w),
+        margin: EdgeInsets.only(
+            bottom: 12.h,
+            left: widget.isMe ? 40.w : 0,
+            right: widget.isMe ? 0 : 40.w),
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
         decoration: BoxDecoration(
           color: widget.isMe ? AppColors.royalGreen : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(16.r),
             topRight: Radius.circular(16.r),
-            bottomLeft: widget.isMe ? Radius.circular(16.r) : const Radius.circular(0),
-            bottomRight: widget.isMe ? const Radius.circular(0) : Radius.circular(16.r),
+            bottomLeft:
+                widget.isMe ? Radius.circular(16.r) : const Radius.circular(0),
+            bottomRight:
+                widget.isMe ? const Radius.circular(0) : Radius.circular(16.r),
           ),
           boxShadow: [
             BoxShadow(
@@ -114,21 +120,23 @@ class _MessageBubbleState extends State<MessageBubble> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 🟢 إظهار اسم المرسل إذا لم تكن الرسالة تخصني (أي تخص الطرف الآخر) وكان الاسم متوفراً
-            if (!widget.isMe && widget.senderName != null && widget.senderName!.isNotEmpty) ...[
+            if (!widget.isMe &&
+                widget.senderName != null &&
+                widget.senderName!.isNotEmpty) ...[
               Text(
                 widget.senderName!,
                 style: TextStyle(
-                  fontFamily: 'Cairo',
                   fontSize: 12.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.accentGold, // لون مميز للاسم ليفصله عن نص الرسالة
+                  color: AppColors
+                      .accentGold, // لون مميز للاسم ليفصله عن نص الرسالة
                 ),
               ),
               SizedBox(height: 4.h),
             ],
-            
+
             _buildContent(),
-            
+
             SizedBox(height: 4.h),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -137,7 +145,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                 Text(
                   _formatTime(widget.message.timestamp),
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 10.sp,
                     color: widget.isMe ? Colors.white70 : Colors.grey.shade500,
                   ),
@@ -167,12 +174,14 @@ class _MessageBubbleState extends State<MessageBubble> {
           loadingBuilder: (ctx, child, progress) {
             if (progress == null) return child;
             return Container(
-              width: 200.w, height: 150.h,
+              width: 200.w,
+              height: 150.h,
               color: Colors.grey.shade200,
               child: const Center(child: CircularProgressIndicator()),
             );
           },
-          errorBuilder: (ctx, err, stack) => Icon(Icons.broken_image, size: 50.sp, color: Colors.grey),
+          errorBuilder: (ctx, err, stack) =>
+              Icon(Icons.broken_image, size: 50.sp, color: Colors.grey),
         ),
       );
     } else if (type == MessageType.audio) {
@@ -182,7 +191,6 @@ class _MessageBubbleState extends State<MessageBubble> {
     return Text(
       widget.message.text,
       style: TextStyle(
-        fontFamily: 'Cairo',
         fontSize: 14.sp,
         color: widget.isMe ? Colors.white : AppColors.textDark,
         height: 1.4,
@@ -200,14 +208,16 @@ class _MessageBubbleState extends State<MessageBubble> {
             if (isPlaying) {
               await _audioPlayer.pause();
             } else {
-              String? url = widget.message.audioUrl; 
+              String? url = widget.message.audioUrl;
               if (url != null && url.isNotEmpty) {
                 await _audioPlayer.play(UrlSource(url));
               }
             }
           },
           child: Icon(
-            isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+            isPlaying
+                ? Icons.pause_circle_filled_rounded
+                : Icons.play_circle_fill_rounded,
             color: widget.isMe ? AppColors.accentGold : AppColors.royalGreen,
             size: 36.sp,
           ),
@@ -227,12 +237,17 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
                 child: Slider(
                   min: 0,
-                  max: duration.inSeconds.toDouble() > 0 ? duration.inSeconds.toDouble() : 1.0,
-                  value: position.inSeconds.toDouble() <= duration.inSeconds.toDouble() 
-                         ? position.inSeconds.toDouble() 
-                         : 0.0,
-                  activeColor: widget.isMe ? Colors.white : AppColors.royalGreen,
-                  inactiveColor: widget.isMe ? Colors.white30 : Colors.grey.shade300,
+                  max: duration.inSeconds.toDouble() > 0
+                      ? duration.inSeconds.toDouble()
+                      : 1.0,
+                  value: position.inSeconds.toDouble() <=
+                          duration.inSeconds.toDouble()
+                      ? position.inSeconds.toDouble()
+                      : 0.0,
+                  activeColor:
+                      widget.isMe ? Colors.white : AppColors.royalGreen,
+                  inactiveColor:
+                      widget.isMe ? Colors.white30 : Colors.grey.shade300,
                   onChanged: (value) async {
                     final pos = Duration(seconds: value.toInt());
                     await _audioPlayer.seek(pos);
@@ -245,11 +260,9 @@ class _MessageBubbleState extends State<MessageBubble> {
               child: Text(
                 "${_formatAudioDuration(position)} / ${_formatAudioDuration(duration)}",
                 style: TextStyle(
-                  fontFamily: 'Cairo', 
-                  fontSize: 10.sp, 
-                  color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
-                  fontWeight: FontWeight.bold
-                ),
+                    fontSize: 10.sp,
+                    color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           ],

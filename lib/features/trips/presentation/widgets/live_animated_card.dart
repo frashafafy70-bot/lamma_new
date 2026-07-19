@@ -9,7 +9,7 @@ class LiveAnimatedCard extends StatefulWidget {
   final String? lottiePath; // مسار الأنيميشن الجديد
   final Color iconColor;
   final VoidCallback onTap;
-  final bool hasNotification; 
+  final bool hasNotification;
 
   const LiveAnimatedCard({
     super.key,
@@ -26,7 +26,8 @@ class LiveAnimatedCard extends StatefulWidget {
   State<LiveAnimatedCard> createState() => _LiveAnimatedCardState();
 }
 
-class _LiveAnimatedCardState extends State<LiveAnimatedCard> with TickerProviderStateMixin {
+class _LiveAnimatedCardState extends State<LiveAnimatedCard>
+    with TickerProviderStateMixin {
   late AnimationController _tapController;
   late AnimationController _pulseController;
   late Animation<double> _scaleAnimation;
@@ -35,11 +36,16 @@ class _LiveAnimatedCardState extends State<LiveAnimatedCard> with TickerProvider
   @override
   void initState() {
     super.initState();
-    _tapController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(_tapController);
-    
-    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _tapController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 150));
+    _scaleAnimation =
+        Tween<double>(begin: 1.0, end: 0.95).animate(_tapController);
+
+    _pulseController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
   }
 
   // 🟢 دالة ذكية لعرض الأنيميشن أو الأيقونة
@@ -47,10 +53,11 @@ class _LiveAnimatedCardState extends State<LiveAnimatedCard> with TickerProvider
     if (widget.lottiePath != null && widget.lottiePath!.endsWith('.json')) {
       return Lottie.asset(
         widget.lottiePath!,
-        width: 55.sp, 
+        width: 55.sp,
         height: 55.sp,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => Icon(widget.fallbackIcon, size: 40.sp, color: widget.iconColor),
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(widget.fallbackIcon, size: 40.sp, color: widget.iconColor),
       );
     }
     return Icon(widget.fallbackIcon, size: 40.sp, color: widget.iconColor);
@@ -74,7 +81,10 @@ class _LiveAnimatedCardState extends State<LiveAnimatedCard> with TickerProvider
             color: Colors.white,
             borderRadius: BorderRadius.circular(25.r),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
             ],
           ),
           child: Column(
@@ -100,8 +110,11 @@ class _LiveAnimatedCardState extends State<LiveAnimatedCard> with TickerProvider
                 ],
               ),
               SizedBox(height: 10.h),
-              Text(widget.title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
-              Text(widget.subtitle, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey)),
+              Text(widget.title,
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
+              Text(widget.subtitle,
+                  style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
             ],
           ),
         ),

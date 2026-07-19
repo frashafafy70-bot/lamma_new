@@ -43,7 +43,7 @@ class TripModel extends TripEntity {
 
   factory TripModel.fromMap(Map<String, dynamic> map, String documentId) {
     // 🛡️ دوال مساعدة لحماية التحويل ومنع انهيار التطبيق 🛡️
-    
+
     DateTime? parseDate(dynamic data) {
       if (data == null) return null;
       if (data is Timestamp) return data.toDate();
@@ -81,7 +81,7 @@ class TripModel extends TripEntity {
     LocationCoordinates? parseLocation(dynamic data) {
       if (data is GeoPoint) {
         return LocationCoordinates(
-          latitude: data.latitude, 
+          latitude: data.latitude,
           longitude: data.longitude,
         );
       }
@@ -99,22 +99,22 @@ class TripModel extends TripEntity {
       vehicleType: map['vehicleType']?.toString(),
       pickup: map['pickup']?.toString(),
       destination: map['destination']?.toString(),
-      
+
       // استخدام دوال التحويل الجديدة للإحداثيات
       pickupLocation: parseLocation(map['pickupLocation']),
       destinationLocation: parseLocation(map['destinationLocation']),
-      
+
       fromCity: map['fromCity']?.toString(),
       toCity: map['toCity']?.toString(),
-      
+
       // استخدام دوال التحويل الجديدة للإحداثيات
       fromLocation: parseLocation(map['fromLocation']),
       toLocation: parseLocation(map['toLocation']),
-      
+
       time: map['time']?.toString(),
       travelDate: parseDate(map['travelDate']),
       tripType: map['tripType']?.toString(),
-      
+
       // استخدام دوال التحويل للأرقام
       availableSeats: parseInt(map['availableSeats']),
       suggestedPrice: parseDouble(map['suggestedPrice']),
@@ -124,11 +124,11 @@ class TripModel extends TripEntity {
       finalPrice: parseDouble(map['finalPrice']),
       negotiationPrice: parseDouble(map['negotiationPrice']),
       errandCost: parseDouble(map['errandCost']),
-      
+
       lastNegotiator: map['lastNegotiator']?.toString(),
       errandDetails: map['errandDetails']?.toString(),
       audioUrl: map['audioUrl']?.toString(),
-      
+
       // 🟢 تحويل النص القادم من قاعدة البيانات إلى Enum القوي بتاعنا
       status: TripStatus.fromString(map['status']?.toString() ?? ''),
       createdAt: parseDate(map['createdAt']),
@@ -152,18 +152,19 @@ class TripModel extends TripEntity {
       if (vehicleType != null) 'vehicleType': vehicleType,
       if (pickup != null) 'pickup': pickup,
       if (destination != null) 'destination': destination,
-      
+
       // تحويل الإحداثيات لـ GeoPoint
       if (pickupLocation != null) 'pickupLocation': toGeoPoint(pickupLocation),
-      if (destinationLocation != null) 'destinationLocation': toGeoPoint(destinationLocation),
-      
+      if (destinationLocation != null)
+        'destinationLocation': toGeoPoint(destinationLocation),
+
       if (fromCity != null) 'fromCity': fromCity,
       if (toCity != null) 'toCity': toCity,
-      
+
       // تحويل الإحداثيات لـ GeoPoint
       if (fromLocation != null) 'fromLocation': toGeoPoint(fromLocation),
       if (toLocation != null) 'toLocation': toGeoPoint(toLocation),
-      
+
       if (time != null) 'time': time,
       if (travelDate != null) 'travelDate': Timestamp.fromDate(travelDate!),
       if (tripType != null) 'tripType': tripType,
@@ -178,10 +179,10 @@ class TripModel extends TripEntity {
       if (errandDetails != null) 'errandDetails': errandDetails,
       if (errandCost != null) 'errandCost': errandCost,
       if (audioUrl != null) 'audioUrl': audioUrl,
-      
+
       // 🟢 سحب القيمة النصية من الـ Enum لإرسالها لقاعدة البيانات
       'status': status.value,
-      
+
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),

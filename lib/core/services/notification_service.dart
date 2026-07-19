@@ -2,19 +2,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:audioplayers/audioplayers.dart'; 
+import 'package:audioplayers/audioplayers.dart';
 
 import 'package:lamma_new/core/services/navigation_service.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin
+      _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   static final AudioPlayer _foregroundAlertPlayer = AudioPlayer();
 
   static Future<void> initLocalNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher'); 
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
@@ -23,13 +23,14 @@ class NotificationService {
       requestAlertPermission: true,
     );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
 
     await _flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings, 
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         if (response.payload != null) {
           try {
@@ -43,11 +44,12 @@ class NotificationService {
     );
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'lamma_alerts_channel_v2', 
-      'تنبيهات لَمَّة الهامة', 
-      description: 'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
+      'lamma_alerts_channel_v2',
+      'تنبيهات لَمَّة الهامة',
+      description:
+          'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
       importance: Importance.max,
-      playSound: true, 
+      playSound: true,
     );
 
     await _flutterLocalNotificationsPlugin
@@ -62,22 +64,23 @@ class NotificationService {
     AndroidNotification? android = message.notification?.android;
 
     if (notification != null && android != null) {
-      
-      // 🟢 الجراحة هنا: نقلنا كل لوجيك الصوت اللي كان في الكيوبت لمكانه الصح
       try {
         String type = message.data['type'] ?? '';
-        
-        if (type == 'passenger_offer' || type == 'negotiating' || type == 'passenger_action' || type == 'chat') {
+
+        if (type == 'passenger_offer' ||
+            type == 'negotiating' ||
+            type == 'passenger_action' ||
+            type == 'chat') {
           await _foregroundAlertPlayer.play(AssetSource('audio/ping_pong.mp3'));
-        } 
-        else if (type == 'new_request' || type == 'trip_accepted' || type == 'new_booking') {
+        } else if (type == 'new_request' ||
+            type == 'trip_accepted' ||
+            type == 'new_booking') {
           await _foregroundAlertPlayer.play(AssetSource('audio/edite.mp3'));
-        } 
-        else if (type == 'trip_cancelled' || type == 'canceled') {
+        } else if (type == 'trip_cancelled' || type == 'canceled') {
           await _foregroundAlertPlayer.play(AssetSource('audio/cancell.mp3'));
-        } 
-        else {
-          await _foregroundAlertPlayer.play(AssetSource('audio/notification.mp3'));
+        } else {
+          await _foregroundAlertPlayer
+              .play(AssetSource('audio/notification.mp3'));
         }
       } catch (e) {
         debugPrint("خطأ في تشغيل صوت الإشعار: $e");
@@ -89,9 +92,10 @@ class NotificationService {
         body: notification.body,
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'lamma_alerts_channel_v2', 
+            'lamma_alerts_channel_v2',
             'تنبيهات لَمَّة الهامة',
-            channelDescription: 'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
+            channelDescription:
+                'هذه القناة مخصصة لإشعارات الرحلات والشات الهامة ذات الأولوية القصوى.',
             icon: '@mipmap/ic_launcher',
             importance: Importance.max,
             priority: Priority.high,

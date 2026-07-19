@@ -34,7 +34,7 @@ class TripCubit extends Cubit<TripState> {
   void loadAllTrips() {
     emit(TripsLoading());
     _tripsSubscription?.cancel();
-    
+
     _tripsSubscription = getTripsUseCase.call().listen(
       (trips) {
         if (!isClosed) emit(TripsLoaded(trips)); // 🟢 تأمين إضافي للـ Stream
@@ -48,7 +48,7 @@ class TripCubit extends Cubit<TripState> {
   void loadUserTrips(String userId) {
     emit(TripsLoading());
     _tripsSubscription?.cancel();
-    
+
     _tripsSubscription = getUserTripsUseCase.call(userId).listen(
       (trips) {
         if (!isClosed) emit(TripsLoaded(trips));
@@ -61,14 +61,15 @@ class TripCubit extends Cubit<TripState> {
 
   Future<void> addTrip(TripEntity trip) async {
     emit(TripLoading());
-    
+
     final result = await addTripUseCase.call(trip);
-    
+
     if (isClosed) return;
-    
+
     result.fold(
       // 🟢 إرسال الـ Key أو رسالة الخطأ القادمة من الـ Domain
-      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (failure) =>
+          emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
       // 🟢 إرسال Key النجاح ليتم ترجمته في الـ UI
       (_) => emit(TripOperationSuccess('success_trip_added')),
     );
@@ -76,37 +77,40 @@ class TripCubit extends Cubit<TripState> {
 
   Future<void> updateTripDetails(TripEntity trip) async {
     emit(TripLoading());
-    
+
     final result = await updateTripUseCase.call(trip);
-    
+
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (failure) =>
+          emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
       (_) => emit(TripOperationSuccess('success_trip_updated')),
     );
   }
 
   Future<void> updateStatus(String tripId, String newStatus) async {
     final result = await updateTripStatusUseCase.call(tripId, newStatus);
-    
+
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (failure) =>
+          emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
       (_) => emit(TripStatusUpdated(tripId, newStatus)),
     );
   }
 
   Future<void> deleteTrip(String tripId) async {
     emit(TripLoading());
-    
+
     final result = await deleteTripUseCase.call(tripId);
-    
+
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
+      (failure) =>
+          emit(TripOperationFailure(failure.message ?? 'error_unexpected')),
       (_) => emit(TripOperationSuccess('success_trip_deleted')),
     );
   }

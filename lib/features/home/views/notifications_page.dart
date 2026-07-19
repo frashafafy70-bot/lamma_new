@@ -4,7 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:lamma_new/l10n/app_localizations.dart';
 
-import 'package:lamma_new/features/notifications/presentation/cubit/notification_state.dart' as notif;
+import 'package:lamma_new/features/notifications/presentation/cubit/notification_state.dart'
+    as notif;
 import 'package:lamma_new/features/notifications/presentation/cubit/notification_cubit.dart';
 
 @RoutePage()
@@ -27,10 +28,11 @@ class NotificationsPage extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
           iconTheme: const IconThemeData(color: Colors.white),
-          title: Text(
-            l10n.notificationsTitle, 
-            style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18.sp)
-          ),
+          title: Text(l10n.notificationsTitle,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18.sp)),
         ),
         body: BlocBuilder<NotificationCubit, notif.NotificationState>(
           builder: (context, state) {
@@ -42,12 +44,12 @@ class NotificationsPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.notifications_off_rounded, size: 60.sp, color: Colors.grey.shade400),
+                    Icon(Icons.notifications_off_rounded,
+                        size: 60.sp, color: Colors.grey.shade400),
                     SizedBox(height: 16.h),
-                    Text(
-                      l10n.noNotifications, 
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600)
-                    ),
+                    Text(l10n.noNotifications,
+                        style: TextStyle(
+                            fontSize: 16.sp, color: Colors.grey.shade600)),
                   ],
                 ),
               );
@@ -61,15 +63,20 @@ class NotificationsPage extends StatelessWidget {
                 return Card(
                   elevation: 1,
                   margin: EdgeInsets.only(bottom: 12.h),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r)),
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     leading: CircleAvatar(
-                      backgroundColor: goldAccent.withOpacity(0.2), 
-                      child: Icon(Icons.notifications_active, color: goldAccent)
-                    ), 
-                    title: Text(notify.title, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')), 
-                    subtitle: Text(notify.body, style: const TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: goldAccent.withOpacity(0.2),
+                        child: Icon(Icons.notifications_active,
+                            color: goldAccent)),
+                    title: Text(notify.title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                    subtitle: Text(notify.body,
+                        style: const TextStyle(fontFamily: 'Cairo')),
                   ),
                 );
               },

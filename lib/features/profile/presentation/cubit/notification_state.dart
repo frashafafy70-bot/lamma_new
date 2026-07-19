@@ -7,9 +7,11 @@ class NotificationState {
     this.hasNewNotification = false,
   });
 
-  NotificationState copyWith({int? unreadNotificationsCount, bool? hasNewNotification}) {
+  NotificationState copyWith(
+      {int? unreadNotificationsCount, bool? hasNewNotification}) {
     return NotificationState(
-      unreadNotificationsCount: unreadNotificationsCount ?? this.unreadNotificationsCount,
+      unreadNotificationsCount:
+          unreadNotificationsCount ?? this.unreadNotificationsCount,
       hasNewNotification: hasNewNotification ?? this.hasNewNotification,
     );
   }

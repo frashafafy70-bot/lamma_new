@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:audioplayers/audioplayers.dart'; 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 // 🟢 استيراد المعمارية النظيفة (Use Cases)
-import '../../domain/usecases/get_passenger_active_trips_usecase.dart'; 
+import '../../domain/usecases/get_passenger_active_trips_usecase.dart';
 import '../../domain/usecases/send_notification_usecase.dart';
 import '../../domain/usecases/manage_passenger_request_usecase.dart';
 
@@ -17,7 +17,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
   final GetPassengerActiveTripsUseCase getPassengerActiveTripsUseCase;
   final SendNotificationUseCase sendNotificationUseCase;
   final ManagePassengerRequestUseCase managePassengerRequestUseCase;
-  
+
   StreamSubscription<RemoteMessage>? _notificationSubscription;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -38,12 +38,14 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
   // 🔥 1. نظام الإشعارات والأصوات
   // ==========================================
   void _listenToPassengerNotifications() {
-    _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint("🔔 [PassengerCubit] إشعار لايف وصل للعميل: ${message.notification?.title}");
-      
+    _notificationSubscription =
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      debugPrint(
+          "🔔 [PassengerCubit] إشعار لايف وصل للعميل: ${message.notification?.title}");
+
       try {
         String type = message.data['type'] ?? '';
-        
+
         if (type == 'driver_offer' || type == 'negotiating') {
           await _audioPlayer.play(AssetSource('audio/ping_pong.mp3'));
         } else if (type == 'trip_accepted' || type == 'booking_accepted') {
@@ -62,7 +64,8 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
   }
 
   Future<void> _notifyDriver(String tripId, String title, String body) async {
-    final result = await sendNotificationUseCase(tripId: tripId, title: title, body: body);
+    final result =
+        await sendNotificationUseCase(tripId: tripId, title: title, body: body);
     result.fold(
       (failure) => debugPrint("🔥 FCM Error in Passenger Cubit: $failure"),
       (_) => debugPrint("🔔 تم إرسال إشعار للسائق بنجاح"),
@@ -85,14 +88,16 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
     _resetPagination();
 
     try {
-      final result = await getPassengerActiveTripsUseCase(uid: currentUserId, limit: _limit);
+      final result = await getPassengerActiveTripsUseCase(
+          uid: currentUserId, limit: _limit);
 
       if (isClosed) return;
 
       result.fold(
         (failure) {
           debugPrint("🔥 فايربيز زعلان: ${failure.message}");
-          emit(PassengerMyRequestsError(failure.message ?? 'حدث خطأ غير متوقع'));
+          emit(
+              PassengerMyRequestsError(failure.message ?? 'حدث خطأ غير متوقع'));
         },
         (trips) => _handleNewTrips(trips),
       );
@@ -113,10 +118,7 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
       final result = await getPassengerActiveTripsUseCase(
-        uid: currentUserId, 
-        limit: _limit, 
-        lastTrip: lastTrip
-      );
+          uid: currentUserId, limit: _limit, lastTrip: lastTrip);
 
       if (isClosed) return;
 
@@ -149,11 +151,13 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
   }
 
   Future<void> acceptOffer(String docId, String acceptedPrice) async {
-    final result = await managePassengerRequestUseCase.acceptOffer(docId, acceptedPrice);
+    final result =
+        await managePassengerRequestUseCase.acceptOffer(docId, acceptedPrice);
     result.fold(
       (failure) => debugPrint('❌ خطأ في قبول العرض: $failure'),
       (_) async {
-        await _notifyDriver(docId, 'تم قبول الرحلة! ✅', 'العميل وافق على السعر، الرحلة جاهزة للبدء.');
+        await _notifyDriver(docId, 'تم قبول الرحلة! ✅',
+            'العميل وافق على السعر، الرحلة جاهزة للبدء.');
         fetchInitialPassengerTrips();
       },
     );
@@ -164,18 +168,21 @@ class PassengerMyRequestsCubit extends Cubit<PassengerMyRequestsState> {
     result.fold(
       (failure) => debugPrint('❌ خطأ في رفض الرحلة: $failure'),
       (_) async {
-        await _notifyDriver(docId, 'تم إلغاء الطلب ❌', 'قام العميل بإلغاء الطلب أو رفض العرض.');
+        await _notifyDriver(
+            docId, 'تم إلغاء الطلب ❌', 'قام العميل بإلغاء الطلب أو رفض العرض.');
         fetchInitialPassengerTrips();
       },
     );
   }
 
   Future<void> negotiateTrip(String docId, String offer, String type) async {
-    final result = await managePassengerRequestUseCase.negotiateTrip(docId, offer, type);
+    final result =
+        await managePassengerRequestUseCase.negotiateTrip(docId, offer, type);
     result.fold(
       (failure) => debugPrint('❌ خطأ في التفاوض: $failure'),
       (_) async {
-        await _notifyDriver(docId, 'عرض سعر جديد 👤', 'العميل يطلب تعديل السعر إلى $offer ج.م');
+        await _notifyDriver(
+            docId, 'عرض سعر جديد 👤', 'العميل يطلب تعديل السعر إلى $offer ج.م');
         fetchInitialPassengerTrips();
       },
     );

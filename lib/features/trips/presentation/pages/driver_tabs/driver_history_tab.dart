@@ -2,14 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:firebase_auth/firebase_auth.dart'; // 🟢 إضافة FirebaseAuth لجلب الـ uid
 
-import 'package:lamma_new/core/di/injection_container.dart'; 
-import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart'; 
-import 'package:lamma_new/features/trips/cubit/driver/driver_history_cubit.dart'; 
-import 'package:lamma_new/features/trips/cubit/driver/driver_history_state.dart'; 
+import 'package:lamma_new/core/di/injection_container.dart';
+import 'package:lamma_new/features/trips/utils/trip_dialogs_helper.dart';
+import 'package:lamma_new/features/trips/cubit/driver/driver_history_cubit.dart';
+import 'package:lamma_new/features/trips/cubit/driver/driver_history_state.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/premium_tab_header.dart';
 
 import 'package:lamma_new/features/trips/cubit/shared/trip_actions_cubit.dart';
@@ -23,15 +23,15 @@ class DriverHistoryTab extends StatefulWidget {
   State<DriverHistoryTab> createState() => _DriverHistoryTabState();
 }
 
-class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepAliveClientMixin {
-  
+class _DriverHistoryTabState extends State<DriverHistoryTab>
+    with AutomaticKeepAliveClientMixin {
   static const Color _primaryNavy = Color(0xFF0F172A);
   static const Color _royalGreen = Color(0xFF1B4332);
-  
-  final ScrollController _scrollController = ScrollController(); 
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
-  bool get wantKeepAlive => true; 
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -57,8 +57,8 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); 
-    
+    super.build(context);
+
     return MultiBlocProvider(
       providers: [
         // 🟢 التعديل الأول: استخدام sl وتمرير الـ uid
@@ -66,310 +66,442 @@ class _DriverHistoryTabState extends State<DriverHistoryTab> with AutomaticKeepA
           final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
           return sl<DriverHistoryCubit>()..startListeningToHistoryTrips(uid);
         }),
-        BlocProvider(create: (context) => sl<TripActionsCubit>()), 
+        BlocProvider(create: (context) => sl<TripActionsCubit>()),
       ],
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
         body: Column(
           children: [
-            if (widget.showHeader)
-              const PremiumTabHeader(title: 'سجل الرحلات'),
-            
+            if (widget.showHeader) const PremiumTabHeader(title: 'سجل الرحلات'),
             Expanded(
               // 🟢 التعديل الثاني: تغيير الـ Listener ليسمع للـ DriverHistoryCubit
               child: BlocListener<DriverHistoryCubit, DriverHistoryState>(
-                listenWhen: (previous, current) => 
-                    current is DriverHistoryActionLoading || 
-                    current is DriverHistoryActionSuccess || 
+                listenWhen: (previous, current) =>
+                    current is DriverHistoryActionLoading ||
+                    current is DriverHistoryActionSuccess ||
                     current is DriverHistoryActionError,
                 listener: (context, state) {
                   if (state is DriverHistoryActionLoading) {
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (_) => const Center(child: CircularProgressIndicator(color: _royalGreen)),
+                      builder: (_) => const Center(
+                          child: CircularProgressIndicator(color: _royalGreen)),
                     );
                   } else if (state is DriverHistoryActionSuccess) {
-                    Navigator.of(context).pop(); 
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(state.message,
+                            style: const TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.green));
                   } else if (state is DriverHistoryActionError) {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(state.message,
+                            style: const TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.red));
                   }
                 },
-                child: Builder( 
-                  builder: (context) {
-                    return RefreshIndicator(
-                      color: _royalGreen,
-                      onRefresh: () async {
-                        await context.read<DriverHistoryCubit>().fetchInitialHistoryTrips();
-                      },
-                      child: BlocBuilder<DriverHistoryCubit, DriverHistoryState>(
-                        builder: (context, state) {
-                          
-                          if (state is DriverHistoryInitial || state is DriverHistoryLoading) {
-                            return const Center(child: CircularProgressIndicator(color: _royalGreen));
-                          }
+                child: Builder(builder: (context) {
+                  return RefreshIndicator(
+                    color: _royalGreen,
+                    onRefresh: () async {
+                      await context
+                          .read<DriverHistoryCubit>()
+                          .fetchInitialHistoryTrips();
+                    },
+                    child: BlocBuilder<DriverHistoryCubit, DriverHistoryState>(
+                      builder: (context, state) {
+                        if (state is DriverHistoryInitial ||
+                            state is DriverHistoryLoading) {
+                          return const Center(
+                              child: CircularProgressIndicator(
+                                  color: _royalGreen));
+                        }
 
-                          if (state is DriverHistoryError) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(state.message, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.red)),
-                                  SizedBox(height: 16.h),
-                                  ElevatedButton(
-                                    // 🟢 تمرير الـ uid هنا أيضاً
-                                    onPressed: () {
-                                      final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-                                      context.read<DriverHistoryCubit>().startListeningToHistoryTrips(uid);
-                                    },
-                                    child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
-                                  )
-                                ],
-                              ),
+                        if (state is DriverHistoryError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(state.message,
+                                    style: TextStyle(
+                                        fontSize: 16.sp, color: Colors.red)),
+                                SizedBox(height: 16.h),
+                                ElevatedButton(
+                                  // 🟢 تمرير الـ uid هنا أيضاً
+                                  onPressed: () {
+                                    final String uid = FirebaseAuth
+                                            .instance.currentUser?.uid ??
+                                        '';
+                                    context
+                                        .read<DriverHistoryCubit>()
+                                        .startListeningToHistoryTrips(uid);
+                                  },
+                                  child: const Text('إعادة المحاولة',
+                                      style: TextStyle(fontFamily: 'Cairo')),
+                                )
+                              ],
+                            ),
+                          );
+                        }
+
+                        if (state is DriverHistoryLoaded) {
+                          if (state.trips.isEmpty) {
+                            return ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                    height: MediaQuery.of(context).size.height *
+                                        0.3),
+                                Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.history_rounded,
+                                          size: 80.sp,
+                                          color: Colors.grey.shade300),
+                                      SizedBox(height: 16.h),
+                                      Text('لا يوجد لديك رحلات سابقة حتى الآن.',
+                                          style: TextStyle(
+                                              fontSize: 16.sp,
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             );
                           }
 
-                          if (state is DriverHistoryLoaded) {
-                            if (state.trips.isEmpty) {
-                              return ListView( 
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                                  Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.history_rounded, size: 80.sp, color: Colors.grey.shade300),
-                                        SizedBox(height: 16.h),
-                                        Text(
-                                          'لا يوجد لديك رحلات سابقة حتى الآن.', 
-                                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
+                          return ListView.builder(
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.all(16.w),
+                            itemCount: state.trips.length +
+                                (state.isFetchingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= state.trips.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(
+                                      child: CircularProgressIndicator(
+                                          color: _royalGreen)),
+                                );
+                              }
 
-                            return ListView.builder(
-                              controller: _scrollController, 
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: EdgeInsets.all(16.w),
-                              itemCount: state.trips.length + (state.isFetchingMore ? 1 : 0), 
-                              itemBuilder: (context, index) {
-                                
-                                if (index >= state.trips.length) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(16.0),
-                                    child: Center(child: CircularProgressIndicator(color: _royalGreen)),
-                                  );
-                                }
+                              var trip = state.trips[index];
+                              String docId = trip.id ?? '';
 
-                                var trip = state.trips[index];
-                                String docId = trip.id ?? '';
-                                
-                                bool isCompleted = trip.status == 'completed';
-                                
-                                String pickup = trip.pickup ?? 'موقع الانطلاق';
-                                String destination = trip.destination ?? 'وجهة الوصول';
-                                String finalPrice = (trip.finalPrice ?? trip.price)?.toString() ?? '0';
-                                String passengerName = trip.passengerName ?? 'عميل (غير محدد)';
-                                
-                                String distance = 'غير محدد'; 
-                                String duration = 'غير محدد';
-                                
-                                String timeStr = 'غير معروف';
-                                if (trip.createdAt != null) {
-                                  timeStr = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(trip.createdAt!);
-                                }
+                              bool isCompleted = trip.status == 'completed';
 
-                                return Card(
-                                  elevation: 2, 
-                                  margin: EdgeInsets.only(bottom: 16.h), 
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16.r),
-                                    side: BorderSide(color: Colors.grey.shade200, width: 1),
-                                  ),
-                                  child: Padding(
-                                    padding: EdgeInsets.all(16.w),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                CircleAvatar(
-                                                  radius: 14.r,
-                                                  backgroundColor: _royalGreen.withOpacity(0.1),
-                                                  child: Icon(
-                                                    trip.tripCategory == 'طلبات' ? Icons.shopping_bag_rounded : Icons.local_taxi_rounded,
-                                                    size: 16.sp,
-                                                    color: _royalGreen,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8.w),
-                                                Text(
-                                                  trip.tripCategory ?? 'مشوار', 
-                                                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: _primaryNavy)
-                                                ),
-                                              ],
-                                            ),
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                                                  decoration: BoxDecoration(
-                                                    color: isCompleted ? const Color(0x1A4CAF50) : const Color(0x1AF44336), 
-                                                    borderRadius: BorderRadius.circular(8.r)
-                                                  ),
-                                                  child: Text(
-                                                    isCompleted ? 'مكتملة ✅' : 'ملغية ❌', 
-                                                    style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: isCompleted ? Colors.green.shade700 : Colors.red.shade700)
-                                                  ),
-                                                ),
-                                                SizedBox(width: 12.w),
-                                                InkWell(
-                                                  // 🟢 التعديل الثالث: استدعاء دالة المسح بشكل سليم
-                                                  onTap: () async {
-                                                    final confirm = await TripDialogsHelper.showDeleteTripDialog(context: context);
-                                                    if (confirm) {
-                                                      context.read<DriverHistoryCubit>().deleteTripFromHistory(docId);
-                                                    }
-                                                  },
-                                                  child: Container(
-                                                    padding: EdgeInsets.all(6.w),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.red.shade50,
-                                                      borderRadius: BorderRadius.circular(8.r),
-                                                    ),
-                                                    child: Icon(Icons.delete_outline_rounded, color: Colors.red.shade700, size: 20.sp),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                                          child: const Divider(color: Color(0xFFEEEEEE), height: 1),
-                                        ),
-                                        
-                                        Row(
-                                          children: [
-                                            Icon(Icons.person_outline_rounded, size: 18.sp, color: Colors.grey.shade600),
-                                            SizedBox(width: 6.w),
-                                            Text('العميل: $passengerName', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
-                                          ],
-                                        ),
-                                        SizedBox(height: 12.h),
+                              String pickup = trip.pickup ?? 'موقع الانطلاق';
+                              String destination =
+                                  trip.destination ?? 'وجهة الوصول';
+                              String finalPrice =
+                                  (trip.finalPrice ?? trip.price)?.toString() ??
+                                      '0';
+                              String passengerName =
+                                  trip.passengerName ?? 'عميل (غير محدد)';
 
-                                        Row(
-                                          children: [
-                                            Column(
-                                              children: [
-                                                Icon(Icons.my_location_rounded, color: _royalGreen, size: 18.sp),
-                                                Container(height: 20.h, width: 2.w, color: Colors.grey.shade300),
-                                                Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 18.sp),
-                                              ],
-                                            ),
-                                            SizedBox(width: 12.w),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(pickup, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold, color: _primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                  SizedBox(height: 18.h),
-                                                  Text(destination, style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold, color: _primaryNavy), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                              String distance = 'غير محدد';
+                              String duration = 'غير محدد';
 
-                                        SizedBox(height: 14.h),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.withOpacity(0.08),
-                                                borderRadius: BorderRadius.circular(6.r),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.route_outlined, size: 14.sp, color: Colors.blue.shade700),
-                                                  SizedBox(width: 4.w),
-                                                  Text(
-                                                    distance.contains('كم') ? distance : '$distance كم', 
-                                                    style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: Colors.blue.shade700)
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            SizedBox(width: 12.w),
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                                              decoration: BoxDecoration(
-                                                color: Colors.orange.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6.r),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.timer_outlined, size: 14.sp, color: Colors.orange.shade700),
-                                                  SizedBox(width: 4.w),
-                                                  Text(
-                                                    duration.contains('دقيقة') ? duration : '$duration دقيقة', 
-                                                    style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, fontWeight: FontWeight.bold, color: Colors.orange.shade700)
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                              String timeStr = 'غير معروف';
+                              if (trip.createdAt != null) {
+                                timeStr =
+                                    DateFormat('yyyy/MM/dd - hh:mm a', 'en')
+                                        .format(trip.createdAt!);
+                              }
 
-                                        Container(
-                                          padding: EdgeInsets.all(12.w),
-                                          margin: EdgeInsets.only(top: 16.h),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
-                                            borderRadius: BorderRadius.circular(10.r),
-                                            border: Border.all(color: Colors.grey.shade200)
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              return Card(
+                                elevation: 2,
+                                margin: EdgeInsets.only(bottom: 16.h),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  side: BorderSide(
+                                      color: Colors.grey.shade200, width: 1),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.w),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
                                             children: [
-                                              Row(
-                                                children: [
-                                                  Icon(Icons.access_time_rounded, color: Colors.grey.shade600, size: 16.sp),
-                                                  SizedBox(width: 6.w),
-                                                  Text(timeStr, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade800, fontWeight: FontWeight.w600)),
-                                                ],
+                                              CircleAvatar(
+                                                radius: 14.r,
+                                                backgroundColor: _royalGreen
+                                                    .withOpacity(0.1),
+                                                child: Icon(
+                                                  trip.tripCategory == 'طلبات'
+                                                      ? Icons
+                                                          .shopping_bag_rounded
+                                                      : Icons
+                                                          .local_taxi_rounded,
+                                                  size: 16.sp,
+                                                  color: _royalGreen,
+                                                ),
                                               ),
-                                              Text('$finalPrice ج.م', style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: _royalGreen)),
+                                              SizedBox(width: 8.w),
+                                              Text(trip.tripCategory ?? 'مشوار',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 16.sp,
+                                                      color: _primaryNavy)),
                                             ],
                                           ),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 10.w,
+                                                    vertical: 4.h),
+                                                decoration: BoxDecoration(
+                                                    color: isCompleted
+                                                        ? const Color(
+                                                            0x1A4CAF50)
+                                                        : const Color(
+                                                            0x1AF44336),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8.r)),
+                                                child: Text(
+                                                    isCompleted
+                                                        ? 'مكتملة ✅'
+                                                        : 'ملغية ❌',
+                                                    style: TextStyle(
+                                                        fontSize: 12.sp,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: isCompleted
+                                                            ? Colors
+                                                                .green.shade700
+                                                            : Colors
+                                                                .red.shade700)),
+                                              ),
+                                              SizedBox(width: 12.w),
+                                              InkWell(
+                                                // 🟢 التعديل الثالث: استدعاء دالة المسح بشكل سليم
+                                                onTap: () async {
+                                                  final confirm =
+                                                      await TripDialogsHelper
+                                                          .showDeleteTripDialog(
+                                                              context: context);
+                                                  if (confirm) {
+                                                    context
+                                                        .read<
+                                                            DriverHistoryCubit>()
+                                                        .deleteTripFromHistory(
+                                                            docId);
+                                                  }
+                                                },
+                                                child: Container(
+                                                  padding: EdgeInsets.all(6.w),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red.shade50,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8.r),
+                                                  ),
+                                                  child: Icon(
+                                                      Icons
+                                                          .delete_outline_rounded,
+                                                      color:
+                                                          Colors.red.shade700,
+                                                      size: 20.sp),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            vertical: 12.h),
+                                        child: const Divider(
+                                            color: Color(0xFFEEEEEE),
+                                            height: 1),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.person_outline_rounded,
+                                              size: 18.sp,
+                                              color: Colors.grey.shade600),
+                                          SizedBox(width: 6.w),
+                                          Text('العميل: $passengerName',
+                                              style: TextStyle(
+                                                  fontSize: 13.sp,
+                                                  color: Colors.grey.shade700,
+                                                  fontWeight: FontWeight.w600)),
+                                        ],
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Row(
+                                        children: [
+                                          Column(
+                                            children: [
+                                              Icon(Icons.my_location_rounded,
+                                                  color: _royalGreen,
+                                                  size: 18.sp),
+                                              Container(
+                                                  height: 20.h,
+                                                  width: 2.w,
+                                                  color: Colors.grey.shade300),
+                                              Icon(Icons.location_on_rounded,
+                                                  color: Colors.redAccent,
+                                                  size: 18.sp),
+                                            ],
+                                          ),
+                                          SizedBox(width: 12.w),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(pickup,
+                                                    style: TextStyle(
+                                                        fontSize: 13.sp,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: _primaryNavy),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
+                                                SizedBox(height: 18.h),
+                                                Text(destination,
+                                                    style: TextStyle(
+                                                        fontSize: 13.sp,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: _primaryNavy),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 14.h),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8.w, vertical: 4.h),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.blue.withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(6.r),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.route_outlined,
+                                                    size: 14.sp,
+                                                    color:
+                                                        Colors.blue.shade700),
+                                                SizedBox(width: 4.w),
+                                                Text(
+                                                    distance.contains('كم')
+                                                        ? distance
+                                                        : '$distance كم',
+                                                    style: TextStyle(
+                                                        fontSize: 12.sp,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors
+                                                            .blue.shade700)),
+                                              ],
+                                            ),
+                                          ),
+                                          SizedBox(width: 12.w),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8.w, vertical: 4.h),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6.r),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.timer_outlined,
+                                                    size: 14.sp,
+                                                    color:
+                                                        Colors.orange.shade700),
+                                                SizedBox(width: 4.w),
+                                                Text(
+                                                    duration.contains('دقيقة')
+                                                        ? duration
+                                                        : '$duration دقيقة',
+                                                    style: TextStyle(
+                                                        fontSize: 12.sp,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors
+                                                            .orange.shade700)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: EdgeInsets.all(12.w),
+                                        margin: EdgeInsets.only(top: 16.h),
+                                        decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius:
+                                                BorderRadius.circular(10.r),
+                                            border: Border.all(
+                                                color: Colors.grey.shade200)),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(Icons.access_time_rounded,
+                                                    color: Colors.grey.shade600,
+                                                    size: 16.sp),
+                                                SizedBox(width: 6.w),
+                                                Text(timeStr,
+                                                    style: TextStyle(
+                                                        fontSize: 12.sp,
+                                                        color: Colors
+                                                            .grey.shade800,
+                                                        fontWeight:
+                                                            FontWeight.w600)),
+                                              ],
+                                            ),
+                                            Text('$finalPrice ج.م',
+                                                style: TextStyle(
+                                                    fontSize: 16.sp,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: _royalGreen)),
+                                          ],
                                         ),
-
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
-                            );
-                          }
-                          
-                          return const SizedBox(); 
-                        },
-                      ),
-                    );
-                  }
-                ),
+                                ),
+                              );
+                            },
+                          );
+                        }
+
+                        return const SizedBox();
+                      },
+                    ),
+                  );
+                }),
               ),
             ),
           ],

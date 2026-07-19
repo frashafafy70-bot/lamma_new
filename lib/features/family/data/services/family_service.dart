@@ -27,10 +27,11 @@ class FamilyService {
   }
 
   // إضافة فرد للعائلة
-  Future<void> addFamilyMember(String parentUid, Map<String, dynamic> childData) async {
+  Future<void> addFamilyMember(
+      String parentUid, Map<String, dynamic> childData) async {
     try {
       final childUid = childData['uid'];
-      
+
       final familyMember = FamilyMember(
         uid: childUid,
         name: childData['name'] ?? 'مستخدم',

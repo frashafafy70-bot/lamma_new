@@ -13,7 +13,8 @@ class NetworkCubit extends Cubit<NetworkState> {
 
   void _monitorInternet() {
     // 🟢 مراقبة حالة الإنترنت بشكل لحظي
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> result) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged
+        .listen((List<ConnectivityResult> result) {
       // لو النتيجة فيها none يعني مفيش أي اتصال
       if (result.contains(ConnectivityResult.none)) {
         emit(NetworkDisconnected());

@@ -15,41 +15,37 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
   final MapRepository mapRepository;
   final TripRepository tripRepository;
 
-  PassengerRequestCubit({required this.mapRepository, required this.tripRepository})
+  PassengerRequestCubit(
+      {required this.mapRepository, required this.tripRepository})
       : super(PassengerRequestInitial());
 
   Future<void> getUserLocation() async {
-    if (isClosed) return; 
+    if (isClosed) return;
     emit(LocationLoading());
-    
+
     final result = await mapRepository.getUserCurrentLocation();
     if (isClosed) return;
-    
-    result.fold(
-      (failure) {
-        if (failure.message.contains('نهائياً')) {
-          emit(LocationPermissionDenied());
-        } else {
-          emit(LocationError(failure.message));
-        }
-      },
-      (position) {
-        emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
+
+    result.fold((failure) {
+      if (failure.message.contains('نهائياً')) {
+        emit(LocationPermissionDenied());
+      } else {
+        emit(LocationError(failure.message));
       }
-    );
+    }, (position) {
+      emit(LocationLoaded(LatLng(position.latitude, position.longitude)));
+    });
   }
 
   Future<void> getAddressFromLatLng(LatLng latLng) async {
     if (isClosed) return;
     emit(AddressLoading());
-    
+
     final result = await mapRepository.getAddressFromCoordinates(latLng);
     if (isClosed) return;
-    
-    result.fold(
-      (failure) => emit(AddressError(failure.message)),
-      (address) => emit(AddressLoaded(address))
-    );
+
+    result.fold((failure) => emit(AddressError(failure.message)),
+        (address) => emit(AddressLoaded(address)));
   }
 
   Future<void> searchForPlaces(String input) async {
@@ -58,36 +54,34 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
       emit(PlacesSearchLoaded([]));
       return;
     }
-    
+
     final result = await mapRepository.searchPlaces(input);
     if (isClosed) return;
-    
-    result.fold(
-      (failure) => emit(PlacesSearchLoaded([])), 
-      (results) => emit(PlacesSearchLoaded(results))
-    );
+
+    result.fold((failure) => emit(PlacesSearchLoaded([])),
+        (results) => emit(PlacesSearchLoaded(results)));
   }
 
   Future<void> fetchPlaceDetails(String placeId, String description) async {
     final result = await mapRepository.getPlaceCoordinates(placeId);
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => debugPrint("Error fetching place details: ${failure.message}"),
-      (location) => emit(PlaceDetailsLoaded(location, description))
-    );
+        (failure) =>
+            debugPrint("Error fetching place details: ${failure.message}"),
+        (location) => emit(PlaceDetailsLoaded(location, description)));
   }
 
   Future<void> fetchRoute(LatLng origin, LatLng destination) async {
     if (isClosed) return;
-    
+
     final result = await mapRepository.getRouteCoordinates(origin, destination);
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => debugPrint("Error fetching route from Cubit: ${failure.message}"),
-      (points) => emit(RouteCoordinatesLoaded(points))
-    );
+        (failure) =>
+            debugPrint("Error fetching route from Cubit: ${failure.message}"),
+        (points) => emit(RouteCoordinatesLoaded(points)));
   }
 
   Future<void> submitTripRequest({
@@ -102,7 +96,6 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
     LatLng? destinationLocation,
     File? orderAudioFile,
   }) async {
-    
     if (isClosed) return;
     emit(TripSubmitting());
 
@@ -121,17 +114,15 @@ class PassengerRequestCubit extends Cubit<PassengerRequestState> {
       destinationLat: destinationLocation?.latitude,
       destinationLng: destinationLocation?.longitude,
     );
-    
-    if (isClosed) return; 
-    
-    result.fold(
-      (failure) {
-        debugPrint("❌ خطأ الإرسال: ${failure.message}");
-        emit(TripSubmitError(failure.message));
-      },
-      // 🟢 تم التعديل هنا: استقبال الـ tripId وتمريره للحالة
-      (tripId) => emit(TripSubmitSuccess(tripId))
-    );
+
+    if (isClosed) return;
+
+    result.fold((failure) {
+      debugPrint("❌ خطأ الإرسال: ${failure.message}");
+      emit(TripSubmitError(failure.message));
+    },
+        // 🟢 تم التعديل هنا: استقبال الـ tripId وتمريره للحالة
+        (tripId) => emit(TripSubmitSuccess(tripId)));
   }
 
   @override

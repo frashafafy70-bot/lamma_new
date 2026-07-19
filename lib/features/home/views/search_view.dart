@@ -16,7 +16,8 @@ class SearchView extends StatefulWidget {
 }
 
 // 🟢 تفعيل AutomaticKeepAliveClientMixin عشان العميل ميخسرش نتايج البحث لو قلب بين التابات
-class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMixin {
+class _SearchViewState extends State<SearchView>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
 
   bool _isInitialized = false;
@@ -31,13 +32,13 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _searchResults = []; 
+    _searchResults = [];
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // 🟢 تهيئة القوائم هنا للوصول إلى الترجمة (وفرنا الذاكرة عن طريق تعريف المتغيرات مرة واحدة كـ late)
     final l10n = AppLocalizations.of(context)!;
 
@@ -50,13 +51,55 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
     ];
 
     _allServices = [
-      {'title': l10n.requestDriverService, 'category': l10n.tripsAndDeliveryCategory, 'icon': Icons.local_taxi_rounded, 'color': AppColors.accentGold, 'route': const TripsServicesPage()},
-      {'title': l10n.deliveryService, 'category': l10n.tripsAndDeliveryCategory, 'icon': Icons.delivery_dining_rounded, 'color': AppColors.accentGold, 'route': const TripsServicesPage()},
-      {'title': l10n.lawyerConsultationService, 'category': l10n.legalConsultationsCategory, 'icon': Icons.gavel_rounded, 'color': AppColors.primaryNavy, 'route': null},
-      {'title': l10n.officialPowerOfAttorneyService, 'category': l10n.legalConsultationsCategory, 'icon': Icons.description_rounded, 'color': AppColors.primaryNavy, 'route': null},
-      {'title': l10n.marketShoppingService, 'category': l10n.storesCategory, 'icon': Icons.storefront_rounded, 'color': AppColors.royalGreen, 'route': null},
-      {'title': l10n.pharmaciesService, 'category': l10n.storesCategory, 'icon': Icons.local_pharmacy_rounded, 'color': AppColors.royalGreen, 'route': null},
-      {'title': l10n.bookMedicalAppointmentService, 'category': l10n.medicalServicesCategory, 'icon': Icons.medical_services_rounded, 'color': AppColors.info, 'route': null},
+      {
+        'title': l10n.requestDriverService,
+        'category': l10n.tripsAndDeliveryCategory,
+        'icon': Icons.local_taxi_rounded,
+        'color': AppColors.accentGold,
+        'route': const TripsServicesPage()
+      },
+      {
+        'title': l10n.deliveryService,
+        'category': l10n.tripsAndDeliveryCategory,
+        'icon': Icons.delivery_dining_rounded,
+        'color': AppColors.accentGold,
+        'route': const TripsServicesPage()
+      },
+      {
+        'title': l10n.lawyerConsultationService,
+        'category': l10n.legalConsultationsCategory,
+        'icon': Icons.gavel_rounded,
+        'color': AppColors.primaryNavy,
+        'route': null
+      },
+      {
+        'title': l10n.officialPowerOfAttorneyService,
+        'category': l10n.legalConsultationsCategory,
+        'icon': Icons.description_rounded,
+        'color': AppColors.primaryNavy,
+        'route': null
+      },
+      {
+        'title': l10n.marketShoppingService,
+        'category': l10n.storesCategory,
+        'icon': Icons.storefront_rounded,
+        'color': AppColors.royalGreen,
+        'route': null
+      },
+      {
+        'title': l10n.pharmaciesService,
+        'category': l10n.storesCategory,
+        'icon': Icons.local_pharmacy_rounded,
+        'color': AppColors.royalGreen,
+        'route': null
+      },
+      {
+        'title': l10n.bookMedicalAppointmentService,
+        'category': l10n.medicalServicesCategory,
+        'icon': Icons.medical_services_rounded,
+        'color': AppColors.info,
+        'route': null
+      },
     ];
 
     if (!_isInitialized) {
@@ -69,15 +112,24 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
     final l10n = AppLocalizations.of(context)!;
 
     if (query.isEmpty && _selectedCategory == l10n.allCategory) {
-      setState(() { _searchResults = []; });
+      setState(() {
+        _searchResults = [];
+      });
       return;
     }
 
     setState(() {
       _searchResults = _allServices.where((service) {
-        final matchesCategory = _selectedCategory == l10n.allCategory || service['category'] == _selectedCategory;
-        final matchesQuery = service['title'].toString().toLowerCase().contains(query.toLowerCase()) || 
-                             service['category'].toString().toLowerCase().contains(query.toLowerCase());
+        final matchesCategory = _selectedCategory == l10n.allCategory ||
+            service['category'] == _selectedCategory;
+        final matchesQuery = service['title']
+                .toString()
+                .toLowerCase()
+                .contains(query.toLowerCase()) ||
+            service['category']
+                .toString()
+                .toLowerCase()
+                .contains(query.toLowerCase());
         return matchesCategory && matchesQuery;
       }).toList();
     });
@@ -95,23 +147,33 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
         child: Column(
           children: [
             Container(
-              padding: EdgeInsets.only(top: 60.h, left: 20.w, right: 20.w, bottom: 20.h),
+              padding: EdgeInsets.only(
+                  top: 60.h, left: 20.w, right: 20.w, bottom: 20.h),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [AppColors.primaryNavy, AppColors.royalGreen],
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
                 ),
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30.r), bottomRight: Radius.circular(30.r)),
-                boxShadow: const [ 
-                  BoxShadow(color: Color(0x4D1B4332), blurRadius: 15, offset: Offset(0, 5))
+                borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(30.r),
+                    bottomRight: Radius.circular(30.r)),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x4D1B4332),
+                      blurRadius: 15,
+                      offset: Offset(0, 5))
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Center(
-                    child: Text(l10n.comprehensiveSearch, style: TextStyle(fontFamily: 'Cairo', fontSize: 24.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: Text(l10n.comprehensiveSearch,
+                        style: TextStyle(
+                            fontSize: 24.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
                   ),
                   SizedBox(height: 20.h),
                   Container(
@@ -122,14 +184,18 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
                     child: TextField(
                       controller: _searchController,
                       onChanged: _performSearch,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, color: AppColors.textDark),
+                      style:
+                          TextStyle(fontSize: 15.sp, color: AppColors.textDark),
                       decoration: InputDecoration(
                         hintText: l10n.searchHint,
-                        hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.textMuted),
-                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.accentGold),
+                        hintStyle: TextStyle(
+                            fontSize: 14.sp, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: AppColors.accentGold),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                                icon: const Icon(Icons.close_rounded,
+                                    color: AppColors.textMuted),
                                 onPressed: () {
                                   _searchController.clear();
                                   _performSearch('');
@@ -138,16 +204,15 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
                               )
                             : null,
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 16.h),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            
             SizedBox(height: 16.h),
-
             SizedBox(
               height: 40.h,
               child: ListView.builder(
@@ -161,16 +226,24 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
                   return Padding(
                     padding: EdgeInsets.only(left: 8.w),
                     child: ChoiceChip(
-                      label: Text(
-                        category, 
-                        style: TextStyle(fontFamily: 'Cairo', fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? AppColors.primaryNavy : AppColors.textDark)
-                      ),
+                      label: Text(category,
+                          style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppColors.primaryNavy
+                                  : AppColors.textDark)),
                       selected: isSelected,
                       selectedColor: AppColors.accentGold,
                       backgroundColor: AppColors.cardWhite,
                       showCheckmark: false,
-                      side: BorderSide(color: isSelected ? AppColors.accentGold : AppColors.dividerColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+                      side: BorderSide(
+                          color: isSelected
+                              ? AppColors.accentGold
+                              : AppColors.dividerColor),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.r)),
                       onSelected: (selected) {
                         setState(() {
                           _selectedCategory = category;
@@ -182,9 +255,7 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
                 },
               ),
             ),
-
             SizedBox(height: 20.h),
-
             Expanded(
               child: _buildBodyContent(l10n),
             ),
@@ -195,7 +266,8 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
   }
 
   Widget _buildBodyContent(AppLocalizations l10n) {
-    if (_searchController.text.isEmpty && _selectedCategory == l10n.allCategory) {
+    if (_searchController.text.isEmpty &&
+        _selectedCategory == l10n.allCategory) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -203,13 +275,16 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
             Container(
               padding: EdgeInsets.all(25.w),
               decoration: const BoxDecoration(
-                shape: BoxShape.circle, 
-                color: Color(0x80EEEEEE) 
-              ),
-              child: Icon(Icons.search_rounded, size: 60.sp, color: AppColors.textMuted),
+                  shape: BoxShape.circle, color: Color(0x80EEEEEE)),
+              child: Icon(Icons.search_rounded,
+                  size: 60.sp, color: AppColors.textMuted),
             ),
             SizedBox(height: 16.h),
-            Text(l10n.typeToStartSearching, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.textMuted, fontWeight: FontWeight.bold)),
+            Text(l10n.typeToStartSearching,
+                style: TextStyle(
+                    fontSize: 16.sp,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       );
@@ -220,9 +295,11 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.sentiment_dissatisfied_rounded, size: 80.sp, color: AppColors.textMuted),
+            Icon(Icons.sentiment_dissatisfied_rounded,
+                size: 80.sp, color: AppColors.textMuted),
             SizedBox(height: 16.h),
-            Text(l10n.noMatchingResults, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.textMuted)),
+            Text(l10n.noMatchingResults,
+                style: TextStyle(fontSize: 16.sp, color: AppColors.textMuted)),
           ],
         ),
       );
@@ -240,31 +317,42 @@ class _SearchViewState extends State<SearchView> with AutomaticKeepAliveClientMi
             color: AppColors.cardWhite,
             borderRadius: BorderRadius.circular(20.r),
             border: Border.all(color: AppColors.dividerColor),
-            boxShadow: const [ 
-              BoxShadow(color: Color(0x0A000000), blurRadius: 15, offset: Offset(0, 5))
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 15,
+                  offset: Offset(0, 5))
             ],
           ),
           child: ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
             leading: CircleAvatar(
               backgroundColor: (service['color'] as Color).withOpacity(0.1),
               child: Icon(service['icon'], color: service['color']),
             ),
-            title: Text(service['title'], style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: AppColors.textDark)),
-            subtitle: Text(service['category'], style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: AppColors.textMuted)),
-            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textMuted),
+            title: Text(service['title'],
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.sp,
+                    color: AppColors.textDark)),
+            subtitle: Text(service['category'],
+                style: TextStyle(fontSize: 12.sp, color: AppColors.textMuted)),
+            trailing: Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: AppColors.textMuted),
             onTap: () {
               if (service['route'] != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => service['route']));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => service['route']));
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.serviceUnderPreparation, style: const TextStyle(fontFamily: 'Cairo', color: Colors.white)), 
-                    backgroundColor: AppColors.primaryNavy,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                  )
-                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(l10n.serviceUnderPreparation,
+                      style: const TextStyle(color: Colors.white)),
+                  backgroundColor: AppColors.primaryNavy,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r)),
+                ));
               }
             },
           ),

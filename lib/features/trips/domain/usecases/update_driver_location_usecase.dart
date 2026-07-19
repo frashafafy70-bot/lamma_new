@@ -19,7 +19,7 @@ class UpdateDriverLocationUseCase {
       }, SetOptions(merge: true));
       return const Right(null);
     } catch (e) {
-      return Left(e); 
+      return Left(e);
     }
   }
 }

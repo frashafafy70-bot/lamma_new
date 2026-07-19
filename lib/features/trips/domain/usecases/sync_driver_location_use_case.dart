@@ -8,7 +8,8 @@ class SyncDriverLocationUseCase {
   SyncDriverLocationUseCase(this.repository);
 
   // 🟢 الدالة بقت بتاخد lat و lng مباشر
-  Future<Either<Failure, void>> call(String tripId, double lat, double lng) async {
+  Future<Either<Failure, void>> call(
+      String tripId, double lat, double lng) async {
     return await repository.syncDriverLocation(tripId, lat, lng);
   }
 }

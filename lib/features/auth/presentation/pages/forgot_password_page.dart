@@ -25,10 +25,10 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController(); 
+  final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedMethod = 'email'; 
+  String _selectedMethod = 'email';
 
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
@@ -37,11 +37,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.only(bottom: 20.h, left: 20.w, right: 20.w),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -56,7 +58,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       context.read<AuthCubit>().sendPasswordResetEmail(email: email);
     } else {
       String inputPhone = _phoneController.text.trim();
-      String fullPhone = inputPhone.startsWith('+20') ? inputPhone : '+20${inputPhone.replaceFirst(RegExp(r'^0+'), '')}';
+      String fullPhone = inputPhone.startsWith('+20')
+          ? inputPhone
+          : '+20${inputPhone.replaceFirst(RegExp(r'^0+'), '')}';
       context.read<AuthCubit>().sendPasswordResetOtp(phone: fullPhone);
     }
   }
@@ -78,7 +82,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: primaryNavy,
-        title: Text(l10n.forgotPasswordAppBar, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        title: Text(l10n.forgotPasswordAppBar,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
@@ -88,13 +93,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => ResetPasswordOtpPage(
-                  verificationId: state.verificationId, 
+                  verificationId: state.verificationId,
                   phone: _phoneController.text.trim(),
                 ),
               ),
             );
           } else if (state is AuthSuccess) {
-            _showFloatingSnackBar(state.message ?? l10n.sendSuccess, Colors.green);
+            _showFloatingSnackBar(
+                state.message ?? l10n.sendSuccess, Colors.green);
             // 🟢 استخدام auto_route للرجوع بأمان
             context.router.maybePop();
           } else if (state is AuthError) {
@@ -112,39 +118,64 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.phonelink_lock_rounded, size: 80.sp, color: goldAccent),
+                    Icon(Icons.phonelink_lock_rounded,
+                        size: 80.sp, color: goldAccent),
                     SizedBox(height: 24.h),
                     Text(
                       l10n.forgotPasswordHeader,
-                      style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: primaryNavy),
+                      style: TextStyle(
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                          color: primaryNavy),
                     ),
                     SizedBox(height: 12.h),
                     Text(
                       l10n.forgotPasswordDescription,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600, fontFamily: 'Cairo', height: 1.5),
+                      style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey.shade600,
+                          height: 1.5),
                     ),
                     SizedBox(height: 32.h),
-                    
                     Row(
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: isLoading ? null : () => setState(() => _selectedMethod = 'email'),
+                            onTap: isLoading
+                                ? null
+                                : () =>
+                                    setState(() => _selectedMethod = 'email'),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: EdgeInsets.symmetric(vertical: 12.h),
                               decoration: BoxDecoration(
-                                color: _selectedMethod == 'email' ? primaryNavy : Colors.white,
+                                color: _selectedMethod == 'email'
+                                    ? primaryNavy
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12.r),
-                                border: Border.all(color: _selectedMethod == 'email' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                                border: Border.all(
+                                    color: _selectedMethod == 'email'
+                                        ? primaryNavy
+                                        : Colors.grey.shade300,
+                                    width: 1.5),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.email_outlined, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade600, size: 20.sp),
+                                  Icon(Icons.email_outlined,
+                                      color: _selectedMethod == 'email'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                      size: 20.sp),
                                   SizedBox(width: 8.w),
-                                  Text(l10n.emailMethod, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'email' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.emailMethod,
+                                      style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: _selectedMethod == 'email'
+                                              ? Colors.white
+                                              : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -153,21 +184,40 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         SizedBox(width: 16.w),
                         Expanded(
                           child: GestureDetector(
-                            onTap: isLoading ? null : () => setState(() => _selectedMethod = 'phone'),
+                            onTap: isLoading
+                                ? null
+                                : () =>
+                                    setState(() => _selectedMethod = 'phone'),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: EdgeInsets.symmetric(vertical: 12.h),
                               decoration: BoxDecoration(
-                                color: _selectedMethod == 'phone' ? primaryNavy : Colors.white,
+                                color: _selectedMethod == 'phone'
+                                    ? primaryNavy
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12.r),
-                                border: Border.all(color: _selectedMethod == 'phone' ? primaryNavy : Colors.grey.shade300, width: 1.5),
+                                border: Border.all(
+                                    color: _selectedMethod == 'phone'
+                                        ? primaryNavy
+                                        : Colors.grey.shade300,
+                                    width: 1.5),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.phone_android_rounded, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade600, size: 20.sp),
+                                  Icon(Icons.phone_android_rounded,
+                                      color: _selectedMethod == 'phone'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                      size: 20.sp),
                                   SizedBox(width: 8.w),
-                                  Text(l10n.phoneMethod, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: _selectedMethod == 'phone' ? Colors.white : Colors.grey.shade700)),
+                                  Text(l10n.phoneMethod,
+                                      style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: _selectedMethod == 'phone'
+                                              ? Colors.white
+                                              : Colors.grey.shade700)),
                                 ],
                               ),
                             ),
@@ -176,7 +226,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ],
                     ),
                     SizedBox(height: 24.h),
-
                     if (_selectedMethod == 'email')
                       Container(
                         decoration: BoxDecoration(
@@ -189,16 +238,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           keyboardType: TextInputType.emailAddress,
                           textDirection: TextDirection.ltr,
                           textAlign: TextAlign.left,
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                          style: TextStyle(fontSize: 15.sp),
                           decoration: InputDecoration(
                             hintText: l10n.emailExampleHint,
-                            hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
-                            prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
+                            hintStyle: TextStyle(
+                                fontSize: 14.sp, color: Colors.grey.shade400),
+                            prefixIcon: Icon(Icons.email_outlined,
+                                color: Colors.grey.shade600),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, vertical: 16.h),
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty || !value.contains('@')) {
+                            if (value == null ||
+                                value.isEmpty ||
+                                !value.contains('@')) {
                               return l10n.invalidEmailError;
                             }
                             return null;
@@ -218,27 +272,40 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 16.w),
                               child: Text(
-                                '+20', 
-                                textDirection: TextDirection.ltr, 
-                                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.black87),
+                                '+20',
+                                textDirection: TextDirection.ltr,
+                                style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87),
                               ),
                             ),
-                            Container(width: 1.w, height: 24.h, color: Colors.grey.shade300),
+                            Container(
+                                width: 1.w,
+                                height: 24.h,
+                                color: Colors.grey.shade300),
                             Expanded(
                               child: TextFormField(
                                 controller: _phoneController,
                                 keyboardType: TextInputType.phone,
                                 textDirection: TextDirection.ltr,
                                 textAlign: TextAlign.left,
-                                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, letterSpacing: 1),
+                                style: TextStyle(
+                                    fontSize: 16.sp, letterSpacing: 1),
                                 decoration: InputDecoration(
                                   hintText: l10n.phoneExampleHint,
-                                  hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400, letterSpacing: 0),
+                                  hintStyle: TextStyle(
+                                      fontSize: 14.sp,
+                                      color: Colors.grey.shade400,
+                                      letterSpacing: 0),
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 16.w),
+                                  contentPadding:
+                                      EdgeInsets.symmetric(horizontal: 16.w),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty || value.length < 10) {
+                                  if (value == null ||
+                                      value.isEmpty ||
+                                      value.length < 10) {
                                     return l10n.invalidPhoneError;
                                   }
                                   return null;
@@ -248,7 +315,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ],
                         ),
                       ),
-                    
                     SizedBox(height: 24.h),
                     SizedBox(
                       width: double.infinity,
@@ -256,12 +322,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryNavy,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15.r)),
                         ),
                         onPressed: isLoading ? null : _sendPasswordReset,
                         child: isLoading
-                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text(_selectedMethod == 'email' ? l10n.sendResetLink : l10n.sendVerificationCode, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.white)),
+                            ? SizedBox(
+                                height: 24.h,
+                                width: 24.h,
+                                child: const CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5))
+                            : Text(
+                                _selectedMethod == 'email'
+                                    ? l10n.sendResetLink
+                                    : l10n.sendVerificationCode,
+                                style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
                       ),
                     ),
                   ],

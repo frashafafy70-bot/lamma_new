@@ -2,26 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:auto_route/auto_route.dart'; // 🟢 استدعاء مكتبة التوجيه
 
-// 🟢 استدعاء الـ GetIt
-import 'package:lamma_new/core/di/injection_container.dart'; 
-
+import 'package:lamma_new/core/di/injection_container.dart';
 import 'package:lamma_new/features/home/cubit/home_cubit.dart';
 import 'package:lamma_new/features/home/cubit/home_state.dart';
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
-import 'driver_radar_tab.dart';
-import 'driver_active_trips_tab.dart';
-import 'driver_history_tab.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
+import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_history_tab.dart';
 
+@RoutePage() // 🟢 العلامة هنا فقط
 class DriverRadarPage extends StatefulWidget {
+  // 🟢 التأكد من وجود الـ const في الـ Constructor
   const DriverRadarPage({super.key});
 
   @override
   State<DriverRadarPage> createState() => _DriverRadarPageState();
 }
 
-class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProviderStateMixin {
+class _DriverRadarPageState extends State<DriverRadarPage>
+    with SingleTickerProviderStateMixin {
   late TabController _driverTabController;
 
   @override
@@ -51,11 +53,12 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                   padding: EdgeInsets.only(top: 50.h, bottom: 8.h),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF0F172A), Color(0xFF1B4332)], 
+                      colors: [Color(0xFF0F172A), Color(0xFF1B4332)],
                       begin: Alignment.topRight,
                       end: Alignment.bottomLeft,
                     ),
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(30.r)),
+                    borderRadius:
+                        BorderRadius.vertical(bottom: Radius.circular(30.r)),
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF1B4332).withOpacity(0.25),
@@ -73,19 +76,19 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                           children: [
                             InkWell(
                               onTap: () => Navigator.pop(context),
-                              child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 28),
+                              child: const Icon(Icons.arrow_forward_rounded,
+                                  color: Colors.white, size: 28),
                             ),
                             Text(
                               'لوحة تحكم السائق',
                               style: TextStyle(
-                                fontFamily: 'Cairo',
                                 fontSize: 20.sp,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(width: 28), 
+                            const SizedBox(width: 28),
                           ],
                         ),
                       ),
@@ -95,19 +98,27 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                         indicatorColor: const Color(0xFFD4AF37),
                         labelColor: const Color(0xFFD4AF37),
                         unselectedLabelColor: Colors.white70,
-                        labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
+                        labelStyle: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
                         indicatorWeight: 3,
-                        dividerColor: Colors.transparent, 
+                        dividerColor: Colors.transparent,
                         tabs: [
                           Tab(
-                            text: 'الرادار', 
+                            text: 'الرادار',
                             icon: StreamBuilder<QuerySnapshot>(
-                              stream: FirebaseFirestore.instance.collection('trips').where('status', isEqualTo: 'pending').snapshots(),
+                              stream: FirebaseFirestore.instance
+                                  .collection('trips')
+                                  .where('status', isEqualTo: 'pending')
+                                  .snapshots(),
                               builder: (context, snapshot) {
-                                int radarCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                                int radarCount = snapshot.hasData
+                                    ? snapshot.data!.docs.length
+                                    : 0;
                                 return Badge(
                                   isLabelVisible: radarCount > 0,
-                                  label: Text(radarCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
+                                  label: Text(radarCount.toString(),
+                                      style:
+                                          const TextStyle(fontFamily: 'Cairo')),
                                   backgroundColor: Colors.redAccent,
                                   child: const Icon(Icons.radar_rounded),
                                 );
@@ -115,33 +126,30 @@ class _DriverRadarPageState extends State<DriverRadarPage> with SingleTickerProv
                             ),
                           ),
                           Tab(
-                            text: 'النشطة', 
+                            text: 'النشطة',
                             icon: Badge(
                               isLabelVisible: state.activeOrdersCount > 0,
-                              label: Text(state.activeOrdersCount.toString(), style: const TextStyle(fontFamily: 'Cairo')),
+                              label: Text(state.activeOrdersCount.toString(),
+                                  style: const TextStyle(fontFamily: 'Cairo')),
                               backgroundColor: Colors.redAccent,
                               child: const Icon(Icons.play_circle_fill_rounded),
                             ),
                           ),
-                          const Tab(text: 'السجل', icon: Icon(Icons.history_rounded)), 
+                          const Tab(
+                              text: 'السجل', icon: Icon(Icons.history_rounded)),
                         ],
                       ),
                     ],
                   ),
                 ),
-                
                 Expanded(
                   child: TabBarView(
                     controller: _driverTabController,
                     children: [
                       const DriverRadarTab(showHeader: false),
-                      
-                      // 🟢 الحل السحري: استخدام sl() مباشرة لحقن الكيوبت وكل ما يحتاجه
                       BlocProvider(
-                        create: (context) => sl<DriverActiveTripsCubit>(), 
-                        child: const DriverActiveTripsTab(showHeader: false)
-                      ),
-                      
+                          create: (context) => sl<DriverActiveTripsCubit>(),
+                          child: const DriverActiveTripsTab(showHeader: false)),
                       const DriverHistoryTab(showHeader: false),
                     ],
                   ),

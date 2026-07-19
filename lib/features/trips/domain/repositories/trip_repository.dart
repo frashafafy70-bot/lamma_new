@@ -5,7 +5,7 @@ import '../entities/trip_entity.dart';
 
 abstract class TripRepository {
   // ==========================================
-  // 1. الدوال الأساسية 
+  // 1. الدوال الأساسية
   // ==========================================
   Stream<List<TripEntity>> getTrips();
   Stream<List<TripEntity>> getUserTrips(String userId);
@@ -31,7 +31,7 @@ abstract class TripRepository {
     double? destinationLat,
     double? destinationLng,
   });
-  
+
   Future<Either<Failure, void>> submitTripRequest({
     required String pickupAddress,
     required String dropoffAddress,
@@ -39,43 +39,44 @@ abstract class TripRepository {
     required double pickupLat,
     required double pickupLng,
   });
-  
+
   Future<Either<Failure, void>> addTravelTrip(TripEntity trip);
-  
+
   Future<Either<Failure, void>> publishTravelTrip(TripEntity trip);
 
   // ==========================================
   // 3. دوال الجلب (Streams & Queries)
   // ==========================================
-  Stream<List<TripEntity>> getTripsStream(String userId, {bool isPassenger = true});
+  Stream<List<TripEntity>> getTripsStream(String userId,
+      {bool isPassenger = true});
   Stream<int> getDriverActiveOrdersCountStream(String uid);
   Stream<int> getPassengerActiveOrdersCountStream(String uid);
-  
+
   Future<Either<Failure, List<TripEntity>>> getDriverActiveTrips({
     required String uid,
     required int limit,
     TripEntity? lastTrip,
   });
-  
+
   Future<Either<Failure, List<TripEntity>>> getPassengerActiveTrips({
     required String uid,
     required int limit,
     TripEntity? lastTrip,
   });
-  
+
   Future<Either<Failure, List<TripEntity>>> getDriverHistoryTrips({
     required String uid,
     required int limit,
     TripEntity? lastTrip,
   });
-  
+
   Future<Either<Failure, List<TripEntity>>> getAvailableTravels({
     required int limit,
     TripEntity? lastTrip,
   });
 
   // ==========================================
-  // 4. دوال الحجز والتفاوض 
+  // 4. دوال الحجز والتفاوض
   // ==========================================
   Future<Either<Failure, void>> acceptPassengerBooking({
     required String bookingId,
@@ -119,7 +120,7 @@ abstract class TripRepository {
   Future<Either<Failure, void>> rejectTripOffer({
     required String tripId,
   });
-  
+
   Future<Either<Failure, void>> bookSeatInDriverPost({
     required String tripId,
     required String driverId,
@@ -130,18 +131,20 @@ abstract class TripRepository {
   // ==========================================
   // 5. دوال تتبع الرحلة وتحديث الحالة
   // ==========================================
-  Future<Either<Failure, void>> activateDriverTripFunction(String tripId, String driverId);
-  Future<Either<Failure, void>> updateTripStatus(String tripId, String status); 
-  
-  Future<Either<Failure, void>> syncDriverLocation(String tripId, double lat, double lng);
-  
+  Future<Either<Failure, void>> activateDriverTripFunction(
+      String tripId, String driverId);
+  Future<Either<Failure, void>> updateTripStatus(String tripId, String status);
+
+  Future<Either<Failure, void>> syncDriverLocation(
+      String tripId, double lat, double lng);
+
   Future<Either<Failure, bool>> checkHasActiveTrip(String driverId);
 
   Future<Either<Failure, void>> cancelTrip({
-    required String tripId, 
+    required String tripId,
     required bool isDriver,
   });
-  
+
   Future<Either<Failure, void>> startTrip(String tripId);
   Future<Either<Failure, void>> completeTrip(String tripId);
 

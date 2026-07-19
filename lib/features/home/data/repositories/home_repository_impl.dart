@@ -29,10 +29,11 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, List<ServiceCategoryEntity>>> getServiceCategories() async {
+  Future<Either<Failure, List<ServiceCategoryEntity>>>
+      getServiceCategories() async {
     try {
       final snapshot = await _firestore.collection('service_categories').get();
-      
+
       final categories = snapshot.docs
           .map((doc) => ServiceCategoryModel.fromJson(doc.data(), doc.id))
           .toList();
@@ -41,7 +42,7 @@ class HomeRepositoryImpl implements HomeRepository {
       final box = await _getOpenBox();
       await box.clear();
       await box.addAll(categories);
-          
+
       return Right(categories);
     } catch (e) {
       try {
@@ -54,13 +55,15 @@ class HomeRepositoryImpl implements HomeRepository {
       } catch (hiveError) {
         // تجاهل أخطاء Hive الفرعية في حالة فشل فتح الصندوق
       }
-      
-      return Left(ServerFailure(message: 'لا توجد صلاحية أو حدث خطأ أثناء الاتصال.'));
+
+      return Left(
+          ServerFailure(message: 'لا توجد صلاحية أو حدث خطأ أثناء الاتصال.'));
     }
   }
 
   @override
-  Future<Either<Failure, List<OrderSummaryEntity>>> getActiveOrdersSummary() async {
+  Future<Either<Failure, List<OrderSummaryEntity>>>
+      getActiveOrdersSummary() async {
     try {
       User? user = _auth.currentUser;
       if (user == null) {
@@ -68,10 +71,10 @@ class HomeRepositoryImpl implements HomeRepository {
       }
 
       final snapshot = await _firestore
-          .collection('orders') 
+          .collection('orders')
           .where('userId', isEqualTo: user.uid)
-          .where('status', isNotEqualTo: 'completed') 
-          .limit(3) 
+          .where('status', isNotEqualTo: 'completed')
+          .limit(3)
           .get();
 
       final orders = snapshot.docs
@@ -80,7 +83,8 @@ class HomeRepositoryImpl implements HomeRepository {
 
       return Right(orders);
     } catch (e) {
-      return Left(ServerFailure(message: 'حدث خطأ أثناء تحميل الطلبات النشطة.'));
+      return Left(
+          ServerFailure(message: 'حدث خطأ أثناء تحميل الطلبات النشطة.'));
     }
   }
 
@@ -99,10 +103,12 @@ class HomeRepositoryImpl implements HomeRepository {
         String driverId = d['driverId'] ?? '';
         String ownerId = d['userId'] ?? d['passengerId'] ?? '';
         bool isPending = status == 'pending';
-        bool isNegotiatingWithAnother = status == 'negotiating' && driverId != currentUserId;
-        return (isPending || isNegotiatingWithAnother) && ownerId != currentUserId;
+        bool isNegotiatingWithAnother =
+            status == 'negotiating' && driverId != currentUserId;
+        return (isPending || isNegotiatingWithAnother) &&
+            ownerId != currentUserId;
       }).length;
-    }).handleError((_) => 0); 
+    }).handleError((_) => 0);
   }
 
   // 🟢 تنفيذ ستريم الرحلات النشطة
@@ -130,7 +136,8 @@ class HomeRepositoryImpl implements HomeRepository {
         .map((snapshot) {
       return snapshot.docs.where((doc) {
         var d = doc.data();
-        return d['status'] == 'available' && (d['driverId'] ?? '') != currentUserId;
+        return d['status'] == 'available' &&
+            (d['driverId'] ?? '') != currentUserId;
       }).length;
     }).handleError((_) => 0);
   }

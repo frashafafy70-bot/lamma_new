@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../domain/usecases/cancel_trip_use_case.dart'; 
+import '../../domain/usecases/cancel_trip_use_case.dart';
 import '../../domain/usecases/update_booking_seats_use_case.dart';
 import '../../domain/usecases/submit_negotiation_use_case.dart';
 import '../../domain/usecases/start_trip_use_case.dart';
@@ -35,41 +35,57 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     required this.publishTravelTripUseCase,
   }) : super(TripActionsInitial());
 
-  Future<void> cancelTripFully({required String tripId, required bool isDriver}) async {
+  Future<void> cancelTripFully(
+      {required String tripId, required bool isDriver}) async {
     emit(TripActionsLoading());
     final result = await cancelTripUseCase(tripId: tripId, isDriver: isDriver);
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'cancel', message: 'تم إلغاء الرحلة بنجاح')),
+      (_) => emit(TripActionsSuccess(
+          action: 'cancel', message: 'تم إلغاء الرحلة بنجاح')),
     );
   }
 
-  Future<void> updateBookingSeats({required String bookingId, required int newSeats, required DateTime travelDate}) async {
+  Future<void> updateBookingSeats(
+      {required String bookingId,
+      required int newSeats,
+      required DateTime travelDate}) async {
     emit(TripActionsLoading());
-    final result = await updateBookingSeatsUseCase(bookingId: bookingId, newSeats: newSeats, travelDate: travelDate);
+    final result = await updateBookingSeatsUseCase(
+        bookingId: bookingId, newSeats: newSeats, travelDate: travelDate);
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'update_booking', message: 'تم تعديل الحجز بنجاح')),
+      (_) => emit(TripActionsSuccess(
+          action: 'update_booking', message: 'تم تعديل الحجز بنجاح')),
     );
   }
 
-  Future<void> submitNegotiationOffer({required String tripId, required String price, required bool isDriver}) async {
+  Future<void> submitNegotiationOffer(
+      {required String tripId,
+      required String price,
+      required bool isDriver}) async {
     if (price.trim().isEmpty || tripId.isEmpty) return;
     emit(TripActionsLoading());
     double parsedPrice = double.tryParse(price.trim()) ?? 0.0;
-    final result = await submitNegotiationUseCase(docId: tripId, offerPrice: parsedPrice, isDriver: isDriver);
+    final result = await submitNegotiationUseCase(
+        docId: tripId, offerPrice: parsedPrice, isDriver: isDriver);
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'negotiate', message: 'تم إرسال العرض بنجاح')),
+      (_) => emit(TripActionsSuccess(
+          action: 'negotiate', message: 'تم إرسال العرض بنجاح')),
     );
   }
 
-  Future<void> acceptOffer(TripEntity trip, bool isDriver, String currentUserId) async {
+  Future<void> acceptOffer(
+      TripEntity trip, bool isDriver, String currentUserId) async {
     emit(TripActionsLoading());
-    String safePrice = trip.negotiationPrice?.toString() ?? trip.price?.toString() ?? trip.suggestedPrice?.toString() ?? '0';
+    String safePrice = trip.negotiationPrice?.toString() ??
+        trip.price?.toString() ??
+        trip.suggestedPrice?.toString() ??
+        '0';
     final result = await acceptTripOfferUseCase(
       tripId: trip.id ?? '',
       finalPrice: safePrice,
@@ -79,7 +95,8 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'accept', message: 'تم قبول الرحلة بنجاح')),
+      (_) => emit(TripActionsSuccess(
+          action: 'accept', message: 'تم قبول الرحلة بنجاح')),
     );
   }
 
@@ -90,14 +107,17 @@ class TripActionsCubit extends Cubit<TripActionsState> {
       if (isClosed) return;
       result.fold(
         (failure) => emit(TripActionsError(failure.message)),
-        (_) => emit(TripActionsSuccess(action: 'reject', message: 'تم رفض العرض والعودة للبحث')),
+        (_) => emit(TripActionsSuccess(
+            action: 'reject', message: 'تم رفض العرض والعودة للبحث')),
       );
     } else {
-      final result = await cancelTripUseCase(tripId: trip.id ?? '', isDriver: isDriver);
+      final result =
+          await cancelTripUseCase(tripId: trip.id ?? '', isDriver: isDriver);
       if (isClosed) return;
       result.fold(
         (failure) => emit(TripActionsError(failure.message)),
-        (_) => emit(TripActionsSuccess(action: 'cancel', message: 'تم إلغاء الرحلة بالكامل')),
+        (_) => emit(TripActionsSuccess(
+            action: 'cancel', message: 'تم إلغاء الرحلة بالكامل')),
       );
     }
   }
@@ -108,7 +128,8 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'start', message: 'تم بدء الرحلة!')),
+      (_) =>
+          emit(TripActionsSuccess(action: 'start', message: 'تم بدء الرحلة!')),
     );
   }
 
@@ -118,7 +139,8 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'complete', message: 'رحلة سعيدة!')),
+      (_) =>
+          emit(TripActionsSuccess(action: 'complete', message: 'رحلة سعيدة!')),
     );
   }
 
@@ -128,17 +150,23 @@ class TripActionsCubit extends Cubit<TripActionsState> {
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'publish', message: 'تم نشر الرحلة بنجاح!')),
+      (_) => emit(TripActionsSuccess(
+          action: 'publish', message: 'تم نشر الرحلة بنجاح!')),
     );
   }
 
-  Future<void> submitRating({required String tripId, required double rating, required String comment}) async {
+  Future<void> submitRating(
+      {required String tripId,
+      required double rating,
+      required String comment}) async {
     emit(TripActionsLoading());
-    final result = await submitTripRatingUseCase(tripId: tripId, rating: rating, comment: comment);
+    final result = await submitTripRatingUseCase(
+        tripId: tripId, rating: rating, comment: comment);
     if (isClosed) return;
     result.fold(
       (failure) => emit(TripActionsError(failure.message)),
-      (_) => emit(TripActionsSuccess(action: 'rate', message: 'شكراً لتقييمك الكابتن!')),
+      (_) => emit(TripActionsSuccess(
+          action: 'rate', message: 'شكراً لتقييمك الكابتن!')),
     );
   }
 }

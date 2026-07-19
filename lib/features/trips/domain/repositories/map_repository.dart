@@ -27,5 +27,6 @@ abstract class MapRepository {
   Future<Either<Failure, Position>> getUserCurrentLocation();
 
   /// جلب إحداثيات المسار (Polyline) بين نقطتين
-  Future<Either<Failure, List<LatLng>>> getRouteCoordinates(LatLng origin, LatLng destination);
+  Future<Either<Failure, List<LatLng>>> getRouteCoordinates(
+      LatLng origin, LatLng destination);
 }

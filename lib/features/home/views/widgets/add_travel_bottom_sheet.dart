@@ -18,7 +18,7 @@ class AddTravelBottomSheet extends StatefulWidget {
   final String driverId; // 🟢 التعديل الاحترافي: استقبال الـ ID من الخارج
 
   const AddTravelBottomSheet({
-    super.key, 
+    super.key,
     required this.userName,
     required this.driverId, // 🟢 إجبار الشاشة الأب على تمرير الـ ID
   });
@@ -33,7 +33,7 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
   final TextEditingController toCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
   DateTime? selectedDate;
-  
+
   bool isFullCar = false;
   int availableSeats = 4;
 
@@ -58,8 +58,10 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-        padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 16.h, bottom: 20.h),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        padding:
+            EdgeInsets.only(left: 20.w, right: 20.w, top: 16.h, bottom: 20.h),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Form(
@@ -69,25 +71,26 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
-                  child: Container(
-                    width: 40.w, 
-                    height: 5.h, 
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r))
-                  )
-                ),
+                    child: Container(
+                        width: 40.w,
+                        height: 5.h,
+                        decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(10.r)))),
                 SizedBox(height: 20.h),
                 Row(
                   children: [
-                    Icon(Icons.directions_bus_filled_rounded, color: goldAccent, size: 28.sp),
+                    Icon(Icons.directions_bus_filled_rounded,
+                        color: goldAccent, size: 28.sp),
                     SizedBox(width: 10.w),
-                    Text(
-                      l10n.travel_publishNewTrip,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold, color: primaryNavy)
-                    ),
+                    Text(l10n.travel_publishNewTrip,
+                        style: TextStyle(
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.bold,
+                            color: primaryNavy)),
                   ],
                 ),
                 SizedBox(height: 20.h),
-
                 Row(
                   children: [
                     Expanded(
@@ -96,16 +99,21 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         child: Container(
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           decoration: BoxDecoration(
-                            color: !isFullCar ? royalGreen : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10.r),
-                            border: Border.all(color: !isFullCar ? royalGreen : Colors.grey.shade300)
-                          ),
+                              color: !isFullCar
+                                  ? royalGreen
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10.r),
+                              border: Border.all(
+                                  color: !isFullCar
+                                      ? royalGreen
+                                      : Colors.grey.shade300)),
                           child: Center(
-                            child: Text(
-                              l10n.travel_individualSeats, 
-                              style: TextStyle(color: !isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold)
-                            )
-                          ),
+                              child: Text(l10n.travel_individualSeats,
+                                  style: TextStyle(
+                                      color: !isFullCar
+                                          ? Colors.white
+                                          : primaryNavy,
+                                      fontWeight: FontWeight.bold))),
                         ),
                       ),
                     ),
@@ -116,47 +124,61 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         child: Container(
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           decoration: BoxDecoration(
-                            color: isFullCar ? royalGreen : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10.r),
-                            border: Border.all(color: isFullCar ? royalGreen : Colors.grey.shade300)
-                          ),
+                              color:
+                                  isFullCar ? royalGreen : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10.r),
+                              border: Border.all(
+                                  color: isFullCar
+                                      ? royalGreen
+                                      : Colors.grey.shade300)),
                           child: Center(
-                            child: Text(
-                              l10n.travel_fullCar, 
-                              style: TextStyle(color: isFullCar ? Colors.white : primaryNavy, fontFamily: 'Cairo', fontWeight: FontWeight.bold)
-                            )
-                          ),
+                              child: Text(l10n.travel_fullCar,
+                                  style: TextStyle(
+                                      color: isFullCar
+                                          ? Colors.white
+                                          : primaryNavy,
+                                      fontWeight: FontWeight.bold))),
                         ),
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 16.h),
-
                 if (!isFullCar) ...[
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10.r)),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10.r)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          l10n.travel_availableSeatsCount, 
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy)
-                        ),
+                        Text(l10n.travel_availableSeatsCount,
+                            style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.bold,
+                                color: primaryNavy)),
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
+                              icon: const Icon(Icons.remove_circle,
+                                  color: Colors.redAccent),
                               onPressed: () {
-                                if (availableSeats > 1) setState(() => availableSeats--);
+                                if (availableSeats > 1)
+                                  setState(() => availableSeats--);
                               },
                             ),
-                            Text('$availableSeats', style: TextStyle(fontFamily: 'Cairo', fontSize: 20.sp, fontWeight: FontWeight.bold)),
+                            Text('$availableSeats',
+                                style: TextStyle(
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.bold)),
                             IconButton(
-                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              icon: const Icon(Icons.add_circle,
+                                  color: Colors.green),
                               onPressed: () {
-                                if (availableSeats < 14) setState(() => availableSeats++);
+                                if (availableSeats < 14)
+                                  setState(() => availableSeats++);
                               },
                             ),
                           ],
@@ -166,103 +188,139 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                   ),
                   SizedBox(height: 16.h),
                 ],
-
                 TextFormField(
                   controller: fromCtrl,
-                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterDepartureError : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? l10n.travel_enterDepartureError
+                      : null,
                   decoration: InputDecoration(
                     labelText: l10n.travel_departurePoint,
-                    prefixIcon: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                    prefixIcon: const Icon(Icons.my_location_rounded,
+                        color: Colors.blueAccent),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15.r)),
                   ),
                 ),
                 SizedBox(height: 16.h),
-
                 TextFormField(
                   controller: toCtrl,
-                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterDestinationError : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? l10n.travel_enterDestinationError
+                      : null,
                   decoration: InputDecoration(
                     labelText: l10n.travel_destinationPoint,
-                    prefixIcon: const Icon(Icons.location_on_rounded, color: Colors.redAccent),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                    prefixIcon: const Icon(Icons.location_on_rounded,
+                        color: Colors.redAccent),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15.r)),
                   ),
                 ),
                 SizedBox(height: 16.h),
-
                 InkWell(
                   onTap: () async {
                     DateTime? pickedDate = await showDatePicker(
-                      context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 30)),
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 30)),
                     );
                     if (pickedDate != null && context.mounted) {
-                      TimeOfDay? pickedTime = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                      TimeOfDay? pickedTime = await showTimePicker(
+                          context: context, initialTime: TimeOfDay.now());
                       if (pickedTime != null) {
                         setState(() {
-                          selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                          selectedDate = DateTime(
+                              pickedDate.year,
+                              pickedDate.month,
+                              pickedDate.day,
+                              pickedTime.hour,
+                              pickedTime.minute);
                         });
                       }
                     }
                   },
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(15.r)),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 16.h),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(15.r)),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_month_rounded, color: Colors.orange),
+                        const Icon(Icons.calendar_month_rounded,
+                            color: Colors.orange),
                         SizedBox(width: 10.w),
                         Text(
-                          selectedDate == null ? l10n.travel_dateAndTime : DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(selectedDate!),
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: selectedDate == null ? Colors.grey.shade600 : primaryNavy),
+                          selectedDate == null
+                              ? l10n.travel_dateAndTime
+                              : DateFormat('yyyy/MM/dd - hh:mm a', 'en')
+                                  .format(selectedDate!),
+                          style: TextStyle(
+                              fontSize: 14.sp,
+                              color: selectedDate == null
+                                  ? Colors.grey.shade600
+                                  : primaryNavy),
                         ),
                       ],
                     ),
                   ),
                 ),
                 SizedBox(height: 16.h),
-
                 TextFormField(
                   controller: priceCtrl,
                   keyboardType: TextInputType.number,
-                  validator: (value) => value == null || value.trim().isEmpty ? l10n.travel_enterPriceError : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? l10n.travel_enterPriceError
+                      : null,
                   decoration: InputDecoration(
-                    labelText: isFullCar ? l10n.travel_fullTripPrice : l10n.travel_singleSeatPrice,
+                    labelText: isFullCar
+                        ? l10n.travel_fullTripPrice
+                        : l10n.travel_singleSeatPrice,
                     prefixIcon: Icon(Icons.payments_rounded, color: royalGreen),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15.r)),
                   ),
                 ),
                 SizedBox(height: 24.h),
-
                 SizedBox(
                   width: double.infinity,
                   height: 50.h,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r))),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryNavy,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15.r))),
                     onPressed: () async {
-                      if (!formKey.currentState!.validate()) return; 
-                      
+                      if (!formKey.currentState!.validate()) return;
+
                       if (selectedDate == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.travel_selectDateError, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(l10n.travel_selectDateError,
+                                style: const TextStyle(fontFamily: 'Cairo')),
+                            backgroundColor: Colors.red));
                         return;
                       }
 
                       // 🟢 استخدام widget.driverId المرسل من الخارج
-                      bool hasActiveTrip = await context.read<DriverActiveTripsCubit>().checkHasActiveTrip(widget.driverId);
-                      
+                      bool hasActiveTrip = await context
+                          .read<DriverActiveTripsCubit>()
+                          .checkHasActiveTrip(widget.driverId);
+
                       if (!context.mounted) return;
 
                       if (hasActiveTrip) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(l10n.travel_activeTripExistError, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)), 
-                            backgroundColor: Colors.redAccent,
-                            behavior: SnackBarBehavior.floating,
-                          )
-                        );
-                        return; 
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(l10n.travel_activeTripExistError,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                        return;
                       }
-                      
-                      Navigator.pop(context); 
-                      
+
+                      Navigator.pop(context);
+
                       final newTrip = TripEntity(
                         isDriverPost: true,
                         driverId: widget.driverId, // 🟢 تم التطبيق هنا أيضاً
@@ -270,16 +328,24 @@ class _AddTravelBottomSheetState extends State<AddTravelBottomSheet> {
                         pickup: fromCtrl.text.trim(),
                         destination: toCtrl.text.trim(),
                         travelDate: selectedDate!,
-                        price: double.tryParse(priceCtrl.text.trim()) ?? 0.0, 
+                        price: double.tryParse(priceCtrl.text.trim()) ?? 0.0,
                         tripCategory: AppConstants.travelCategory,
-                        tripType: isFullCar ? AppConstants.fullCarType : AppConstants.seatsType, 
+                        tripType: isFullCar
+                            ? AppConstants.fullCarType
+                            : AppConstants.seatsType,
                         availableSeats: isFullCar ? 1 : availableSeats,
                         status: TripStatus.available,
                       );
 
-                      context.read<TripActionsCubit>().publishTravelPost(newTrip);
+                      context
+                          .read<TripActionsCubit>()
+                          .publishTravelPost(newTrip);
                     },
-                    child: Text(l10n.travel_publishBtn, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: goldAccent)),
+                    child: Text(l10n.travel_publishBtn,
+                        style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: goldAccent)),
                   ),
                 ),
               ],

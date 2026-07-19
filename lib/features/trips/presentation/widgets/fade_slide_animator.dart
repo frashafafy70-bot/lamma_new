@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class FadeSlideAnimator extends StatefulWidget {
   final Widget child;
-  final int delayMs; 
+  final int delayMs;
 
   const FadeSlideAnimator({super.key, required this.child, this.delayMs = 0});
 
@@ -10,7 +10,8 @@ class FadeSlideAnimator extends StatefulWidget {
   State<FadeSlideAnimator> createState() => _FadeSlideAnimatorState();
 }
 
-class _FadeSlideAnimatorState extends State<FadeSlideAnimator> with SingleTickerProviderStateMixin {
+class _FadeSlideAnimatorState extends State<FadeSlideAnimator>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -20,14 +21,15 @@ class _FadeSlideAnimatorState extends State<FadeSlideAnimator> with SingleTicker
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600), 
+      duration: const Duration(milliseconds: 600),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 

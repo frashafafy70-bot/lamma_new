@@ -13,8 +13,10 @@ class LawsuitGeneratorPage extends StatefulWidget {
 }
 
 class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
-  final TextEditingController _titleController = TextEditingController(text: 'صحيفة دعوى صحة توقيع');
-  final TextEditingController _contentController = TextEditingController(text: '''إنه في يوم ............ الموافق .../ .../ ......م
+  final TextEditingController _titleController =
+      TextEditingController(text: 'صحيفة دعوى صحة توقيع');
+  final TextEditingController _contentController = TextEditingController(
+      text: '''إنه في يوم ............ الموافق .../ .../ ......م
 بناءً على طلب السيد/ ................................. المقيم في ......................... ومحله المختار مكتب الأستاذ/ محمود البرعي المحامي.
 أنا ............ محضر محكمة ............ الجزئية قد انتقلت وأعلنت:
 السيد/ ................................. المقيم في ......................... مخاطباً مع/ .........................
@@ -28,7 +30,7 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
 أنا المحضر سالف الذكر قد انتقلت وأعلنت المعلن إليه وكلفته بالحضور أمام محكمة ............ الجزئية الكائن مقرها بـ ............ بجلستها التي ستنعقد علناً صباح يوم ............ الموافق .../ .../ ......م ليسمع الحكم بصحة توقيعه على عقد البيع الابتدائي المؤرخ .../ .../ ......م والموضح بالصحيفة، مع إلزامه بالمصروفات ومقابل أتعاب المحاماة.
 
 ولأجل العلم،،،''');
-  
+
   final Color primaryNavy = const Color(0xFF0F172A);
   final Color goldAccent = const Color(0xFFD4AF37);
 
@@ -43,9 +45,9 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
     List<String> lines = [];
     for (int i = 0; i < words.length; i += 2) {
       if (i + 1 < words.length) {
-        lines.add('${words[i]} ${words[i + 1]}'); 
+        lines.add('${words[i]} ${words[i + 1]}');
       } else {
-        lines.add(words[i]); 
+        lines.add(words[i]);
       }
     }
     return lines.join('\n');
@@ -54,7 +56,10 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
   Future<void> _generatePdf() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('برجاء كتابة نص العريضة أولاً ⚠️', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('برجاء كتابة نص العريضة أولاً ⚠️',
+                style: TextStyle(fontFamily: 'Cairo')),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -62,28 +67,28 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+      builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
     );
 
     try {
       final pdf = pw.Document();
-      
+
       // تحميل الخطوط العربية المتوافقة مع الـ PDF
       final fontRegular = await PdfGoogleFonts.amiriRegular();
       final fontBold = await PdfGoogleFonts.amiriBold();
 
-      final navyColor = PdfColor.fromHex('#0F172A'); 
-      final goldColor = PdfColor.fromHex('#D4AF37'); 
-      final inkColor = PdfColor.fromHex('#111111'); 
+      final navyColor = PdfColor.fromHex('#0F172A');
+      final goldColor = PdfColor.fromHex('#D4AF37');
+      final inkColor = PdfColor.fromHex('#111111');
 
-      pdf.addPage(
-        pw.MultiPage(
+      pdf.addPage(pw.MultiPage(
           pageTheme: pw.PageTheme(
             pageFormat: PdfPageFormat.a4,
             textDirection: pw.TextDirection.rtl,
-            margin: const pw.EdgeInsets.only(top: 175, bottom: 40, left: 110, right: 35),
+            margin: const pw.EdgeInsets.only(
+                top: 175, bottom: 40, left: 110, right: 35),
             theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
-            
             buildBackground: (pw.Context context) {
               return pw.FullPage(
                 ignoreMargins: true,
@@ -91,24 +96,39 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
                   children: [
                     // الإطارات الخارجية
                     pw.Positioned(
-                      top: 15, bottom: 15, left: 15, right: 15,
-                      child: pw.Container(decoration: pw.BoxDecoration(border: pw.Border.all(color: inkColor, width: 1.2))),
+                      top: 15,
+                      bottom: 15,
+                      left: 15,
+                      right: 15,
+                      child: pw.Container(
+                          decoration: pw.BoxDecoration(
+                              border:
+                                  pw.Border.all(color: inkColor, width: 1.2))),
                     ),
                     pw.Positioned(
-                      top: 20, bottom: 20, left: 20, right: 20,
-                      child: pw.Container(decoration: pw.BoxDecoration(border: pw.Border.all(color: inkColor, width: 2))),
+                      top: 20,
+                      bottom: 20,
+                      left: 20,
+                      right: 20,
+                      child: pw.Container(
+                          decoration: pw.BoxDecoration(
+                              border:
+                                  pw.Border.all(color: inkColor, width: 2))),
                     ),
 
                     // ترويسة المكتب والشعار
                     pw.Positioned(
-                      top: 30, left: 30, right: 30, 
+                      top: 30,
+                      left: 30,
+                      right: 30,
                       child: pw.Container(
-                        height: 120, 
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                        height: 120,
+                        padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 8),
                         decoration: pw.BoxDecoration(
-                          color: PdfColors.white, 
-                          border: pw.Border.all(color: goldColor, width: 2.5), 
-                          borderRadius: pw.BorderRadius.circular(15), 
+                          color: PdfColors.white,
+                          border: pw.Border.all(color: goldColor, width: 2.5),
+                          borderRadius: pw.BorderRadius.circular(15),
                         ),
                         child: pw.Row(
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -120,30 +140,51 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
                                 child: pw.Text(
                                   _titleController.text,
                                   textAlign: pw.TextAlign.center,
-                                  style: pw.TextStyle(fontSize: 20, font: fontBold, color: navyColor), 
+                                  style: pw.TextStyle(
+                                      fontSize: 20,
+                                      font: fontBold,
+                                      color: navyColor),
                                 ),
                               ),
                             ),
-                            
                             pw.Expanded(
                               flex: 2,
                               child: pw.Center(
-                                child: pw.SvgImage(svg: mizanSvg, width: 85, height: 75), 
+                                child: pw.SvgImage(
+                                    svg: mizanSvg, width: 85, height: 75),
                               ),
                             ),
-
                             pw.Expanded(
                               flex: 4,
                               child: pw.Column(
                                 mainAxisAlignment: pw.MainAxisAlignment.center,
-                                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                crossAxisAlignment:
+                                    pw.CrossAxisAlignment.center,
                                 children: [
-                                  pw.Text('مكتب الأستاذ / محمود السيد البرعي', style: pw.TextStyle(fontSize: 12, font: fontBold, color: navyColor)),
-                                  pw.Text('أحمد السيد البرعي', style: pw.TextStyle(fontSize: 12, font: fontBold, color: navyColor)),
+                                  pw.Text('مكتب الأستاذ / محمود السيد البرعي',
+                                      style: pw.TextStyle(
+                                          fontSize: 12,
+                                          font: fontBold,
+                                          color: navyColor)),
+                                  pw.Text('أحمد السيد البرعي',
+                                      style: pw.TextStyle(
+                                          fontSize: 12,
+                                          font: fontBold,
+                                          color: navyColor)),
                                   pw.SizedBox(height: 5),
-                                  pw.Text('المحاميان بالاستئناف العالي ومجلس الدولة', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 9, font: fontRegular, color: navyColor)),
+                                  pw.Text(
+                                      'المحاميان بالاستئناف العالي ومجلس الدولة',
+                                      textAlign: pw.TextAlign.center,
+                                      style: pw.TextStyle(
+                                          fontSize: 9,
+                                          font: fontRegular,
+                                          color: navyColor)),
                                   pw.SizedBox(height: 5),
-                                  pw.Text('٠١٠٦٦٣٦٦٤٣ / م', style: pw.TextStyle(fontSize: 13, font: fontBold, color: navyColor)), 
+                                  pw.Text('٠١٠٦٦٣٦٦٤٣ / م',
+                                      style: pw.TextStyle(
+                                          fontSize: 13,
+                                          font: fontBold,
+                                          color: navyColor)),
                                 ],
                               ),
                             ),
@@ -154,30 +195,60 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
 
                     // الهامش الجانبي للدمغات
                     pw.Positioned(
-                      top: 165, bottom: 20, left: 95, 
+                      top: 165,
+                      bottom: 20,
+                      left: 95,
                       child: pw.Container(
-                        width: 1, 
+                        width: 1,
                         decoration: pw.BoxDecoration(
-                          border: pw.Border(left: pw.BorderSide(color: inkColor, width: 1.5, style: pw.BorderStyle.dashed)),
+                          border: pw.Border(
+                              left: pw.BorderSide(
+                                  color: inkColor,
+                                  width: 1.5,
+                                  style: pw.BorderStyle.dashed)),
                         ),
                       ),
                     ),
 
                     pw.Positioned(
-                      top: 175, left: 25, 
+                      top: 175,
+                      left: 25,
                       child: pw.Container(
                         width: 65,
                         child: pw.Column(
                           mainAxisAlignment: pw.MainAxisAlignment.start,
                           crossAxisAlignment: pw.CrossAxisAlignment.center,
                           children: [
-                            pw.Text(formatMarginText(_titleController.text), textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 12, font: fontBold, color: inkColor, lineSpacing: 1.5)),
-                            pw.SizedBox(height: 45), 
-                            pw.Text('كطلب\nالطالب', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 13, font: fontBold, color: inkColor, lineSpacing: 1.5)),
+                            pw.Text(formatMarginText(_titleController.text),
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                    fontSize: 12,
+                                    font: fontBold,
+                                    color: inkColor,
+                                    lineSpacing: 1.5)),
                             pw.SizedBox(height: 45),
-                            pw.Text('وكيل\nالطالب', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 13, font: fontBold, color: inkColor, lineSpacing: 1.5)),
+                            pw.Text('كطلب\nالطالب',
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                    fontSize: 13,
+                                    font: fontBold,
+                                    color: inkColor,
+                                    lineSpacing: 1.5)),
                             pw.SizedBox(height: 45),
-                            pw.Text('المحامي', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 13, font: fontBold, color: inkColor)),
+                            pw.Text('وكيل\nالطالب',
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                    fontSize: 13,
+                                    font: fontBold,
+                                    color: inkColor,
+                                    lineSpacing: 1.5)),
+                            pw.SizedBox(height: 45),
+                            pw.Text('المحامي',
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                    fontSize: 13,
+                                    font: fontBold,
+                                    color: inkColor)),
                           ],
                         ),
                       ),
@@ -187,7 +258,7 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
               );
             },
           ),
-          
+
           // محتوى الدعوى
           build: (pw.Context context) {
             List<pw.Widget> pdfContentWidgets = [];
@@ -195,15 +266,19 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
 
             for (var line in lines) {
               final trimmed = line.trim();
-              
-              if (trimmed == 'الموضوع' || trimmed == 'بناء عليه' || trimmed == 'بناءً عليه') {
-                pdfContentWidgets.add(pw.SizedBox(height: 12)); 
+
+              if (trimmed == 'الموضوع' ||
+                  trimmed == 'بناء عليه' ||
+                  trimmed == 'بناءً عليه') {
+                pdfContentWidgets.add(pw.SizedBox(height: 12));
                 pdfContentWidgets.add(
                   pw.Center(
-                    child: pw.Text(trimmed, style: pw.TextStyle(font: fontBold, fontSize: 19, color: inkColor)),
+                    child: pw.Text(trimmed,
+                        style: pw.TextStyle(
+                            font: fontBold, fontSize: 19, color: inkColor)),
                   ),
                 );
-                pdfContentWidgets.add(pw.SizedBox(height: 8)); 
+                pdfContentWidgets.add(pw.SizedBox(height: 8));
               } else if (trimmed.isNotEmpty) {
                 pdfContentWidgets.add(
                   pw.Text(
@@ -213,13 +288,11 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
                   ),
                 );
               } else {
-                pdfContentWidgets.add(pw.SizedBox(height: 5)); 
+                pdfContentWidgets.add(pw.SizedBox(height: 5));
               }
             }
             return pdfContentWidgets;
-          }
-        )
-      );
+          }));
 
       if (mounted) Navigator.pop(context);
 
@@ -227,11 +300,13 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
         onLayout: (PdfPageFormat format) async => pdf.save(),
         name: 'عريضة_${_titleController.text}.pdf',
       );
-
     } catch (e) {
-      if (mounted) Navigator.pop(context); 
+      if (mounted) Navigator.pop(context);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الطباعة: $e', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('حدث خطأ أثناء الطباعة: $e',
+                style: const TextStyle(fontFamily: 'Cairo')),
+            backgroundColor: Colors.red));
       }
     }
   }
@@ -241,7 +316,8 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('مُولّد صحف الدعاوى 📄', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+        title: const Text('مُولّد صحف الدعاوى 📄',
+            style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         backgroundColor: primaryNavy,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -255,15 +331,22 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
               TextField(
                 controller: _titleController,
                 textDirection: TextDirection.rtl,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Cairo'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontFamily: 'Cairo'),
                 decoration: InputDecoration(
                   labelText: 'عنوان العريضة',
                   labelStyle: const TextStyle(fontFamily: 'Cairo'),
                   filled: true,
                   fillColor: Colors.white,
                   prefixIcon: Icon(Icons.title_rounded, color: goldAccent),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryNavy, width: 2)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryNavy, width: 2)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -274,15 +357,22 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
-                  style: const TextStyle(height: 1.8, fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
+                  style: const TextStyle(
+                      height: 1.8,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Cairo'),
                   decoration: InputDecoration(
                     labelText: 'نص العريضة',
                     labelStyle: const TextStyle(fontFamily: 'Cairo'),
                     alignLabelWithHint: true,
                     filled: true,
                     fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryNavy, width: 2)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryNavy, width: 2)),
                   ),
                 ),
               ),
@@ -291,10 +381,19 @@ class _LawsuitGeneratorPageState extends State<LawsuitGeneratorPage> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, elevation: 5, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryNavy,
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
                   onPressed: _generatePdf,
                   icon: const Icon(Icons.print_rounded, color: Colors.white),
-                  label: const Text('معاينة وطباعة العريضة 🖨️', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                  label: const Text('معاينة وطباعة العريضة 🖨️',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo')),
                 ),
               ),
             ],

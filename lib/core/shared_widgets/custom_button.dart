@@ -16,9 +16,11 @@ class CustomButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).primaryColor,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        child: Text(text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }

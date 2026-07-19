@@ -13,14 +13,14 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
   final GetDriverRadarTripsUseCase getDriverRadarTripsUseCase;
   final AcceptRadarTripUseCase acceptRadarTripUseCase;
   final NegotiateRadarTripUseCase negotiateRadarTripUseCase;
-  
+
   final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
   static const int _limit = 20;
 
   DriverRadarCubit({
-    required this.getDriverRadarTripsUseCase, 
+    required this.getDriverRadarTripsUseCase,
     required this.acceptRadarTripUseCase,
     required this.negotiateRadarTripUseCase,
   }) : super(DriverRadarInitial());
@@ -66,7 +66,7 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          emit(_buildLoadedState()); 
+          emit(_buildLoadedState());
         },
         (newTrips) {
           _isFetchingMore = false;
@@ -84,40 +84,35 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
   // ==========================================
   Future<void> acceptTrip(String tripId, {String? negotiatedPrice}) async {
     emit(DriverRadarActionLoading());
-    
-    final result = await acceptRadarTripUseCase(tripId, negotiatedPrice: negotiatedPrice);
-    
+
+    final result =
+        await acceptRadarTripUseCase(tripId, negotiatedPrice: negotiatedPrice);
+
     if (isClosed) return;
 
-    result.fold(
-      (failure) {
-        emit(DriverRadarActionError(_mapAcceptTripError(failure.toString())));
-        emit(_buildLoadedState());
-      },
-      (_) {
-        emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
-        emit(_buildLoadedState()); 
-      }
-    );
+    result.fold((failure) {
+      emit(DriverRadarActionError(_mapAcceptTripError(failure.toString())));
+      emit(_buildLoadedState());
+    }, (_) {
+      emit(DriverRadarActionSuccess('تم قبول الرحلة بنجاح'));
+      emit(_buildLoadedState());
+    });
   }
 
   Future<void> negotiateTrip(String tripId, String offer) async {
     emit(DriverRadarActionLoading());
-    
+
     final result = await negotiateRadarTripUseCase(tripId, offer);
-    
+
     if (isClosed) return;
 
-    result.fold(
-      (failure) {
-        emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: $failure'));
-        emit(_buildLoadedState());
-      },
-      (_) {
-        emit(DriverRadarActionSuccess('تم إرسال عرض السعر بنجاح'));
-        emit(_buildLoadedState());
-      }
-    );
+    result.fold((failure) {
+      emit(DriverRadarActionError('حدث خطأ أثناء التفاوض: $failure'));
+      emit(_buildLoadedState());
+    }, (_) {
+      emit(DriverRadarActionSuccess('تم إرسال عرض السعر بنجاح'));
+      emit(_buildLoadedState());
+    });
   }
 
   // ==========================================
@@ -148,8 +143,10 @@ class DriverRadarCubit extends Cubit<DriverRadarState> {
   }
 
   String _mapAcceptTripError(String error) {
-    if (error.contains('TRIP_NOT_FOUND')) return 'عذراً، هذه الرحلة لم تعد متوفرة';
-    if (error.contains('TRIP_ALREADY_TAKEN')) return 'عذراً، تم التقاط هذه الرحلة بواسطة سائق آخر';
+    if (error.contains('TRIP_NOT_FOUND'))
+      return 'عذراً، هذه الرحلة لم تعد متوفرة';
+    if (error.contains('TRIP_ALREADY_TAKEN'))
+      return 'عذراً، تم التقاط هذه الرحلة بواسطة سائق آخر';
     return 'حدث خطأ غير متوقع';
   }
 }

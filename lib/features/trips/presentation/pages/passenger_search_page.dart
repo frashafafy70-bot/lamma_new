@@ -2,7 +2,7 @@
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,7 +19,7 @@ import '../../cubit/passenger/trip_search_state.dart';
 import '../../cubit/passenger/trip_booking_cubit.dart';
 import '../../cubit/passenger/trip_booking_state.dart';
 
-@RoutePage() 
+@RoutePage()
 class PassengerSearchPage extends StatefulWidget {
   const PassengerSearchPage({super.key});
 
@@ -47,7 +47,8 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
         if (state is TripBookingLoading) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(l10n.bookingLoadingMsg, style: const TextStyle(fontFamily: 'Cairo')),
+              content: Text(l10n.bookingLoadingMsg,
+                  style: const TextStyle(fontFamily: 'Cairo')),
               backgroundColor: AppColors.primaryDark,
               duration: const Duration(seconds: 1),
             ),
@@ -55,14 +56,16 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
         } else if (state is TripBookingSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
+              content: Text(state.message,
+                  style: const TextStyle(fontFamily: 'Cairo')),
               backgroundColor: Colors.green,
             ),
           );
         } else if (state is TripBookingError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
+              content: Text(state.message,
+                  style: const TextStyle(fontFamily: 'Cairo')),
               backgroundColor: Colors.red,
             ),
           );
@@ -73,10 +76,14 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
           backgroundColor: AppColors.primaryDark,
           title: Text(
             l10n.searchForTripTitle,
-            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: Colors.white),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18.sp,
+                color: Colors.white),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white),
+            icon: const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -89,8 +96,10 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                 decoration: InputDecoration(
                   labelText: l10n.fromCity,
                   labelStyle: const TextStyle(fontFamily: 'Cairo'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
-                  prefixIcon: const Icon(Icons.my_location, color: AppColors.primaryDark),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.r)),
+                  prefixIcon: const Icon(Icons.my_location,
+                      color: AppColors.primaryDark),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -99,8 +108,10 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                 decoration: InputDecoration(
                   labelText: l10n.toCity,
                   labelStyle: const TextStyle(fontFamily: 'Cairo'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
-                  prefixIcon: const Icon(Icons.location_on, color: Colors.redAccent),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.r)),
+                  prefixIcon:
+                      const Icon(Icons.location_on, color: Colors.redAccent),
                 ),
               ),
               SizedBox(height: 20.h),
@@ -110,27 +121,32 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryDark,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r)),
                   ),
                   onPressed: () {
                     final from = _fromController.text.trim();
                     final to = _toController.text.trim();
-                    
+
                     if (from.isEmpty || to.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(l10n.enterCitiesWarning, style: const TextStyle(fontFamily: 'Cairo')),
+                          content: Text(l10n.enterCitiesWarning,
+                              style: const TextStyle(fontFamily: 'Cairo')),
                           backgroundColor: Colors.redAccent,
                         ),
                       );
                       return;
                     }
-                    
+
                     context.read<TripSearchCubit>().searchForRides(from, to);
                   },
                   child: Text(
                     l10n.searchTripsButton,
-                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.accentGold),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16.sp,
+                        color: AppColors.accentGold),
                   ),
                 ),
               ),
@@ -139,15 +155,21 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                 child: BlocBuilder<TripSearchCubit, TripSearchState>(
                   builder: (context, state) {
                     if (state is TripSearchLoading) {
-                      return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
-                    } 
-                    else if (state is TripSearchError) {
-                      return Center(child: Text(state.message, style: TextStyle(fontFamily: 'Cairo', color: Colors.red, fontSize: 14.sp)));
-                    } 
-                    else if (state is TripSearchLoaded) {
+                      return const Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.accentGold));
+                    } else if (state is TripSearchError) {
+                      return Center(
+                          child: Text(state.message,
+                              style: TextStyle(
+                                  color: Colors.red, fontSize: 14.sp)));
+                    } else if (state is TripSearchLoaded) {
                       final trips = state.trips;
                       if (trips.isEmpty) {
-                        return Center(child: Text(l10n.noTripsAvailable, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey)));
+                        return Center(
+                            child: Text(l10n.noTripsAvailable,
+                                style: TextStyle(
+                                    fontSize: 14.sp, color: Colors.grey)));
                       }
 
                       return ListView.builder(
@@ -156,40 +178,59 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                           final trip = trips[index];
                           return Card(
                             margin: EdgeInsets.only(bottom: 12.h),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r)),
                             child: ListTile(
-                              title: Text(l10n.tripRoute(trip.fromCity ?? '', trip.toCity ?? ''), style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                              subtitle: Text(l10n.tripDetailsSubtitle(trip.driverName ?? l10n.notSpecified, trip.price.toString()), style: const TextStyle(fontFamily: 'Cairo')),
+                              title: Text(
+                                  l10n.tripRoute(
+                                      trip.fromCity ?? '', trip.toCity ?? ''),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: Text(
+                                  l10n.tripDetailsSubtitle(
+                                      trip.driverName ?? l10n.notSpecified,
+                                      trip.price.toString()),
+                                  style: const TextStyle(fontFamily: 'Cairo')),
                               trailing: StatefulBuilder(
                                 builder: (context, setLocalState) {
                                   bool isPressed = false;
                                   return GestureDetector(
                                     onTapDown: (_) {
-                                      HapticFeedback.lightImpact(); 
+                                      HapticFeedback.lightImpact();
                                       setLocalState(() => isPressed = true);
                                     },
-                                    onTapUp: (_) => setLocalState(() => isPressed = false),
-                                    onTapCancel: () => setLocalState(() => isPressed = false),
+                                    onTapUp: (_) =>
+                                        setLocalState(() => isPressed = false),
+                                    onTapCancel: () =>
+                                        setLocalState(() => isPressed = false),
                                     onTap: () {
-                                      context.read<TripBookingCubit>().bookSelectedTrip(
-                                        tripId: trip.id ?? '',
-                                        driverId: trip.driverId ?? '',
-                                        passengerId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                        requestedSeats: 1,
-                                      );
+                                      context
+                                          .read<TripBookingCubit>()
+                                          .bookSelectedTrip(
+                                            tripId: trip.id ?? '',
+                                            driverId: trip.driverId ?? '',
+                                            passengerId: FirebaseAuth.instance
+                                                    .currentUser?.uid ??
+                                                '',
+                                            requestedSeats: 1,
+                                          );
                                     },
                                     child: AnimatedScale(
-                                      scale: isPressed ? 0.90 : 1.0, 
-                                      duration: const Duration(milliseconds: 100),
+                                      scale: isPressed ? 0.90 : 1.0,
+                                      duration:
+                                          const Duration(milliseconds: 100),
                                       child: ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primaryDark,
+                                          backgroundColor:
+                                              AppColors.primaryDark,
                                           elevation: isPressed ? 0 : 4,
                                         ),
-                                        onPressed: null, 
+                                        onPressed: null,
                                         child: Text(
                                           l10n.bookAction,
-                                          style: TextStyle(fontFamily: 'Cairo', color: AppColors.accentGold, fontSize: 12.sp),
+                                          style: TextStyle(
+                                              color: AppColors.accentGold,
+                                              fontSize: 12.sp),
                                         ),
                                       ),
                                     ),
@@ -201,7 +242,10 @@ class _PassengerSearchPageState extends State<PassengerSearchPage> {
                         },
                       );
                     }
-                    return Center(child: Text(l10n.searchPrompt, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey)));
+                    return Center(
+                        child: Text(l10n.searchPrompt,
+                            style: TextStyle(
+                                fontSize: 14.sp, color: Colors.grey)));
                   },
                 ),
               ),

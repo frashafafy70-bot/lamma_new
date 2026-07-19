@@ -7,14 +7,15 @@ class BlinkingMic extends StatefulWidget {
   State<BlinkingMic> createState() => _BlinkingMicState();
 }
 
-class _BlinkingMicState extends State<BlinkingMic> with SingleTickerProviderStateMixin {
+class _BlinkingMicState extends State<BlinkingMic>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      vsync: this, 
+      vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
   }

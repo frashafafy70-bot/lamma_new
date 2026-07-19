@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // استيراد الراوتر للوصول إلى LoginRoute
-import 'app_router.dart'; 
+import 'app_router.dart';
 
 class AuthGuard extends AutoRouteGuard {
   @override

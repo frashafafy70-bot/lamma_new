@@ -17,12 +17,13 @@ class ManagePassengerRequestUseCase {
     }
   }
 
-  Future<Either<dynamic, void>> acceptOffer(String docId, String acceptedPrice) async {
+  Future<Either<dynamic, void>> acceptOffer(
+      String docId, String acceptedPrice) async {
     try {
-      await firestore.collection('trips').doc(docId).update({
-        'status': 'accepted', 
-        'finalPrice': acceptedPrice
-      });
+      await firestore
+          .collection('trips')
+          .doc(docId)
+          .update({'status': 'accepted', 'finalPrice': acceptedPrice});
       return const Right(null);
     } catch (e) {
       return Left(e);
@@ -31,21 +32,22 @@ class ManagePassengerRequestUseCase {
 
   Future<Either<dynamic, void>> rejectTrip(String docId) async {
     try {
-      await firestore.collection('trips').doc(docId).update({
-        'status': 'canceled', 
-        'canceledBy': 'passenger'
-      });
+      await firestore
+          .collection('trips')
+          .doc(docId)
+          .update({'status': 'canceled', 'canceledBy': 'passenger'});
       return const Right(null);
     } catch (e) {
       return Left(e);
     }
   }
 
-  Future<Either<dynamic, void>> negotiateTrip(String docId, String offer, String type) async {
+  Future<Either<dynamic, void>> negotiateTrip(
+      String docId, String offer, String type) async {
     try {
       await firestore.collection('trips').doc(docId).update({
-        'status': 'negotiating', 
-        'negotiationPrice': offer, 
+        'status': 'negotiating',
+        'negotiationPrice': offer,
         'negotiationType': type,
         'lastNegotiator': 'passenger'
       });

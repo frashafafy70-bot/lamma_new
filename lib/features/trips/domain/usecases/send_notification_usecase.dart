@@ -17,7 +17,7 @@ class SendNotificationUseCase {
     try {
       var tripDoc = await firestore.collection('trips').doc(tripId).get();
       if (!tripDoc.exists) return const Right(null);
-      
+
       String driverId = tripDoc.data()?['driverId'] ?? '';
       if (driverId.isEmpty) return const Right(null);
 
@@ -25,7 +25,7 @@ class SendNotificationUseCase {
       String? fcmToken = userDoc.data()?['fcmToken'];
 
       if (fcmToken != null) {
-        String serverKey = dotenv.env['FCM_SERVER_KEY'] ?? ''; 
+        String serverKey = dotenv.env['FCM_SERVER_KEY'] ?? '';
         await http.post(
           Uri.parse('https://fcm.googleapis.com/fcm/send'),
           headers: {
@@ -35,7 +35,11 @@ class SendNotificationUseCase {
           body: jsonEncode({
             'to': fcmToken,
             'notification': {'title': title, 'body': body, 'sound': 'default'},
-            'data': {'tripId': tripId, 'type': 'passenger_action', 'channel_id': 'lamma_final_sound'}
+            'data': {
+              'tripId': tripId,
+              'type': 'passenger_action',
+              'channel_id': 'lamma_final_sound'
+            }
           }),
         );
       }

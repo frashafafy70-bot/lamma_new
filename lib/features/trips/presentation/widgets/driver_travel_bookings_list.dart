@@ -19,18 +19,20 @@ class DriverTravelBookingsList extends StatelessWidget {
       builder: (context, snapshot) {
         // لو مفيش داتا أو مفيش حجوزات، مياخدش مساحة خالص في الشاشة
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const SizedBox.shrink(); 
+          return const SizedBox.shrink();
         }
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
-              child: Text(
-                'طلبات حجز السفر (في الانتظار)', 
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: const Color(0xFFD4AF37))
-              ),
+              padding: EdgeInsets.only(
+                  left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
+              child: Text('طلبات حجز السفر (في الانتظار)',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16.sp,
+                      color: const Color(0xFFD4AF37))),
             ),
             ListView.builder(
               shrinkWrap: true,
@@ -40,24 +42,46 @@ class DriverTravelBookingsList extends StatelessWidget {
               itemBuilder: (context, index) {
                 var booking = snapshot.data!.docs[index];
                 var data = booking.data() as Map<String, dynamic>;
-                
+
                 return Card(
                   elevation: 2,
                   margin: EdgeInsets.only(bottom: 12.h),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r), side: BorderSide(color: const Color(0xFFD4AF37).withValues(alpha: 0.5))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      side: BorderSide(
+                          color:
+                              const Color(0xFFD4AF37).withValues(alpha: 0.5))),
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                    leading: CircleAvatar(backgroundColor: Colors.orange.shade50, child: const Icon(Icons.event_seat_rounded, color: Colors.orange)),
-                    title: Text('طلب حجز مقاعد سفر', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
-                    subtitle: Text('العميل يطلب: ${data['seats']} مقاعد', style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp)),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    leading: CircleAvatar(
+                        backgroundColor: Colors.orange.shade50,
+                        child: const Icon(Icons.event_seat_rounded,
+                            color: Colors.orange)),
+                    title: Text('طلب حجز مقاعد سفر',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                    subtitle: Text('العميل يطلب: ${data['seats']} مقاعد',
+                        style: TextStyle(fontSize: 13.sp)),
                     trailing: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4332), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r))),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1B4332),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.r))),
                       onPressed: () {
                         // قبول الحجز وتحديث حالته
                         booking.reference.update({'status': 'accepted'});
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم قبول الحجز بنجاح!', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('تم قبول الحجز بنجاح!',
+                                    style: TextStyle(fontFamily: 'Cairo')),
+                                backgroundColor: Colors.green));
                       },
-                      child: Text('قبول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13.sp, fontWeight: FontWeight.bold)),
+                      child: Text('قبول',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                 );

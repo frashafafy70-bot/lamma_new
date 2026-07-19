@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart' hide TextDirection; 
+import 'package:intl/intl.dart' hide TextDirection;
 
 // 🟢 استيراد الـ Injection
-import '../../../trip_injection.dart'; 
+import '../../../trip_injection.dart';
 
 import '../../../cubit/passenger/available_travels_cubit.dart';
 import '../../../cubit/passenger/available_travels_state.dart';
@@ -24,7 +24,8 @@ class AvailableTravelsTab extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) => sl<AvailableTravelsCubit>()..init(FirebaseAuth.instance.currentUser?.uid ?? ''),
+          create: (context) => sl<AvailableTravelsCubit>()
+            ..init(FirebaseAuth.instance.currentUser?.uid ?? ''),
         ),
         BlocProvider(
           create: (context) => sl<TripBookingCubit>(),
@@ -72,7 +73,7 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
     final Color royalGreen = const Color(0xFF1B4332);
     final Color accentGold = const Color(0xFFD4AF37);
     final Color darkSlate = const Color(0xFF0F172A);
-    
+
     final cubit = context.read<AvailableTravelsCubit>();
 
     // 🟢 الاستماع لنتيجة الحجز من TripBookingCubit
@@ -82,7 +83,10 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
           listener: (context, state) {
             if (state is AvailableTravelsError) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red.shade700),
+                SnackBar(
+                    content: Text(state.message,
+                        style: const TextStyle(fontFamily: 'Cairo')),
+                    backgroundColor: Colors.red.shade700),
               );
             }
           },
@@ -91,11 +95,17 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
           listener: (context, state) {
             if (state is TripBookingSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.green),
+                SnackBar(
+                    content: Text(state.message,
+                        style: const TextStyle(fontFamily: 'Cairo')),
+                    backgroundColor: Colors.green),
               );
             } else if (state is TripBookingError) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: Colors.red.shade700),
+                SnackBar(
+                    content: Text(state.message,
+                        style: const TextStyle(fontFamily: 'Cairo')),
+                    backgroundColor: Colors.red.shade700),
               );
             }
           },
@@ -105,7 +115,8 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
         builder: (context, state) {
           bool showOnlyNearby = false;
           List<ProcessedTrip> processedTrips = [];
-          bool isLoading = state is AvailableTravelsInitial || state is AvailableTravelsLoading;
+          bool isLoading = state is AvailableTravelsInitial ||
+              state is AvailableTravelsLoading;
           bool isFetchingMore = false;
 
           if (state is AvailableTravelsLoaded) {
@@ -121,7 +132,12 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -130,11 +146,21 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                       children: [
                         Container(
                           padding: EdgeInsets.all(6.w),
-                          decoration: BoxDecoration(color: showOnlyNearby ? royalGreen.withOpacity(0.1) : Colors.grey.shade100, shape: BoxShape.circle),
-                          child: Icon(Icons.radar_rounded, color: showOnlyNearby ? royalGreen : Colors.grey, size: 20.sp),
+                          decoration: BoxDecoration(
+                              color: showOnlyNearby
+                                  ? royalGreen.withOpacity(0.1)
+                                  : Colors.grey.shade100,
+                              shape: BoxShape.circle),
+                          child: Icon(Icons.radar_rounded,
+                              color: showOnlyNearby ? royalGreen : Colors.grey,
+                              size: 20.sp),
                         ),
                         SizedBox(width: 10.w),
-                        Text('الرحلات القريبة مني فقط', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13.sp, color: darkSlate)),
+                        Text('الرحلات القريبة مني فقط',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13.sp,
+                                color: darkSlate)),
                       ],
                     ),
                     Switch(
@@ -148,17 +174,21 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                   ],
                 ),
               ),
-              
+
               if (isLoading)
-                LinearProgressIndicator(color: accentGold, backgroundColor: royalGreen.withOpacity(0.1), minHeight: 3.h),
+                LinearProgressIndicator(
+                    color: accentGold,
+                    backgroundColor: royalGreen.withOpacity(0.1),
+                    minHeight: 3.h),
 
               Expanded(
                 child: RefreshIndicator(
                   color: royalGreen,
                   onRefresh: () async {
-                    cubit.init(FirebaseAuth.instance.currentUser?.uid ?? ''); 
+                    cubit.init(FirebaseAuth.instance.currentUser?.uid ?? '');
                   },
-                  child: _buildTripsList(context, processedTrips, isLoading, isFetchingMore, royalGreen, accentGold, darkSlate),
+                  child: _buildTripsList(context, processedTrips, isLoading,
+                      isFetchingMore, royalGreen, accentGold, darkSlate),
                 ),
               ),
             ],
@@ -169,7 +199,8 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
   }
 
   // 🟢 ديالوج اختيار عدد المقاعد
-  void _showBookingDialog(BuildContext context, String tripId, String driverId, int maxSeats, Color royalGreen) {
+  void _showBookingDialog(BuildContext context, String tripId, String driverId,
+      int maxSeats, Color royalGreen) {
     int selectedSeats = 1;
 
     showDialog(
@@ -177,71 +208,105 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-            title: Text('حجز مقاعد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18.sp, color: royalGreen), textAlign: TextAlign.center),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r)),
+            title: Text('حجز مقاعد',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18.sp,
+                    color: royalGreen),
+                textAlign: TextAlign.center),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('حدد عدد المقاعد التي تريد حجزها', style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp)),
+                Text('حدد عدد المقاعد التي تريد حجزها',
+                    style: TextStyle(fontSize: 14.sp)),
                 SizedBox(height: 16.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: selectedSeats > 1 ? () => setState(() => selectedSeats--) : null,
-                      icon: Icon(Icons.remove_circle_outline, color: selectedSeats > 1 ? Colors.red : Colors.grey, size: 28.sp),
+                      onPressed: selectedSeats > 1
+                          ? () => setState(() => selectedSeats--)
+                          : null,
+                      icon: Icon(Icons.remove_circle_outline,
+                          color: selectedSeats > 1 ? Colors.red : Colors.grey,
+                          size: 28.sp),
                     ),
                     SizedBox(width: 16.w),
-                    Text('$selectedSeats', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 22.sp)),
+                    Text('$selectedSeats',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 22.sp)),
                     SizedBox(width: 16.w),
                     IconButton(
-                      onPressed: selectedSeats < maxSeats ? () => setState(() => selectedSeats++) : null,
-                      icon: Icon(Icons.add_circle_outline, color: selectedSeats < maxSeats ? royalGreen : Colors.grey, size: 28.sp),
+                      onPressed: selectedSeats < maxSeats
+                          ? () => setState(() => selectedSeats++)
+                          : null,
+                      icon: Icon(Icons.add_circle_outline,
+                          color: selectedSeats < maxSeats
+                              ? royalGreen
+                              : Colors.grey,
+                          size: 28.sp),
                     ),
                   ],
                 ),
                 if (maxSeats > 1) ...[
                   SizedBox(height: 8.h),
-                  Text('(الحد الأقصى $maxSeats مقاعد)', style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600)),
+                  Text('(الحد الأقصى $maxSeats مقاعد)',
+                      style: TextStyle(
+                          fontSize: 12.sp, color: Colors.grey.shade600)),
                 ]
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: Colors.grey, fontSize: 14.sp)),
+                child: Text('إلغاء',
+                    style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
               ),
-              
+
               // 🟢 الاستماع لـ TripBookingCubit لإظهار اللودينج داخل الزرار
               BlocBuilder<TripBookingCubit, TripBookingState>(
-                builder: (context, bookingState) {
-                  bool isSubmitting = bookingState is TripBookingLoading;
-                  
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: royalGreen,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-                    ),
-                    onPressed: isSubmitting ? null : () {
-                      final passengerId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                      
-                      // 🟢 توجيه أمر الحجز للكيوبيت المختص
-                      context.read<TripBookingCubit>().bookSelectedTrip(
-                        tripId: tripId, 
-                        driverId: driverId, 
-                        passengerId: passengerId,
-                        requestedSeats: selectedSeats
-                      );
-                      
-                      Navigator.pop(ctx); // نقفل الديالوج، والـ Listener هيطلع رسالة النجاح
-                    },
-                    child: isSubmitting 
-                      ? SizedBox(height: 20.h, width: 20.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('تأكيد الحجز', style: TextStyle(color: Colors.white, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
-                  );
-                }
-              )
+                  builder: (context, bookingState) {
+                bool isSubmitting = bookingState is TripBookingLoading;
+
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: royalGreen,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r)),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () {
+                          final passengerId =
+                              FirebaseAuth.instance.currentUser?.uid ?? '';
+
+                          // 🟢 توجيه أمر الحجز للكيوبيت المختص
+                          context.read<TripBookingCubit>().bookSelectedTrip(
+                              tripId: tripId,
+                              driverId: driverId,
+                              passengerId: passengerId,
+                              requestedSeats: selectedSeats);
+
+                          Navigator.pop(
+                              ctx); // نقفل الديالوج، والـ Listener هيطلع رسالة النجاح
+                        },
+                  child: isSubmitting
+                      ? SizedBox(
+                          height: 20.h,
+                          width: 20.h,
+                          child: const CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : Text('تأكيد الحجز',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.sp)),
+                );
+              })
             ],
           );
         },
@@ -249,13 +314,20 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
     );
   }
 
-  Widget _buildTripsList(BuildContext context, List<ProcessedTrip> processedTrips, bool isLoading, bool isFetchingMore, Color royalGreen, Color accentGold, Color darkSlate) {
+  Widget _buildTripsList(
+      BuildContext context,
+      List<ProcessedTrip> processedTrips,
+      bool isLoading,
+      bool isFetchingMore,
+      Color royalGreen,
+      Color accentGold,
+      Color darkSlate) {
     if (isLoading && processedTrips.isEmpty) {
       return Center(child: CircularProgressIndicator(color: royalGreen));
     }
 
     if (processedTrips.isEmpty) {
-      return ListView( 
+      return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
@@ -263,9 +335,14 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.directions_car_filled_rounded, size: 80.sp, color: Colors.grey.shade300),
+                Icon(Icons.directions_car_filled_rounded,
+                    size: 80.sp, color: Colors.grey.shade300),
                 SizedBox(height: 16.h),
-                Text('لا توجد رحلات متاحة حالياً', style: TextStyle(color: Colors.grey.shade600, fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                Text('لا توجد رحلات متاحة حالياً',
+                    style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16.sp)),
               ],
             ),
           ),
@@ -280,7 +357,6 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
-        
         if (index >= processedTrips.length) {
           return Padding(
             padding: EdgeInsets.all(16.w),
@@ -290,28 +366,37 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
 
         var processedTrip = processedTrips[index];
         TripEntity trip = processedTrip.trip;
-        
-        double dist = processedTrip.distance;
-        String distanceText = dist != double.infinity ? 'يبعد: ${(dist / 1000).toStringAsFixed(1)} كم' : '';
 
-        String driverName = (trip.driverName?.trim().isNotEmpty ?? false) ? trip.driverName! : 'كابتن لَمَّة';
+        double dist = processedTrip.distance;
+        String distanceText = dist != double.infinity
+            ? 'يبعد: ${(dist / 1000).toStringAsFixed(1)} كم'
+            : '';
+
+        String driverName = (trip.driverName?.trim().isNotEmpty ?? false)
+            ? trip.driverName!
+            : 'كابتن لَمَّة';
         String price = trip.price ?? 'غير محدد';
-        String pickup = trip.pickup ?? trip.fromCity ?? 'نقطة الانطلاق غير محددة';
-        String dropoff = trip.destination ?? trip.toCity ?? 'نقطة الوصول غير محددة';
+        String pickup =
+            trip.pickup ?? trip.fromCity ?? 'نقطة الانطلاق غير محددة';
+        String dropoff =
+            trip.destination ?? trip.toCity ?? 'نقطة الوصول غير محددة';
         int maxSeats = int.tryParse(trip.availableSeats ?? '0') ?? 0;
-        
+
         String timeString = 'غير محدد';
         if (trip.travelDate != null) {
-          timeString = DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(trip.travelDate!);
+          timeString =
+              DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(trip.travelDate!);
         }
 
         String tripDriverId = trip.driverId ?? '';
 
         return Card(
-          elevation: 4, 
-          margin: EdgeInsets.only(bottom: 16.h), 
+          elevation: 4,
+          margin: EdgeInsets.only(bottom: 16.h),
           shadowColor: Colors.black.withOpacity(0.05),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r), side: BorderSide(color: accentGold.withOpacity(0.5), width: 1.5)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+              side: BorderSide(color: accentGold.withOpacity(0.5), width: 1.5)),
           child: Padding(
             padding: EdgeInsets.all(16.w),
             child: Column(
@@ -325,34 +410,54 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                         CircleAvatar(
                           radius: 18.r,
                           backgroundColor: Colors.grey.shade200,
-                          child: Icon(Icons.person, color: Colors.grey.shade600, size: 20.sp),
+                          child: Icon(Icons.person,
+                              color: Colors.grey.shade600, size: 20.sp),
                         ),
                         SizedBox(width: 8.w),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(driverName, style: TextStyle(fontWeight: FontWeight.bold, color: darkSlate, fontFamily: 'Cairo', fontSize: 14.sp)),
-                            Text('كابتن موثوق', style: TextStyle(color: Colors.green.shade700, fontFamily: 'Cairo', fontSize: 10.sp, fontWeight: FontWeight.bold)),
+                            Text(driverName,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: darkSlate,
+                                    fontSize: 14.sp)),
+                            Text('كابتن موثوق',
+                                style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontSize: 10.sp,
+                                    fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ],
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h), 
-                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8.r)), 
-                      child: Text('متاح $maxSeats مقاعد', style: TextStyle(color: Colors.blue.shade800, fontWeight: FontWeight.bold, fontSize: 12.sp, fontFamily: 'Cairo'))
-                    ),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 10.w, vertical: 6.h),
+                        decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8.r)),
+                        child: Text('متاح $maxSeats مقاعد',
+                            style: TextStyle(
+                                color: Colors.blue.shade800,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.sp,
+                                fontFamily: 'Cairo'))),
                   ],
                 ),
                 SizedBox(height: 16.h),
-                
                 Row(
                   children: [
                     Column(
                       children: [
-                        Icon(Icons.my_location_rounded, color: royalGreen, size: 18.sp),
-                        Container(height: 25.h, width: 2.w, color: Colors.grey.shade300),
-                        Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 18.sp),
+                        Icon(Icons.my_location_rounded,
+                            color: royalGreen, size: 18.sp),
+                        Container(
+                            height: 25.h,
+                            width: 2.w,
+                            color: Colors.grey.shade300),
+                        Icon(Icons.location_on_rounded,
+                            color: Colors.redAccent, size: 18.sp),
                       ],
                     ),
                     SizedBox(width: 12.w),
@@ -360,67 +465,93 @@ class _AvailableTravelsViewState extends State<_AvailableTravelsView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(pickup, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: darkSlate), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(pickup,
+                              style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkSlate),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                           SizedBox(height: 20.h),
-                          Text(dropoff, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: darkSlate), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(dropoff,
+                              style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkSlate),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
                   ],
                 ),
-                
                 SizedBox(height: 16.h),
-                
                 Container(
                   padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10.r)),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10.r)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.access_time_rounded, color: Colors.grey.shade600, size: 16.sp),
+                          Icon(Icons.access_time_rounded,
+                              color: Colors.grey.shade600, size: 16.sp),
                           SizedBox(width: 6.w),
-                          Text(timeString, style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade800, fontWeight: FontWeight.w600)),
+                          Text(timeString,
+                              style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.grey.shade800,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
-                      Text('$price ج.م', style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                      Text('$price ج.م',
+                          style: TextStyle(
+                              fontSize: 15.sp,
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
-                
                 SizedBox(height: 16.h),
-                
                 maxSeats <= 0
-                ? SizedBox(
-                    width: double.infinity, 
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade400, 
-                        disabledBackgroundColor: Colors.grey.shade400,
-                        disabledForegroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r))
-                      ), 
-                      onPressed: null, 
-                      icon: Icon(Icons.event_seat_rounded, size: 18.sp, color: Colors.white), 
-                      label: Text('الرحلة مكتملة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.sp))
-                    )
-                  )
-                : SizedBox(
-                    width: double.infinity, 
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: darkSlate, 
-                        foregroundColor: accentGold,
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r))
-                      ), 
-                      onPressed: () => _showBookingDialog(context, trip.id ?? '', tripDriverId, maxSeats, royalGreen), 
-                      icon: Icon(Icons.event_seat_rounded, size: 18.sp), 
-                      label: Text('احجز مقعدك الآن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp))
-                    )
-                  )
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey.shade400,
+                                disabledBackgroundColor: Colors.grey.shade400,
+                                disabledForegroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 12.h),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.r))),
+                            onPressed: null,
+                            icon: Icon(Icons.event_seat_rounded,
+                                size: 18.sp, color: Colors.white),
+                            label: Text('الرحلة مكتملة',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.sp))))
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: darkSlate,
+                                foregroundColor: accentGold,
+                                padding: EdgeInsets.symmetric(vertical: 12.h),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.r))),
+                            onPressed: () => _showBookingDialog(
+                                context,
+                                trip.id ?? '',
+                                tripDriverId,
+                                maxSeats,
+                                royalGreen),
+                            icon: Icon(Icons.event_seat_rounded, size: 18.sp),
+                            label: Text('احجز مقعدك الآن',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp))))
               ],
             ),
           ),

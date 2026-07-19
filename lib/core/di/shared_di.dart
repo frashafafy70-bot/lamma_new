@@ -44,28 +44,50 @@ void initSharedDI() {
   }
 
   // 🟢 Repositories
-  if (!sl.isRegistered<TripRepository>()) sl.registerLazySingleton<TripRepository>(() => TripRepositoryImpl(firestore: sl()));
-  if (!sl.isRegistered<BookingRepository>()) sl.registerLazySingleton<BookingRepository>(() => BookingRepositoryImpl(sl()));
-  if (!sl.isRegistered<ChatRepository>()) sl.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl());
-  if (!sl.isRegistered<MapRepository>()) sl.registerLazySingleton<MapRepository>(() => MapRepositoryImpl());
+  if (!sl.isRegistered<TripRepository>())
+    sl.registerLazySingleton<TripRepository>(
+        () => TripRepositoryImpl(firestore: sl()));
+  if (!sl.isRegistered<BookingRepository>())
+    sl.registerLazySingleton<BookingRepository>(
+        () => BookingRepositoryImpl(sl()));
+  if (!sl.isRegistered<ChatRepository>())
+    sl.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl());
+  if (!sl.isRegistered<MapRepository>())
+    sl.registerLazySingleton<MapRepository>(() => MapRepositoryImpl());
 
   // 🟢 Use Cases
-  if (!sl.isRegistered<GetTripsUseCase>()) sl.registerLazySingleton(() => GetTripsUseCase(sl()));
-  if (!sl.isRegistered<GetUserTripsUseCase>()) sl.registerLazySingleton(() => GetUserTripsUseCase(sl()));
-  if (!sl.isRegistered<GetTripByIdUseCase>()) sl.registerLazySingleton(() => GetTripByIdUseCase(sl()));
-  if (!sl.isRegistered<AddTripUseCase>()) sl.registerLazySingleton(() => AddTripUseCase(sl()));
-  if (!sl.isRegistered<UpdateTripUseCase>()) sl.registerLazySingleton(() => UpdateTripUseCase(sl()));
-  if (!sl.isRegistered<UpdateTripStatusUseCase>()) sl.registerLazySingleton(() => UpdateTripStatusUseCase(sl()));
-  if (!sl.isRegistered<DeleteTripUseCase>()) sl.registerLazySingleton(() => DeleteTripUseCase(sl()));
-  if (!sl.isRegistered<CancelTripUseCase>()) sl.registerLazySingleton(() => CancelTripUseCase(sl()));
-  if (!sl.isRegistered<UpdateBookingSeatsUseCase>()) sl.registerLazySingleton(() => UpdateBookingSeatsUseCase(sl()));
-  if (!sl.isRegistered<SubmitNegotiationUseCase>()) sl.registerLazySingleton(() => SubmitNegotiationUseCase(sl()));
-  if (!sl.isRegistered<StartTripUseCase>()) sl.registerLazySingleton(() => StartTripUseCase(sl()));
-  if (!sl.isRegistered<CompleteTripUseCase>()) sl.registerLazySingleton(() => CompleteTripUseCase(sl()));
-  if (!sl.isRegistered<AcceptTripOfferUseCase>()) sl.registerLazySingleton(() => AcceptTripOfferUseCase(sl()));
-  if (!sl.isRegistered<RejectTripOfferUseCase>()) sl.registerLazySingleton(() => RejectTripOfferUseCase(sl()));
-  if (!sl.isRegistered<SubmitTripRatingUseCase>()) sl.registerLazySingleton(() => SubmitTripRatingUseCase(sl()));
-  if (!sl.isRegistered<PublishTravelTripUseCase>()) sl.registerLazySingleton(() => PublishTravelTripUseCase(sl()));
+  if (!sl.isRegistered<GetTripsUseCase>())
+    sl.registerLazySingleton(() => GetTripsUseCase(sl()));
+  if (!sl.isRegistered<GetUserTripsUseCase>())
+    sl.registerLazySingleton(() => GetUserTripsUseCase(sl()));
+  if (!sl.isRegistered<GetTripByIdUseCase>())
+    sl.registerLazySingleton(() => GetTripByIdUseCase(sl()));
+  if (!sl.isRegistered<AddTripUseCase>())
+    sl.registerLazySingleton(() => AddTripUseCase(sl()));
+  if (!sl.isRegistered<UpdateTripUseCase>())
+    sl.registerLazySingleton(() => UpdateTripUseCase(sl()));
+  if (!sl.isRegistered<UpdateTripStatusUseCase>())
+    sl.registerLazySingleton(() => UpdateTripStatusUseCase(sl()));
+  if (!sl.isRegistered<DeleteTripUseCase>())
+    sl.registerLazySingleton(() => DeleteTripUseCase(sl()));
+  if (!sl.isRegistered<CancelTripUseCase>())
+    sl.registerLazySingleton(() => CancelTripUseCase(sl()));
+  if (!sl.isRegistered<UpdateBookingSeatsUseCase>())
+    sl.registerLazySingleton(() => UpdateBookingSeatsUseCase(sl()));
+  if (!sl.isRegistered<SubmitNegotiationUseCase>())
+    sl.registerLazySingleton(() => SubmitNegotiationUseCase(sl()));
+  if (!sl.isRegistered<StartTripUseCase>())
+    sl.registerLazySingleton(() => StartTripUseCase(sl()));
+  if (!sl.isRegistered<CompleteTripUseCase>())
+    sl.registerLazySingleton(() => CompleteTripUseCase(sl()));
+  if (!sl.isRegistered<AcceptTripOfferUseCase>())
+    sl.registerLazySingleton(() => AcceptTripOfferUseCase(sl()));
+  if (!sl.isRegistered<RejectTripOfferUseCase>())
+    sl.registerLazySingleton(() => RejectTripOfferUseCase(sl()));
+  if (!sl.isRegistered<SubmitTripRatingUseCase>())
+    sl.registerLazySingleton(() => SubmitTripRatingUseCase(sl()));
+  if (!sl.isRegistered<PublishTravelTripUseCase>())
+    sl.registerLazySingleton(() => PublishTravelTripUseCase(sl()));
 
   // 🟢 Cubits
   if (!sl.isRegistered<TripCubit>()) {

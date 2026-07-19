@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/trip_model.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
+
 @immutable
 abstract class DriverActiveTripsState extends Equatable {
   const DriverActiveTripsState();
@@ -55,9 +56,9 @@ class DriverActiveTripsError extends DriverActiveTripsState {
 class DriverActiveTripsPaginationError extends DriverActiveTripsState {
   final String message;
   // أضفنا الطابع الزمني لضمان انطلاق الـ Listener لو تكرر نفس الخطأ مرتين متتاليتين
-  final int timestamp; 
+  final int timestamp;
 
-  DriverActiveTripsPaginationError(this.message) 
+  DriverActiveTripsPaginationError(this.message)
       : timestamp = DateTime.now().millisecondsSinceEpoch;
 
   @override

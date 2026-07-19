@@ -12,7 +12,7 @@ class OrderSummaryModel extends OrderSummaryEntity {
 
   factory OrderSummaryModel.fromJson(Map<String, dynamic> json, String id) {
     // 🟢 الحل الجوهري: حماية عملية تحويل الوقت من الأخطاء
-    
+
     // 1. استخراج القيمة الخام للوقت
     var rawCreatedAt = json['createdAt'];
     DateTime createdAtDateTime;
@@ -24,7 +24,7 @@ class OrderSummaryModel extends OrderSummaryEntity {
     } else {
       // لو البيانات أي حاجة تانية (FieldValue مثلاً لسه مكتبتش ع السيرفر) أو Null
       // بنستخدم الوقت الحالي كـ Fallback عشان الـ UI ميكرش
-      createdAtDateTime = DateTime.now(); 
+      createdAtDateTime = DateTime.now();
     }
 
     return OrderSummaryModel(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lamma_new/core/theme/app_colors.dart';
 
 class PremiumTabHeader extends StatelessWidget {
   final String title;
@@ -17,8 +18,8 @@ class PremiumTabHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF1B4332), // الزيتي
-            Color(0xFF0F172A), // الكحلي
+            AppColors.royalGreen, // 🟢 الزيتي המوحد
+            AppColors.primaryNavy, // 🔵 الكحلي الموحد
           ],
           begin: Alignment.centerRight,
           end: Alignment.centerLeft,
@@ -38,7 +39,6 @@ class PremiumTabHeader extends StatelessWidget {
         child: Text(
           title,
           style: TextStyle(
-            fontFamily: 'Cairo',
             fontSize: 20.sp,
             fontWeight: FontWeight.bold,
             color: Colors.white,

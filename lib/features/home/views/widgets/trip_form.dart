@@ -20,13 +20,13 @@ class TripForm extends StatefulWidget {
   final TextEditingController destinationController;
   final TextEditingController priceController;
   final FocusNode priceFocusNode;
-  final Color primaryGreen; 
+  final Color primaryGreen;
   final Color accentGold;
   final Function(String) onCategoryChanged;
   final Function(String) onVehicleChanged;
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
-  final Function(File?)? onAudioRecorded; 
+  final Function(File?)? onAudioRecorded;
 
   const TripForm({
     super.key,
@@ -45,7 +45,7 @@ class TripForm extends StatefulWidget {
     required this.onVehicleChanged,
     required this.onOpenMapSelection,
     required this.onSubmit,
-    this.onAudioRecorded, 
+    this.onAudioRecorded,
   });
 
   @override
@@ -53,14 +53,13 @@ class TripForm extends StatefulWidget {
 }
 
 class _TripFormState extends State<TripForm> {
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-      child: SingleChildScrollView( 
+      child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -70,12 +69,15 @@ class _TripFormState extends State<TripForm> {
               decoration: BoxDecoration(
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(30.r),
-                border: Border.all(color: AppColors.primaryDark.withValues(alpha: 0.1)),
+                border: Border.all(
+                    color: AppColors.primaryDark.withValues(alpha: 0.1)),
               ),
               child: Row(
                 children: [
-                  _buildCategoryChip('داخلي', l10n.deliveryDisplay, Icons.local_taxi_rounded),
-                  _buildCategoryChip('طلبات', l10n.buyOrdersDisplay, Icons.shopping_bag_rounded),
+                  _buildCategoryChip(
+                      'داخلي', l10n.deliveryDisplay, Icons.local_taxi_rounded),
+                  _buildCategoryChip('طلبات', l10n.buyOrdersDisplay,
+                      Icons.shopping_bag_rounded),
                 ],
               ),
             ),
@@ -86,11 +88,14 @@ class _TripFormState extends State<TripForm> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildVehicleChip('سيارة', l10n.carVehicle, 'assets/images/car.png'),
+                  _buildVehicleChip(
+                      'سيارة', l10n.carVehicle, 'assets/images/car.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('موتوسيكل', l10n.motorcycleVehicle, 'assets/images/motorcycle.png'),
+                  _buildVehicleChip('موتوسيكل', l10n.motorcycleVehicle,
+                      'assets/images/motorcycle.png'),
                   SizedBox(width: 10.w),
-                  _buildVehicleChip('توكتوك', l10n.tuktukVehicle, 'assets/images/tuktuk.png'),
+                  _buildVehicleChip(
+                      'توكتوك', l10n.tuktukVehicle, 'assets/images/tuktuk.png'),
                 ],
               ),
               SizedBox(height: 24.h),
@@ -161,18 +166,30 @@ class _TripFormState extends State<TripForm> {
                   foregroundColor: AppColors.accentGold,
                   elevation: 6,
                   shadowColor: AppColors.primaryDarkLight,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.r)),
                 ),
                 onPressed: widget.isSubmittingTrip ? null : widget.onSubmit,
                 child: widget.isSubmittingTrip
-                    ? SizedBox(width: 25.w, height: 25.w, child: const CircularProgressIndicator(color: AppColors.accentGold, strokeWidth: 3))
+                    ? SizedBox(
+                        width: 25.w,
+                        height: 25.w,
+                        child: const CircularProgressIndicator(
+                            color: AppColors.accentGold, strokeWidth: 3))
                     : Text(
-                        widget.tripCategory == 'طلبات' ? l10n.sendPurchaseRequestBtn : l10n.sendRequestBtn,
-                        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: AppColors.accentGold),
+                        widget.tripCategory == 'طلبات'
+                            ? l10n.sendPurchaseRequestBtn
+                            : l10n.sendRequestBtn,
+                        style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accentGold),
                       ),
               ),
             ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 0),
+            SizedBox(
+                height:
+                    MediaQuery.of(context).viewInsets.bottom > 0 ? 20.h : 0),
           ],
         ),
       ),
@@ -180,7 +197,8 @@ class _TripFormState extends State<TripForm> {
   }
 
   // ودجت التابات العلوية
-  Widget _buildCategoryChip(String logicTitle, String displayTitle, IconData icon) {
+  Widget _buildCategoryChip(
+      String logicTitle, String displayTitle, IconData icon) {
     bool isSelected = widget.tripCategory == logicTitle;
     return Expanded(
       child: GestureDetector(
@@ -190,17 +208,25 @@ class _TripFormState extends State<TripForm> {
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(25.r),
-            boxShadow: isSelected ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
+            boxShadow: isSelected
+                ? const [
+                    BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2))
+                  ]
+                : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18.sp, color: isSelected ? AppColors.accentGold : Colors.grey),
+              Icon(icon,
+                  size: 18.sp,
+                  color: isSelected ? AppColors.accentGold : Colors.grey),
               SizedBox(width: 8.w),
               Text(
                 displayTitle,
                 style: TextStyle(
-                  fontFamily: 'Cairo',
                   fontSize: 14.sp,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? AppColors.primaryDark : Colors.grey,
@@ -230,22 +256,38 @@ class _TripFormState extends State<TripForm> {
       onTap: onTap,
       focusNode: focusNode,
       keyboardType: keyboardType,
-      style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.textDark),
+      style: TextStyle(
+          fontSize: 14.sp,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textDark),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(
+            fontSize: 13.sp,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w600),
         prefixIcon: Icon(icon, color: iconColor),
         filled: true,
         fillColor: AppColors.backgroundLight,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.05))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15.r), borderSide: const BorderSide(color: AppColors.accentGold, width: 2)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15.r),
+            borderSide: BorderSide(
+                color: AppColors.primaryDark.withValues(alpha: 0.05))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15.r),
+            borderSide: BorderSide(
+                color: AppColors.primaryDark.withValues(alpha: 0.05))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15.r),
+            borderSide:
+                const BorderSide(color: AppColors.accentGold, width: 2)),
       ),
     );
   }
 
   // ودجت السيارات الفرعي (تم فصل الكلمة البرمجية عن كلمة العرض)
-  Widget _buildVehicleChip(String logicTitle, String displayTitle, String imagePath) {
+  Widget _buildVehicleChip(
+      String logicTitle, String displayTitle, String imagePath) {
     bool isSelected = widget.vehicleType == logicTitle;
     return Expanded(
       child: InkWell(
@@ -256,7 +298,9 @@ class _TripFormState extends State<TripForm> {
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primaryDark : Colors.transparent,
             borderRadius: BorderRadius.circular(15.r),
-            border: Border.all(color: isSelected ? AppColors.accentGold : Colors.grey.shade300),
+            border: Border.all(
+                color:
+                    isSelected ? AppColors.accentGold : Colors.grey.shade300),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -270,7 +314,6 @@ class _TripFormState extends State<TripForm> {
               Text(
                 displayTitle,
                 style: TextStyle(
-                  fontFamily: 'Cairo',
                   fontWeight: FontWeight.bold,
                   fontSize: 12.sp,
                   color: isSelected ? Colors.white : Colors.grey.shade600,

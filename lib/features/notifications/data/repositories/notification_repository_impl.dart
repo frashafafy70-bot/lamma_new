@@ -8,10 +8,12 @@ import '../models/notification_model.dart';
 class NotificationRepositoryImpl implements NotificationRepository {
   final FirebaseFirestore _firestore;
 
-  NotificationRepositoryImpl({required FirebaseFirestore firestore}) : _firestore = firestore;
+  NotificationRepositoryImpl({required FirebaseFirestore firestore})
+      : _firestore = firestore;
 
   @override
-  Stream<Either<Failure, List<NotificationEntity>>> getNotificationsStream(String userId) {
+  Stream<Either<Failure, List<NotificationEntity>>> getNotificationsStream(
+      String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
@@ -19,13 +21,11 @@ class NotificationRepositoryImpl implements NotificationRepository {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map<Either<Failure, List<NotificationEntity>>>((snapshot) {
-          
       final notifications = snapshot.docs
           .map((doc) => NotificationModel.fromJson(doc.data(), doc.id))
           .toList();
-          
+
       return Right(notifications);
-      
     }).handleError((error) {
       return Left(ServerFailure(message: 'حدث خطأ أثناء جلب الإشعارات.'));
     });

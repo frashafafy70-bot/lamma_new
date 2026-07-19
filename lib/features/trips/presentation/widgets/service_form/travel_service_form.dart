@@ -3,10 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/features/trips/utils/passenger_utils.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
-import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_trip_tracking_page.dart';
+// تأكد من استيراد امتداد اللغة الخاص بك هنا، على سبيل المثال:
+// import 'package:lamma_new/l10n/l10n.dart'; 
 
 class TravelServiceForm extends StatelessWidget {
   final String vehicleType;
@@ -38,40 +39,35 @@ class TravelServiceForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🟢 استدعاء متغيرات اللغة
+    final l10n = context.l10n;
+
     return BlocListener<PassengerRequestCubit, PassengerRequestState>(
       listener: (context, state) {
         if (state is TripSubmitSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(
-                'تم إرسال طلب السفر بنجاح! جاري البحث عن كابتن... 🚀', 
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              content: Text(
+                l10n.requestSentSuccess, // 🟢 مربوط بالترجمة
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               backgroundColor: primaryGreen,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-            ),
-          );
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PassengerTripTrackingPage(
-                tripId: state.tripId,
-                passengerId: FirebaseAuth.instance.currentUser?.uid ?? '', // 🟢 تم إضافة passengerId
-              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r)),
             ),
           );
         } else if (state is TripSubmitError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                state.message, 
-                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                state.message,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               backgroundColor: Colors.red.shade800,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r)),
             ),
           );
         }
@@ -81,7 +77,8 @@ class TravelServiceForm extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildPremiumLocationField(
-            label: 'نقطة التحرك (من)',
+            context: context,
+            label: l10n.travel_departurePoint, // 🟢 مربوط بالترجمة
             controller: pickupController,
             icon: Icons.my_location_rounded,
             iconColor: accentGold,
@@ -91,9 +88,9 @@ class TravelServiceForm extends StatelessWidget {
             },
           ),
           SizedBox(height: 16.h),
-          
           _buildPremiumLocationField(
-            label: 'محافظة / مدينة الوصول',
+            context: context,
+            label: l10n.travel_destinationPoint, // 🟢 مربوط بالترجمة
             controller: destinationController,
             icon: Icons.emoji_transportation_rounded,
             iconColor: primaryGreen,
@@ -103,18 +100,17 @@ class TravelServiceForm extends StatelessWidget {
             },
           ),
           SizedBox(height: 16.h),
-          
           _buildPremiumTextField(
+            context: context,
             controller: priceController,
             focusNode: priceFocusNode,
-            label: 'سعرك المقترح للرحلة',
-            suffixText: 'جنيه',
+            label: l10n.suggestedPriceHint, // 🟢 مربوط بالترجمة
+            suffixText: l10n.currencyEGP, // 🟢 مربوط بالترجمة
             icon: Icons.payments_outlined,
             iconColor: accentGold,
             isNumber: true,
           ),
           SizedBox(height: 24.h),
-          
           Container(
             width: double.infinity,
             height: 54.h,
@@ -132,15 +128,18 @@ class TravelServiceForm extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r)),
               ),
               onPressed: isSubmittingTrip ? null : onSubmit,
               child: isSubmittingTrip
                   ? CircularProgressIndicator(color: accentGold)
-                  : Text(
-                      'إرسال طلب السفر', 
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
-                    ),
+                  : Text(l10n.sendRequestBtn, // 🟢 مربوط بالترجمة
+                      style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5)),
             ),
           ),
         ],
@@ -148,7 +147,15 @@ class TravelServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumTextField({required TextEditingController controller, FocusNode? focusNode, required String label, required String suffixText, required IconData icon, required Color iconColor, bool isNumber = false}) {
+  Widget _buildPremiumTextField(
+      {required BuildContext context,
+      required TextEditingController controller,
+      FocusNode? focusNode,
+      required String label,
+      required String suffixText,
+      required IconData icon,
+      required Color iconColor,
+      bool isNumber = false}) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
       decoration: BoxDecoration(
@@ -164,13 +171,23 @@ class TravelServiceForm extends StatelessWidget {
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.black87),
+              keyboardType:
+                  isNumber ? TextInputType.number : TextInputType.text,
+              style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.primaryNavy),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                labelStyle: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600),
                 suffixText: suffixText,
-                suffixStyle: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: primaryGreen, fontWeight: FontWeight.bold),
+                suffixStyle: TextStyle(
+                    fontSize: 12.sp,
+                    color: primaryGreen,
+                    fontWeight: FontWeight.bold),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 12.h),
@@ -182,7 +199,13 @@ class TravelServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumLocationField({required String label, required TextEditingController controller, required IconData icon, required Color iconColor, required VoidCallback onMapTap}) {
+  Widget _buildPremiumLocationField(
+      {required BuildContext context,
+      required String label,
+      required TextEditingController controller,
+      required IconData icon,
+      required Color iconColor,
+      required VoidCallback onMapTap}) {
     return Container(
       padding: EdgeInsets.only(right: 16.w, left: 8.w, top: 4.h, bottom: 4.h),
       decoration: BoxDecoration(
@@ -195,10 +218,16 @@ class TravelServiceForm extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.primaryNavy),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                labelStyle: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 12.h),
@@ -209,11 +238,15 @@ class TravelServiceForm extends StatelessWidget {
             onTap: onMapTap,
             child: Container(
               padding: EdgeInsets.all(10.w),
-              decoration: const BoxDecoration(
-                color: Colors.white, 
-                shape: BoxShape.circle, 
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]
-              ),
+              decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  shape: BoxShape.circle,
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2))
+                  ]),
               child: Icon(icon, color: iconColor, size: 22.sp),
             ),
           )

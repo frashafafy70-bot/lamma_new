@@ -48,9 +48,21 @@ class TripForm extends StatelessWidget {
   Widget _buildTripCategorySelector(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
     List<Map<String, dynamic>> categories = [
-      {'id': 'داخلي', 'name': localizations.tripForm_deliveryName, 'icon': Icons.local_taxi_rounded},
-      {'id': 'طلبات', 'name': localizations.tripForm_buyOrdersName, 'icon': Icons.shopping_bag_rounded},
-      {'id': 'خارجي', 'name': localizations.tripForm_travelName, 'icon': Icons.emoji_transportation_rounded}
+      {
+        'id': 'داخلي',
+        'name': localizations.tripForm_deliveryName,
+        'icon': Icons.local_taxi_rounded
+      },
+      {
+        'id': 'طلبات',
+        'name': localizations.tripForm_buyOrdersName,
+        'icon': Icons.shopping_bag_rounded
+      },
+      {
+        'id': 'خارجي',
+        'name': localizations.tripForm_travelName,
+        'icon': Icons.emoji_transportation_rounded
+      }
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -62,25 +74,23 @@ class TripForm extends StatelessWidget {
             duration: const Duration(milliseconds: 250),
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
             decoration: BoxDecoration(
-              color: isSelected ? accentGold.withValues(alpha: 0.15) : Colors.transparent,
+              color: isSelected
+                  ? accentGold.withValues(alpha: 0.15)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(20.r),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(c['icon'], color: isSelected ? accentGold : Colors.grey.shade500, size: 22.sp),
-                SizedBox(width: 6.w),
-                Text(
-                  c['name'],
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(c['icon'],
+                  color: isSelected ? accentGold : Colors.grey.shade500,
+                  size: 22.sp),
+              SizedBox(width: 6.w),
+              Text(c['name'],
                   style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 14.sp,
-                    color: isSelected ? primaryGreen : Colors.grey.shade600
-                  )
-                )
-              ]
-            ),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.w600,
+                      fontSize: 14.sp,
+                      color: isSelected ? primaryGreen : Colors.grey.shade600))
+            ]),
           ),
         );
       }).toList(),
@@ -97,7 +107,6 @@ class TripForm extends StatelessWidget {
         children: [
           _buildTripCategorySelector(context),
           SizedBox(height: 16.h),
-          
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
@@ -111,7 +120,7 @@ class TripForm extends StatelessWidget {
 
   Widget _buildSelectedForm(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
-    
+
     if (tripCategory == 'داخلي') {
       return RideServiceForm(
         vehicleType: vehicleType,
@@ -147,10 +156,11 @@ class TripForm extends StatelessWidget {
       return Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 40.h),
-          child: Text(
-            localizations.tripForm_travelServicesSoon, 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold)
-          ),
+          child: Text(localizations.tripForm_travelServicesSoon,
+              style: TextStyle(
+                  fontSize: 16.sp,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.bold)),
         ),
       );
     }

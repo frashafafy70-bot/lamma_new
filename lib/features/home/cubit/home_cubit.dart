@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'home_state.dart';
 import '../domain/use_cases/get_service_categories_use_case.dart';
@@ -9,7 +9,7 @@ import '../domain/use_cases/home_badges_use_cases.dart';
 class HomeCubit extends Cubit<HomeState> {
   final GetServiceCategoriesUseCase _getServiceCategoriesUseCase;
   final GetActiveOrdersSummaryUseCase _getActiveOrdersSummaryUseCase;
-  
+
   // 🟢 استدعاءات الـ UseCases الجديدة
   final GetRadarBadgeUseCase _getRadarBadgeUseCase;
   final GetActiveTripsBadgeUseCase _getActiveTripsBadgeUseCase;
@@ -44,34 +44,32 @@ class HomeCubit extends Cubit<HomeState> {
     final categoriesResult = await _getServiceCategoriesUseCase();
     final ordersResult = await _getActiveOrdersSummaryUseCase();
 
-    if (isClosed) return; 
+    if (isClosed) return;
 
     categoriesResult.fold(
       (failure) {
         debugPrint("❌ HomeCubit Error (Categories): ${failure.message}");
-        emit(state.copyWith(status: HomeStatus.error, errorMessage: failure.message));
+        emit(state.copyWith(
+            status: HomeStatus.error, errorMessage: failure.message));
       },
       (categories) {
         debugPrint("✅ HomeCubit: تم جلب ${categories.length} أقسام بنجاح.");
-        
-        ordersResult.fold(
-          (failure) {
-             debugPrint("⚠️ HomeCubit Warning (Orders): ${failure.message}");
-             emit(state.copyWith(
-                status: HomeStatus.loaded,
-                categories: categories,
-                errorMessage: failure.message,
-             ));
-          },
-          (orders) {
-             debugPrint("✅ HomeCubit: تم جلب ${orders.length} طلبات نشطة بنجاح.");
-             emit(state.copyWith(
-                status: HomeStatus.loaded,
-                categories: categories,
-                activeOrders: orders,
-             ));
-          }
-        );
+
+        ordersResult.fold((failure) {
+          debugPrint("⚠️ HomeCubit Warning (Orders): ${failure.message}");
+          emit(state.copyWith(
+            status: HomeStatus.loaded,
+            categories: categories,
+            errorMessage: failure.message,
+          ));
+        }, (orders) {
+          debugPrint("✅ HomeCubit: تم جلب ${orders.length} طلبات نشطة بنجاح.");
+          emit(state.copyWith(
+            status: HomeStatus.loaded,
+            categories: categories,
+            activeOrders: orders,
+          ));
+        });
       },
     );
   }
@@ -87,13 +85,15 @@ class HomeCubit extends Cubit<HomeState> {
 
     // 2. الاستماع لبادج الرحلات النشطة
     _activeTripsSubscription?.cancel();
-    _activeTripsSubscription = _getActiveTripsBadgeUseCase(currentUserId).listen((count) {
+    _activeTripsSubscription =
+        _getActiveTripsBadgeUseCase(currentUserId).listen((count) {
       if (!isClosed) emit(state.copyWith(activeTripsBadgeCount: count));
     });
 
     // 3. الاستماع لبادج طلبات العملاء
     _clientRequestsSubscription?.cancel();
-    _clientRequestsSubscription = _getClientRequestsBadgeUseCase(currentUserId).listen((count) {
+    _clientRequestsSubscription =
+        _getClientRequestsBadgeUseCase(currentUserId).listen((count) {
       if (!isClosed) emit(state.copyWith(clientRequestsBadgeCount: count));
     });
   }

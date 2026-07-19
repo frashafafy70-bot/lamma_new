@@ -22,7 +22,7 @@ class FirebaseConstants {
   static const String statusAccepted = 'accepted';
   static const String statusCompleted = 'completed';
   static const String statusCancelled = 'cancelled';
-  
+
   // Trip Fields
   static const String fieldStatus = 'status';
   static const String fieldLastNegotiator = 'lastNegotiator';

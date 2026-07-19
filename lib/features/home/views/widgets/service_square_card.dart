@@ -49,9 +49,10 @@ class ServiceSquareCard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.all(14.w),
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.08), 
+                    color: iconColor.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
-                    border: Border.all(color: iconColor.withValues(alpha: 0.2), width: 1.w),
+                    border: Border.all(
+                        color: iconColor.withValues(alpha: 0.2), width: 1.w),
                   ),
                   child: Icon(
                     icon,
@@ -64,10 +65,9 @@ class ServiceSquareCard extends StatelessWidget {
                   title,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0F172A), 
+                    color: const Color(0xFF0F172A),
                   ),
                 ),
                 SizedBox(height: 4.h),
@@ -75,7 +75,6 @@ class ServiceSquareCard extends StatelessWidget {
                   subtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 11.sp,
                     color: Colors.grey.shade500,
                     height: 1.2,

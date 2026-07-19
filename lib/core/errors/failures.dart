@@ -24,7 +24,8 @@ class ServerFailure extends Failure {
 /// أخطاء انقطاع الإنترنت أو ضعف الشبكة
 class NetworkFailure extends Failure {
   const NetworkFailure({
-    super.message = 'لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة والمحاولة مرة أخرى.',
+    super.message =
+        'لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة والمحاولة مرة أخرى.',
   });
 }
 

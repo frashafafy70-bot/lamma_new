@@ -31,9 +31,11 @@ class PremiumToast {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24.r),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15), // تأثير الزجاج (Glassmorphism)
+                filter: ImageFilter.blur(
+                    sigmaX: 15, sigmaY: 15), // تأثير الزجاج (Glassmorphism)
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
                   decoration: BoxDecoration(
                     color: AppColors.primaryDark.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(24.r),
@@ -69,7 +71,6 @@ class PremiumToast {
                           message,
                           style: TextStyle(
                             color: Colors.white,
-                            fontFamily: 'Cairo',
                             fontSize: 14.sp,
                             fontWeight: FontWeight.bold,
                           ),

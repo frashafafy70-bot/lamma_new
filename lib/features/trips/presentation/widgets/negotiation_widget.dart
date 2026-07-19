@@ -51,39 +51,48 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
               SizedBox(width: 8.w),
               Text(
                 'تفاوض على السعر',
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.textDark),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.sp,
+                    color: AppColors.textDark),
               ),
             ],
           ),
           SizedBox(height: 12.h),
           Text(
             'السعر المعروض حالياً: ${widget.trip.negotiationPrice ?? widget.trip.price} ج.م',
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 15.sp, color: AppColors.primaryDark),
           ),
           SizedBox(height: 16.h),
-          
           if (isMyTurnToReply) ...[
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success),
                     onPressed: () {
                       // 🟢 رجعناها 3 Positional Arguments زي ما الكيوبت طالب
-                      context.read<TripActionsCubit>().acceptOffer(widget.trip, widget.isDriver, widget.currentUserId);
+                      context.read<TripActionsCubit>().acceptOffer(
+                          widget.trip, widget.isDriver, widget.currentUserId);
                     },
-                    child: const Text('قبول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                    child: const Text('قبول',
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ),
                 SizedBox(width: 8.w),
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error),
                     onPressed: () {
                       // 🟢 رجعناها 2 Positional Arguments
-                      context.read<TripActionsCubit>().rejectOrCancelTrip(widget.trip, widget.isDriver);
+                      context
+                          .read<TripActionsCubit>()
+                          .rejectOrCancelTrip(widget.trip, widget.isDriver);
                     },
-                    child: const Text('رفض', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                    child: const Text('رفض',
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],
@@ -99,7 +108,8 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
                     decoration: InputDecoration(
                       hintText: 'سعر جديد',
                       hintStyle: const TextStyle(fontFamily: 'Cairo'),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.r)),
                       contentPadding: EdgeInsets.symmetric(horizontal: 10.w),
                     ),
                   ),
@@ -108,18 +118,20 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
                 Expanded(
                   flex: 1,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentGold),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentGold),
                     onPressed: () {
                       if (_priceController.text.isNotEmpty) {
                         // 🟢 عدلنا أسماء البارامترز لتطابق المتوقع غالباً (استخدمنا tripId بدل trip)
                         context.read<TripActionsCubit>().submitNegotiationOffer(
-                          tripId: widget.trip.id ?? '', 
-                          price: _priceController.text, 
-                          isDriver: widget.isDriver, 
-                        );
+                              tripId: widget.trip.id ?? '',
+                              price: _priceController.text,
+                              isDriver: widget.isDriver,
+                            );
                       }
                     },
-                    child: const Text('عرض', style: TextStyle(fontFamily: 'Cairo', color: Colors.black)),
+                    child: const Text('عرض',
+                        style: TextStyle(color: Colors.black)),
                   ),
                 ),
               ],
@@ -128,7 +140,7 @@ class _NegotiationWidgetState extends State<NegotiationWidget> {
             Center(
               child: Text(
                 'في انتظار رد الطرف الآخر...',
-                style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey),
+                style: TextStyle(fontSize: 14.sp, color: Colors.grey),
               ),
             ),
           ]

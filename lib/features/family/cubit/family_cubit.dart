@@ -12,7 +12,8 @@ class FamilyCubit extends Cubit<FamilyState> {
   void loadFamilyMembers(String parentUid) {
     emit(FamilyLoading());
     _familySubscription?.cancel();
-    _familySubscription = _familyService.getFamilyMembersStream(parentUid).listen(
+    _familySubscription =
+        _familyService.getFamilyMembersStream(parentUid).listen(
       (members) {
         emit(FamilyLoaded(members));
       },
@@ -26,7 +27,7 @@ class FamilyCubit extends Cubit<FamilyState> {
     emit(FamilyLoading());
     try {
       final userData = await _familyService.findUserByPhone(phoneNumber);
-      
+
       if (userData != null) {
         // إذا وجدنا المستخدم، نقوم بإضافته فوراً
         await _familyService.addFamilyMember(parentUid, userData);

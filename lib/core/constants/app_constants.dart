@@ -4,11 +4,11 @@ class AppConstants {
   // ==========================================
   // إعدادات الخرائط (Map Configurations)
   // ==========================================
-  
+
   // الإحداثيات الافتراضية
-  static const double fallbackLatitude = 30.0444;  // القاهرة
-  static const double fallbackLongitude = 31.2357; 
-  
+  static const double fallbackLatitude = 30.0444; // القاهرة
+  static const double fallbackLongitude = 31.2357;
+
   // مستويات الزووم (Zoom Levels)
   static const double defaultMapZoom = 16.5;
   static const double selectionMapZoom = 17.2;
@@ -20,7 +20,7 @@ class AppConstants {
   // معرفات العلامات (Marker IDs)
   static const String pickupMarkerId = 'pickup_marker_id';
   static const String destinationMarkerId = 'destination_marker_id';
-  
+
   // معرفات المسارات (Polyline IDs)
   static const String tempRoutePolylineId = 'temp_route_polyline_id';
   static const String finalRoutePolylineId = 'final_route_polyline_id';

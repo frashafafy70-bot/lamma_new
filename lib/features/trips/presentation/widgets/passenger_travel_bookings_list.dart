@@ -19,14 +19,20 @@ class PassengerTravelBookingsList extends StatelessWidget {
           .where('passengerId', isEqualTo: currentUserId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
-        
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+          return const SizedBox.shrink();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
-              child: Text('حجوزات رحلات السفر', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.royalGreen)),
+              padding: EdgeInsets.only(
+                  left: 16.w, right: 16.w, top: 16.h, bottom: 8.h),
+              child: Text('حجوزات رحلات السفر',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16.sp,
+                      color: AppColors.royalGreen)),
             ),
             ListView.builder(
               shrinkWrap: true,
@@ -37,31 +43,52 @@ class PassengerTravelBookingsList extends StatelessWidget {
                 var booking = snapshot.data!.docs[index];
                 var data = booking.data() as Map<String, dynamic>;
                 bool isAccepted = data['status'] == 'accepted';
-                
+
                 return Card(
                   elevation: 2,
                   margin: EdgeInsets.only(bottom: 12.h),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r), side: BorderSide(color: isAccepted ? Colors.green : Colors.orange.shade300, width: 1.5)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      side: BorderSide(
+                          color: isAccepted
+                              ? Colors.green
+                              : Colors.orange.shade300,
+                          width: 1.5)),
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     leading: CircleAvatar(
-                      backgroundColor: isAccepted ? Colors.green.shade50 : Colors.orange.shade50,
-                      child: Icon(Icons.directions_bus_filled_rounded, color: isAccepted ? Colors.green : Colors.orange)
-                    ),
-                    title: Text('حجز مقاعد سفر', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                        backgroundColor: isAccepted
+                            ? Colors.green.shade50
+                            : Colors.orange.shade50,
+                        child: Icon(Icons.directions_bus_filled_rounded,
+                            color: isAccepted ? Colors.green : Colors.orange)),
+                    title: Text('حجز مقاعد سفر',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14.sp)),
                     subtitle: Text(
-                      'المقاعد: ${data['seats']} | الحالة: ${isAccepted ? 'تم القبول ✅' : 'قيد الانتظار ⏳'}', 
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: isAccepted ? Colors.green.shade700 : Colors.orange.shade800, fontWeight: FontWeight.bold)
-                    ),
-                    trailing: isAccepted 
-                      ? IconButton(
-                          icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.royalGreen),
-                          tooltip: 'تواصل مع السائق',
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => TripChatPage(tripId: data['tripId'])));
-                          },
-                        )
-                      : const Icon(Icons.hourglass_top_rounded, color: Colors.orange),
+                        'المقاعد: ${data['seats']} | الحالة: ${isAccepted ? 'تم القبول ✅' : 'قيد الانتظار ⏳'}',
+                        style: TextStyle(
+                            fontSize: 13.sp,
+                            color: isAccepted
+                                ? Colors.green.shade700
+                                : Colors.orange.shade800,
+                            fontWeight: FontWeight.bold)),
+                    trailing: isAccepted
+                        ? IconButton(
+                            icon: const Icon(Icons.chat_bubble_rounded,
+                                color: AppColors.royalGreen),
+                            tooltip: 'تواصل مع السائق',
+                            onPressed: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => TripChatPage(
+                                          tripId: data['tripId'])));
+                            },
+                          )
+                        : const Icon(Icons.hourglass_top_rounded,
+                            color: Colors.orange),
                   ),
                 );
               },

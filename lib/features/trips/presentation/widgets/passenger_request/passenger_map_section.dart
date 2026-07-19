@@ -16,7 +16,7 @@ class PassengerMapSection extends StatelessWidget {
   final bool isPickingMap;
   final bool isMapFullscreen;
   final double actualContainerHeight;
-  
+
   // Callbacks للتواصل مع الملف الأساسي
   final MapCreatedCallback onMapCreated;
   final ArgumentCallback<LatLng> onMapTap;
@@ -51,7 +51,7 @@ class PassengerMapSection extends StatelessWidget {
 
     return LammaGoogleMap(
       initialCameraPosition: CameraPosition(
-        target: pickupLocation ?? LatLng(fallbackLatitude, fallbackLongitude), 
+        target: pickupLocation ?? LatLng(fallbackLatitude, fallbackLongitude),
         zoom: closeZoom,
       ),
       markers: markers,
@@ -59,7 +59,7 @@ class PassengerMapSection extends StatelessWidget {
       showCenterPin: isPickingMap,
       // التحكم الديناميكي في أبعاد الخريطة بناءً على حالة الكيبورد والشاشة
       mapPadding: EdgeInsets.only(
-        bottom: isMapFullscreen ? 90.h : actualContainerHeight + 10.h, 
+        bottom: isMapFullscreen ? 90.h : actualContainerHeight + 10.h,
         top: isPickingMap ? 100.h : 0,
       ),
       onTap: onMapTap,

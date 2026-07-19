@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../domain/usecases/get_driver_history_trips_usecase.dart'; 
+import '../../domain/usecases/get_driver_history_trips_usecase.dart';
 import '../../domain/usecases/cancel_trip_use_case.dart';
 import '../../domain/usecases/delete_trip_usecase.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
@@ -34,23 +34,26 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
 
   Future<void> fetchInitialHistoryTrips() async {
     if (_currentUserId.isEmpty) {
-      emit(DriverHistoryError('لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
+      emit(DriverHistoryError(
+          'لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
       return;
     }
 
     emit(DriverHistoryLoading());
-    
+
     _trips.clear();
     _hasReachedMax = false;
     _isFetchingMore = false;
 
     try {
-      final result = await getDriverHistoryTripsUseCase(uid: _currentUserId, limit: _limit);
+      final result = await getDriverHistoryTripsUseCase(
+          uid: _currentUserId, limit: _limit);
 
       if (isClosed) return;
 
       result.fold(
-        (failure) => emit(DriverHistoryError(failure.message ?? 'حدث خطأ في تحميل السجل.')),
+        (failure) => emit(
+            DriverHistoryError(failure.message ?? 'حدث خطأ في تحميل السجل.')),
         (trips) {
           _trips.addAll(trips);
           _hasReachedMax = trips.length < _limit;
@@ -73,8 +76,8 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
       final result = await getDriverHistoryTripsUseCase(
-        uid: _currentUserId, 
-        limit: _limit, 
+        uid: _currentUserId,
+        limit: _limit,
         lastTrip: lastTrip,
       );
 
@@ -83,8 +86,9 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          emit(DriverHistoryError(failure.message ?? 'فشل جلب المزيد من الرحلات'));
-          emit(_buildLoadedState()); 
+          emit(DriverHistoryError(
+              failure.message ?? 'فشل جلب المزيد من الرحلات'));
+          emit(_buildLoadedState());
         },
         (newTrips) {
           _isFetchingMore = false;
@@ -128,39 +132,35 @@ class DriverHistoryCubit extends Cubit<DriverHistoryState> {
     required bool refreshAfterSuccess,
   }) async {
     emit(DriverHistoryActionLoading());
-    
+
     final result = await action();
-    
+
     if (isClosed) return;
-    
-    result.fold(
-      (failure) {
-        emit(DriverHistoryActionError(failure.message ?? 'حدث خطأ غير متوقع'));
-        emit(_buildLoadedState()); 
-      },
-      (_) {
-        emit(DriverHistoryActionSuccess(successMessage));
-        if (refreshAfterSuccess) {
-          _backgroundRefresh();
-        } else {
-          emit(_buildLoadedState());
-        }
+
+    result.fold((failure) {
+      emit(DriverHistoryActionError(failure.message ?? 'حدث خطأ غير متوقع'));
+      emit(_buildLoadedState());
+    }, (_) {
+      emit(DriverHistoryActionSuccess(successMessage));
+      if (refreshAfterSuccess) {
+        _backgroundRefresh();
+      } else {
+        emit(_buildLoadedState());
       }
-    );
+    });
   }
 
   Future<void> _backgroundRefresh() async {
     final result = await getDriverHistoryTripsUseCase(
-      uid: _currentUserId, 
-      limit: _trips.length > _limit ? _trips.length : _limit
-    );
-    
+        uid: _currentUserId,
+        limit: _trips.length > _limit ? _trips.length : _limit);
+
     if (isClosed) return;
-    
+
     result.fold(
       (failure) {
         debugPrint('⚠️ فشل التحديث بالخلفية للسجل: ${failure.message}');
-      }, 
+      },
       (trips) {
         _trips.clear();
         _trips.addAll(trips);

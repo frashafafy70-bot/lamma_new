@@ -250,7 +250,7 @@
         "type": "String"
       },
       "to": {
-        "type": "Object"
+        "type": "String"
       }
     }
   },
@@ -449,5 +449,48 @@
   "agreeWithPrice": "Agree to Price",
   "negotiateBtn": "Negotiate",
   "activateActiveTrip": "Activate Trip",
-  "detailsAndMap": "Details & Map"
+  "detailsAndMap": "Details & Map",
+  "clientLocationNotAvailable": "Client location is not available currently",
+  "cannotOpenGoogleMaps": "Cannot open Google Maps",
+  "tripDataNotAvailable": "Sorry, trip data is not available or has been cancelled.",
+  "trackTripTitle": "Track Trip",
+  "unspecifiedDestination": "Unspecified destination",
+  "agreedPrice": "Agreed price: {price} EGP",
+  "@agreedPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "iArrivedToClient": "I arrived at the client",
+  "startTripBtn": "Start Trip",
+  "tripEndedBtn": "Trip Ended",
+  "endTripBtn": "End Trip",
+  "driverMarkerTitle": "Driver",
+  "statusPendingSearching": "Searching for a captain...",
+  "statusNegotiatingPrice": "Negotiating the price...",
+  "statusAcceptedGettingReady": "Request accepted, captain is getting ready...",
+  "statusOnTheWay": "Captain is on the way...",
+  "statusCaptainArrived": "Captain is outside!",
+  "statusTripInProgress": "Trip is currently in progress...",
+  "statusArrivedSafely": "Arrived safely!",
+  "statusTripCancelled": "Trip cancelled",
+  "tripEndedSuccessfully": "Trip ended successfully!",
+  "rateCaptain": "How do you rate Captain {name}?",
+  "@rateCaptain": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addCommentOptional": "Add a comment (optional)...",
+  "skipBtn": "Skip",
+  "lammaCaptain": "Lamma Captain",
+  "noPlateBoard": "No plate",
+  "toDestination": "To:",
+  "destinationPlaceholder": "Destination",
+  "priceLabel": "Price:",
+  "cancelTripBtn": "Cancel Trip"
 }

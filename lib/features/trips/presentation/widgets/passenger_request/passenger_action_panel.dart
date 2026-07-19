@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:lamma_new/core/theme/app_colors.dart'; // 🎨 استدعاء الثيم الموحد
+import 'package:lamma_new/core/theme/app_colors.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/passenger_request/trip_category.dart';
 import 'package:lamma_new/features/trips/presentation/widgets/passenger_request/passenger_category_selector.dart';
 
@@ -35,12 +35,11 @@ class PassengerActionPanel extends StatelessWidget {
         curve: Curves.easeOutCubic,
         height: actualContainerHeight,
         decoration: BoxDecoration(
-          color: AppColors.cardWhite, // تم استبدال Colors.white
+          color: Theme.of(context).colorScheme.surface, // 🟢 متوافق مع الثيم الليلي والنهاري
           borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
           boxShadow: [
             BoxShadow(
-              // استخدمنا الكحلي بشفافية للظل عشان يتماشى مع هوية التطبيق بدل الأسود
-              color: AppColors.primaryNavy.withOpacity(0.08), 
+              color: AppColors.primaryNavy.withOpacity(0.08),
               blurRadius: 20,
               offset: const Offset(0, -5),
             )

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart'; 
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 // 🟢 استدعاء الترجمة
 import 'package:lamma_new/l10n/app_localizations.dart';
@@ -13,7 +13,7 @@ import 'package:lamma_new/core/theme/app_colors.dart';
 import 'saved_addresses_page.dart';
 
 class ProfileView extends StatelessWidget {
-  final String activeRole; 
+  final String activeRole;
   final bool isLoadingProfile;
   final String profileImageUrl;
   final String userName;
@@ -25,7 +25,7 @@ class ProfileView extends StatelessWidget {
 
   const ProfileView({
     super.key,
-    required this.activeRole, 
+    required this.activeRole,
     required this.isLoadingProfile,
     required this.profileImageUrl,
     required this.userName,
@@ -36,29 +36,41 @@ class ProfileView extends StatelessWidget {
     required this.onLogout,
   });
 
-  Widget _buildListTile({required IconData icon, required Color color, required String title, required VoidCallback onTap}) {
+  Widget _buildListTile(
+      {required IconData icon,
+      required Color color,
+      required String title,
+      required VoidCallback onTap}) {
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.cardWhite, 
-        borderRadius: BorderRadius.circular(15.r), 
+        color: AppColors.cardWhite,
+        borderRadius: BorderRadius.circular(15.r),
         border: Border.all(color: AppColors.dividerColor),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
         ],
       ),
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
         leading: Container(
-          padding: EdgeInsets.all(8.w), 
+          padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1), 
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10.r),
-          ), 
+          ),
           child: Icon(icon, color: color, size: 24.sp),
         ),
-        title: Text(title, style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 15.sp, color: AppColors.textDark)),
-        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16.sp, color: AppColors.textMuted),
+        title: Text(title,
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15.sp,
+                color: AppColors.textDark)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded,
+            size: 16.sp, color: AppColors.textMuted),
         onTap: onTap,
       ),
     );
@@ -70,7 +82,8 @@ class ProfileView extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     if (isLoadingProfile) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.accentGold));
     }
 
     // 🟢 استخدام متغيرات الأدوار من الترجمة
@@ -85,13 +98,12 @@ class ProfileView extends StatelessWidget {
         children: [
           // الهيدر
           Container(
-            width: double.infinity, 
+            width: double.infinity,
             padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 15.h, 
-              bottom: 20.h, 
-              left: 20.w, 
-              right: 20.w
-            ),
+                top: MediaQuery.of(context).padding.top + 15.h,
+                bottom: 20.h,
+                left: 20.w,
+                right: 20.w),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [AppColors.primaryNavy, AppColors.royalGreen],
@@ -99,9 +111,8 @@ class ProfileView extends StatelessWidget {
                 end: Alignment.bottomLeft,
               ),
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30.r), 
-                bottomRight: Radius.circular(30.r)
-              ),
+                  bottomLeft: Radius.circular(30.r),
+                  bottomRight: Radius.circular(30.r)),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.royalGreen.withOpacity(0.3),
@@ -117,16 +128,21 @@ class ProfileView extends StatelessWidget {
                   alignment: Alignment.bottomRight,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(2.w), 
+                      padding: EdgeInsets.all(2.w),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle, 
-                        border: Border.all(color: AppColors.accentGold, width: 2)
-                      ), 
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: AppColors.accentGold, width: 2)),
                       child: CircleAvatar(
-                        radius: 35.r, 
-                        backgroundColor: Colors.white, 
-                        backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-                        child: profileImageUrl.isEmpty ? Icon(Icons.person, size: 35.sp, color: Colors.grey) : null,
+                        radius: 35.r,
+                        backgroundColor: Colors.white,
+                        backgroundImage: profileImageUrl.isNotEmpty
+                            ? NetworkImage(profileImageUrl)
+                            : null,
+                        child: profileImageUrl.isEmpty
+                            ? Icon(Icons.person,
+                                size: 35.sp, color: Colors.grey)
+                            : null,
                       ),
                     ),
                     InkWell(
@@ -134,18 +150,16 @@ class ProfileView extends StatelessWidget {
                       child: Container(
                         padding: EdgeInsets.all(6.w),
                         decoration: BoxDecoration(
-                          color: AppColors.accentGold, 
-                          shape: BoxShape.circle, 
-                          border: Border.all(color: Colors.white, width: 2)
-                        ),
-                        child: Icon(Icons.edit_rounded, size: 14.sp, color: Colors.white),
+                            color: AppColors.accentGold,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2)),
+                        child: Icon(Icons.edit_rounded,
+                            size: 14.sp, color: Colors.white),
                       ),
                     )
                   ],
                 ),
-                
-                SizedBox(width: 16.w), 
-                
+                SizedBox(width: 16.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,39 +167,59 @@ class ProfileView extends StatelessWidget {
                     children: [
                       Text(
                         l10n.welcomeGreeting, // 🟢 تم التعديل
-                        style: TextStyle(color: AppColors.accentGold, fontSize: 12.sp, fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: AppColors.accentGold,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        userName.isNotEmpty ? userName : l10n.lammaDefaultUserName, // 🟢 تم التعديل
-                        style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                        maxLines: 1, 
+                        userName.isNotEmpty
+                            ? userName
+                            : l10n.lammaDefaultUserName, // 🟢 تم التعديل
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Cairo'),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        userEmail.isNotEmpty ? userEmail : l10n.loadingDataPlaceholder, // 🟢 تم التعديل
-                        style: TextStyle(color: Colors.white70, fontSize: 12.sp, fontFamily: 'Cairo'),
-                        maxLines: 1, 
+                        userEmail.isNotEmpty
+                            ? userEmail
+                            : l10n.loadingDataPlaceholder, // 🟢 تم التعديل
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12.sp,
+                            fontFamily: 'Cairo'),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       SizedBox(height: 8.h),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 12.w, vertical: 4.h),
                         decoration: BoxDecoration(
                           color: AppColors.accentGold.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(15.r),
-                          border: Border.all(color: AppColors.accentGold.withOpacity(0.5), width: 1),
+                          border: Border.all(
+                              color: AppColors.accentGold.withOpacity(0.5),
+                              width: 1),
                         ),
                         child: Text(
-                          displayRole, 
-                          style: TextStyle(color: AppColors.accentGold, fontSize: 11.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                          displayRole,
+                          style: TextStyle(
+                              color: AppColors.accentGold,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Cairo'),
                         ),
                       ),
                     ],
                   ),
                 ),
-                
                 InkWell(
                   onTap: () {},
                   borderRadius: BorderRadius.circular(50.r),
@@ -195,38 +229,46 @@ class ProfileView extends StatelessWidget {
                       color: Colors.white.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 24.sp),
+                    child: Icon(Icons.notifications_none_rounded,
+                        color: Colors.white, size: 24.sp),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(top: 20.h, left: 20.w, right: 20.w, bottom: 120.h),
+              padding: EdgeInsets.only(
+                  top: 20.h, left: 20.w, right: 20.w, bottom: 120.h),
               children: [
-                _buildListTile(icon: Icons.person_outline_rounded, color: AppColors.primaryNavy, title: l10n.editPersonalData, onTap: onEditProfile),
-                
-                _buildListTile(icon: Icons.lock_outline_rounded, color: AppColors.info, title: l10n.changePasswordTitle, onTap: onPasswordReset),
-                
                 _buildListTile(
-                  icon: Icons.location_on_outlined, 
-                  color: AppColors.success, 
-                  title: l10n.savedAddresses, 
+                    icon: Icons.person_outline_rounded,
+                    color: AppColors.primaryNavy,
+                    title: l10n.editPersonalData,
+                    onTap: onEditProfile),
+                _buildListTile(
+                    icon: Icons.lock_outline_rounded,
+                    color: AppColors.info,
+                    title: l10n.changePasswordTitle,
+                    onTap: onPasswordReset),
+                _buildListTile(
+                  icon: Icons.location_on_outlined,
+                  color: AppColors.success,
+                  title: l10n.savedAddresses,
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const SavedAddressesPage()),
+                      MaterialPageRoute(
+                          builder: (context) => const SavedAddressesPage()),
                     );
                   },
                 ),
-                
                 _buildListTile(
-                  icon: Icons.family_restroom_outlined, 
-                  color: Colors.purpleAccent, 
-                  title: l10n.familySubscription, 
+                  icon: Icons.family_restroom_outlined,
+                  color: Colors.purpleAccent,
+                  title: l10n.familySubscription,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -236,15 +278,19 @@ class ProfileView extends StatelessWidget {
                     );
                   },
                 ),
-                _buildListTile(icon: Icons.support_agent_rounded, color: AppColors.warning, title: l10n.supportTitle, onTap: onSupport),
-                
-                SizedBox(height: 24.h), 
+                _buildListTile(
+                    icon: Icons.support_agent_rounded,
+                    color: AppColors.warning,
+                    title: l10n.supportTitle,
+                    onTap: onSupport),
+                SizedBox(height: 24.h),
                 ElevatedButton.icon(
                   onPressed: () {
                     try {
                       context.read<PassengerMyRequestsCubit>().resetCubit();
                     } catch (e) {
-                      debugPrint("PassengerMyRequestsCubit not found, skipping reset.");
+                      debugPrint(
+                          "PassengerMyRequestsCubit not found, skipping reset.");
                     }
 
                     try {
@@ -256,14 +302,19 @@ class ProfileView extends StatelessWidget {
                     onLogout();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error.withOpacity(0.1), 
-                    foregroundColor: AppColors.error, 
-                    padding: EdgeInsets.symmetric(vertical: 14.h), 
-                    elevation: 0, 
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                    backgroundColor: AppColors.error.withOpacity(0.1),
+                    foregroundColor: AppColors.error,
+                    padding: EdgeInsets.symmetric(vertical: 14.h),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r)),
                   ),
-                  icon: Icon(Icons.logout_rounded, size: 24.sp), 
-                  label: Text(l10n.logoutFromPlatform, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp, fontFamily: 'Cairo')),
+                  icon: Icon(Icons.logout_rounded, size: 24.sp),
+                  label: Text(l10n.logoutFromPlatform,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16.sp,
+                          fontFamily: 'Cairo')),
                 )
               ],
             ),

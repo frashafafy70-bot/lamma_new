@@ -579,7 +579,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get searchPrompt => 'حدد مسار رحلتك واضغط بحث للبدء';
 
   @override
-  String tripRoute(String from, Object to) {
+  String tripRoute(String from, String to) {
     return '$from ➔ $to';
   }
 
@@ -1036,4 +1036,96 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get detailsAndMap => 'التفاصيل والخريطة';
+
+  @override
+  String get clientLocationNotAvailable => 'موقع العميل غير متوفر حالياً';
+
+  @override
+  String get cannotOpenGoogleMaps => 'لا يمكن فتح خرائط جوجل';
+
+  @override
+  String get tripDataNotAvailable =>
+      'عفواً، بيانات الرحلة غير متاحة أو تم إلغاؤها.';
+
+  @override
+  String get trackTripTitle => 'تتبع الرحلة';
+
+  @override
+  String get unspecifiedDestination => 'وجهة غير محددة';
+
+  @override
+  String agreedPrice(String price) {
+    return 'السعر المتفق عليه: $price جنيه';
+  }
+
+  @override
+  String get iArrivedToClient => 'أنا وصلت للعميل';
+
+  @override
+  String get startTripBtn => 'بدء الرحلة';
+
+  @override
+  String get tripEndedBtn => 'تم إنهاء الرحلة';
+
+  @override
+  String get endTripBtn => 'إنهاء الرحلة';
+
+  @override
+  String get driverMarkerTitle => 'السائق';
+
+  @override
+  String get statusPendingSearching => 'جاري البحث عن كابتن...';
+
+  @override
+  String get statusNegotiatingPrice => 'جاري التفاوض على السعر...';
+
+  @override
+  String get statusAcceptedGettingReady => 'تم قبول الطلب، الكابتن يتجهز...';
+
+  @override
+  String get statusOnTheWay => 'الكابتن في الطريق إليك...';
+
+  @override
+  String get statusCaptainArrived => 'الكابتن بالخارج!';
+
+  @override
+  String get statusTripInProgress => 'الرحلة جارية الآن...';
+
+  @override
+  String get statusArrivedSafely => 'وصلت بالسلامة!';
+
+  @override
+  String get statusTripCancelled => 'تم إلغاء الرحلة';
+
+  @override
+  String get tripEndedSuccessfully => 'الرحلة انتهت بنجاح!';
+
+  @override
+  String rateCaptain(String name) {
+    return 'ما تقييمك للكابتن $name؟';
+  }
+
+  @override
+  String get addCommentOptional => 'أضف تعليقاً (اختياري)...';
+
+  @override
+  String get skipBtn => 'تخطي';
+
+  @override
+  String get lammaCaptain => 'كابتن لَمّة';
+
+  @override
+  String get noPlateBoard => 'بدون لوحة';
+
+  @override
+  String get toDestination => 'إلى:';
+
+  @override
+  String get destinationPlaceholder => 'الوجهة';
+
+  @override
+  String get priceLabel => 'السعر:';
+
+  @override
+  String get cancelTripBtn => 'إلغاء الرحلة';
 }

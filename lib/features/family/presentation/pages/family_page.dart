@@ -15,7 +15,8 @@ class FamilyPage extends StatelessWidget {
     final String currentUserUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return BlocProvider(
-      create: (context) => FamilyCubit(FamilyService())..loadFamilyMembers(currentUserUid),
+      create: (context) =>
+          FamilyCubit(FamilyService())..loadFamilyMembers(currentUserUid),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('الاشتراك العائلي'),
@@ -25,13 +26,16 @@ class FamilyPage extends StatelessWidget {
           listener: (context, state) {
             if (state is FamilyActionSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message), backgroundColor: Colors.green),
+                SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Colors.green),
               );
               // تحديث القائمة بعد الإضافة أو الحذف
               context.read<FamilyCubit>().loadFamilyMembers(currentUserUid);
             } else if (state is FamilyError) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text(state.message), backgroundColor: Colors.red),
               );
             }
           },
@@ -60,12 +64,15 @@ class FamilyPage extends StatelessWidget {
                         backgroundColor: Colors.blueAccent,
                         child: Icon(Icons.person, color: Colors.white),
                       ),
-                      title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(member.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(member.phoneNumber),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon:
+                            const Icon(Icons.delete_outline, color: Colors.red),
                         onPressed: () {
-                          _showDeleteConfirmation(context, currentUserUid, member.uid, member.name);
+                          _showDeleteConfirmation(
+                              context, currentUserUid, member.uid, member.name);
                         },
                       ),
                       onTap: () {
@@ -88,15 +95,13 @@ class FamilyPage extends StatelessWidget {
             return const Center(child: Text('حدث خطأ في جلب البيانات'));
           },
         ),
-        floatingActionButton: Builder(
-          builder: (context) {
-            return FloatingActionButton.extended(
-              onPressed: () => _showAddMemberDialog(context, currentUserUid),
-              icon: const Icon(Icons.person_add),
-              label: const Text('إضافة فرد'),
-            );
-          }
-        ),
+        floatingActionButton: Builder(builder: (context) {
+          return FloatingActionButton.extended(
+            onPressed: () => _showAddMemberDialog(context, currentUserUid),
+            icon: const Icon(Icons.person_add),
+            label: const Text('إضافة فرد'),
+          );
+        }),
       ),
     );
   }
@@ -143,14 +148,16 @@ class FamilyPage extends StatelessWidget {
   }
 
   // نافذة تأكيد حذف فرد من العائلة
-  void _showDeleteConfirmation(BuildContext parentContext, String parentUid, String childUid, String childName) {
+  void _showDeleteConfirmation(BuildContext parentContext, String parentUid,
+      String childUid, String childName) {
     final cubit = parentContext.read<FamilyCubit>();
     showDialog(
       context: parentContext,
       builder: (context) {
         return AlertDialog(
           title: const Text('تأكيد الحذف'),
-          content: Text('هل أنت متأكد من رغبتك في إزالة "$childName" من قائمة تتبع العائلة؟'),
+          content: Text(
+              'هل أنت متأكد من رغبتك في إزالة "$childName" من قائمة تتبع العائلة؟'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

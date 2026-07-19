@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'notification_state.dart';
 import 'package:lamma_new/features/notifications/domain/use_cases/get_notifications_use_case.dart';
+
 class NotificationCubit extends Cubit<NotificationState> {
   final GetNotificationsUseCase _getNotificationsUseCase;
   StreamSubscription? _notificationSubscription;
@@ -16,7 +17,7 @@ class NotificationCubit extends Cubit<NotificationState> {
     emit(state.copyWith(status: NotificationStatus.loading));
 
     _notificationSubscription?.cancel();
-    
+
     // 🟢 الكيوبت بيسمع للـ Stream النقي اللي جاي من الـ UseCase
     _notificationSubscription = _getNotificationsUseCase(userId).listen(
       (eitherResult) {
@@ -31,7 +32,8 @@ class NotificationCubit extends Cubit<NotificationState> {
           },
           (notificationsList) {
             // حساب الإشعارات الغير مقروءة
-            int unreadCount = notificationsList.where((n) => n.isRead == false).length;
+            int unreadCount =
+                notificationsList.where((n) => n.isRead == false).length;
 
             emit(state.copyWith(
               status: NotificationStatus.loaded,
@@ -46,7 +48,8 @@ class NotificationCubit extends Cubit<NotificationState> {
   }
 
   void markAllNotificationsAsRead() {
-    emit(state.copyWith(unreadNotificationsCount: 0, hasNewNotification: false));
+    emit(
+        state.copyWith(unreadNotificationsCount: 0, hasNewNotification: false));
   }
 
   @override

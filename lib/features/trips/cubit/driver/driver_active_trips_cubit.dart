@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
-import '../../domain/usecases/get_driver_active_trips_usecase.dart'; 
+import '../../domain/usecases/get_driver_active_trips_usecase.dart';
 import '../../domain/usecases/accept_passenger_booking_usecase.dart';
 import '../../domain/usecases/reject_passenger_booking_usecase.dart';
 import '../../domain/usecases/cancel_passenger_booking_usecase.dart';
@@ -23,12 +23,12 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   final CheckHasActiveTripUseCase checkHasActiveTripUseCase;
   final UpdateTripStatusUseCase updateTripStatusUseCase;
   final SyncDriverLocationUseCase syncDriverLocationUseCase;
-  
+
   String _currentUserId = '';
   final List<TripEntity> _trips = [];
   bool _hasReachedMax = false;
   bool _isFetchingMore = false;
-  static const int _limit = 15; 
+  static const int _limit = 15;
 
   DriverActiveTripsCubit({
     required this.getDriverActiveTripsUseCase,
@@ -42,26 +42,29 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
   }) : super(DriverActiveTripsInitial());
 
   void startListeningToActiveTrips(String uid) {
-    if (uid.isEmpty) return; 
-    _currentUserId = uid; 
+    if (uid.isEmpty) return;
+    _currentUserId = uid;
     fetchInitialActiveTrips();
   }
 
   Future<void> fetchInitialActiveTrips() async {
     if (_currentUserId.isEmpty) {
-      emit(DriverActiveTripsError('لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
+      emit(DriverActiveTripsError(
+          'لم يتم العثور على حساب السائق، يرجى تسجيل الدخول مجدداً.'));
       return;
     }
-    
+
     emit(DriverActiveTripsLoading());
     _resetPagination();
 
     try {
-      final result = await getDriverActiveTripsUseCase(uid: _currentUserId, limit: _limit);
+      final result =
+          await getDriverActiveTripsUseCase(uid: _currentUserId, limit: _limit);
       if (isClosed) return;
-      
+
       result.fold(
-        (failure) => emit(DriverActiveTripsError(failure.message ?? 'حدث خطأ أثناء جلب الرحلات النشطة.')),
+        (failure) => emit(DriverActiveTripsError(
+            failure.message ?? 'حدث خطأ أثناء جلب الرحلات النشطة.')),
         (trips) {
           _trips.addAll(trips);
           _hasReachedMax = trips.length < _limit;
@@ -75,7 +78,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
 
   Future<void> fetchMoreActiveTrips() async {
     if (_hasReachedMax || _isFetchingMore || _currentUserId.isEmpty) return;
-    
+
     _isFetchingMore = true;
     if (state is DriverActiveTripsLoaded) {
       emit((state as DriverActiveTripsLoaded).copyWith(isFetchingMore: true));
@@ -84,18 +87,19 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     try {
       final lastTrip = _trips.isNotEmpty ? _trips.last : null;
       final result = await getDriverActiveTripsUseCase(
-        uid: _currentUserId, 
-        limit: _limit, 
+        uid: _currentUserId,
+        limit: _limit,
         lastTrip: lastTrip,
       );
-      
+
       if (isClosed) return;
-      
+
       result.fold(
         (failure) {
           _isFetchingMore = false;
-          emit(DriverActiveTripsPaginationError(failure.message ?? 'فشل جلب المزيد من الرحلات'));
-          emit(_buildLoadedState()); 
+          emit(DriverActiveTripsPaginationError(
+              failure.message ?? 'فشل جلب المزيد من الرحلات'));
+          emit(_buildLoadedState());
         },
         (newTrips) {
           _isFetchingMore = false;
@@ -111,8 +115,8 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     } catch (e) {
       _isFetchingMore = false;
       if (!isClosed) {
-         emit(DriverActiveTripsPaginationError('حدث خطأ في الاتصال'));
-         emit(_buildLoadedState());
+        emit(DriverActiveTripsPaginationError('حدث خطأ في الاتصال'));
+        emit(_buildLoadedState());
       }
     }
   }
@@ -123,60 +127,67 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     required bool refreshAfterSuccess,
   }) async {
     emit(DriverActiveTripsActionLoading());
-    
+
     final result = await action();
-    
+
     if (isClosed) return;
-    
-    result.fold(
-      (failure) {
-        final errorMessage = (failure is dynamic && failure.message != null) 
-            ? failure.message 
-            : 'حدث خطأ غير متوقع';
-        emit(DriverActiveTripsActionError(errorMessage));
-        emit(_buildLoadedState()); 
-      },
-      (_) {
-        emit(DriverActiveTripsActionSuccess(successMessage));
-        refreshAfterSuccess ? _backgroundRefresh() : emit(_buildLoadedState());
-      }
-    );
+
+    result.fold((failure) {
+      final errorMessage = (failure is dynamic && failure.message != null)
+          ? failure.message
+          : 'حدث خطأ غير متوقع';
+      emit(DriverActiveTripsActionError(errorMessage));
+      emit(_buildLoadedState());
+    }, (_) {
+      emit(DriverActiveTripsActionSuccess(successMessage));
+      refreshAfterSuccess ? _backgroundRefresh() : emit(_buildLoadedState());
+    });
   }
 
-  Future<void> acceptBooking(String bookingId, String tripId, int seatsToDeduct) async =>
-    _performAction(
-      action: () => acceptPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct),
-      successMessage: 'تم قبول الحجز بنجاح!',
-      refreshAfterSuccess: true,
-    );
+  Future<void> acceptBooking(
+          String bookingId, String tripId, int seatsToDeduct) async =>
+      _performAction(
+        action: () => acceptPassengerBookingUseCase(
+            bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct),
+        successMessage: 'تم قبول الحجز بنجاح!',
+        refreshAfterSuccess: true,
+      );
 
-  Future<void> rejectBooking(String bookingId, String tripId, String passengerId) async =>
-    _performAction(
-      action: () => rejectPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, passengerId: passengerId),
-      successMessage: 'تم رفض الطلب بنجاح',
-      refreshAfterSuccess: false, 
-    );
+  Future<void> rejectBooking(
+          String bookingId, String tripId, String passengerId) async =>
+      _performAction(
+        action: () => rejectPassengerBookingUseCase(
+            bookingId: bookingId, tripId: tripId, passengerId: passengerId),
+        successMessage: 'تم رفض الطلب بنجاح',
+        refreshAfterSuccess: false,
+      );
 
-  Future<void> cancelBooking(String bookingId, String tripId, String passengerId, int seatsToReturn, bool wasAccepted) async =>
-    _performAction(
-      action: () => cancelPassengerBookingUseCase(bookingId: bookingId, tripId: tripId, passengerId: passengerId, seatsToReturn: seatsToReturn, wasAccepted: wasAccepted),
-      successMessage: 'تم إلغاء الحجز بنجاح',
-      refreshAfterSuccess: true,
-    );
+  Future<void> cancelBooking(String bookingId, String tripId,
+          String passengerId, int seatsToReturn, bool wasAccepted) async =>
+      _performAction(
+        action: () => cancelPassengerBookingUseCase(
+            bookingId: bookingId,
+            tripId: tripId,
+            passengerId: passengerId,
+            seatsToReturn: seatsToReturn,
+            wasAccepted: wasAccepted),
+        successMessage: 'تم إلغاء الحجز بنجاح',
+        refreshAfterSuccess: true,
+      );
 
   Future<void> activateDriverTripFunction(String tripId) async =>
-    _performAction(
-      action: () => activateDriverTripUseCase(tripId, _currentUserId),
-      successMessage: 'تم تفعيل الرحلة بنجاح!',
-      refreshAfterSuccess: true,
-    );
+      _performAction(
+        action: () => activateDriverTripUseCase(tripId, _currentUserId),
+        successMessage: 'تم تفعيل الرحلة بنجاح!',
+        refreshAfterSuccess: true,
+      );
 
   Future<void> updateTripState(String tripId, String status) async =>
-    _performAction(
-      action: () => updateTripStatusUseCase(tripId, status),
-      successMessage: 'تم تحديث حالة الرحلة بنجاح',
-      refreshAfterSuccess: false,
-    );
+      _performAction(
+        action: () => updateTripStatusUseCase(tripId, status),
+        successMessage: 'تم تحديث حالة الرحلة بنجاح',
+        refreshAfterSuccess: false,
+      );
 
   Future<bool> checkHasActiveTrip(String driverId) async {
     if (driverId.isEmpty) return false;
@@ -192,7 +203,7 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
           print('⚠️ فشل مزامنة الموقع: ${failure.message}');
         }
       },
-      (_) {}, 
+      (_) {},
     );
   }
 
@@ -208,10 +219,10 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
     for (var fetchedTrip in fetchedTrips) {
       final index = _trips.indexWhere((t) => t.id == fetchedTrip.id);
       if (index != -1) {
-        _trips[index] = fetchedTrip; 
+        _trips[index] = fetchedTrip;
       } else {
         if (!_trips.any((t) => t.id == fetchedTrip.id)) {
-           _trips.insert(0, fetchedTrip); 
+          _trips.insert(0, fetchedTrip);
         }
       }
     }
@@ -220,13 +231,14 @@ class DriverActiveTripsCubit extends Cubit<DriverActiveTripsState> {
 
   Future<void> _backgroundRefresh() async {
     final result = await getDriverActiveTripsUseCase(
-        uid: _currentUserId, limit: _trips.length > _limit ? _trips.length : _limit);
+        uid: _currentUserId,
+        limit: _trips.length > _limit ? _trips.length : _limit);
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => debugPrint('⚠️ فشل التحديث بالخلفية: $failure'), 
+      (failure) => debugPrint('⚠️ فشل التحديث بالخلفية: $failure'),
       (fetchedTrips) {
-        _smartMergeTrips(fetchedTrips); 
+        _smartMergeTrips(fetchedTrips);
       },
     );
   }

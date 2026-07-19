@@ -1,22 +1,26 @@
 part of 'trip_repository_impl.dart';
 
 mixin TripTrackingRepository on TripRepositoryBase {
-
-  Future<Either<Failure, void>> activateDriverTripFunction(String tripId, String driverId) async {
+  Future<Either<Failure, void>> activateDriverTripFunction(
+      String tripId, String driverId) async {
     try {
       await firestore.collection(collectionName).doc(tripId).update({
         'status': 'in_progress',
-        'driverActiveTripEnabled': true, 
+        'driverActiveTripEnabled': true,
         'startedAt': FieldValue.serverTimestamp(),
       });
-      await firestore.collection('users').doc(driverId).update({'isBusy': true});
+      await firestore
+          .collection('users')
+          .doc(driverId)
+          .update({'isBusy': true});
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ: $e'));
     }
   }
 
-  Future<Either<Failure, void>> updateTripStatus(String tripId, String status) async {
+  Future<Either<Failure, void>> updateTripStatus(
+      String tripId, String status) async {
     try {
       await firestore.collection(collectionName).doc(tripId).update({
         'status': status,
@@ -28,7 +32,8 @@ mixin TripTrackingRepository on TripRepositoryBase {
     }
   }
 
-  Future<Either<Failure, void>> syncDriverLocation(String tripId, double lat, double lng) async {
+  Future<Either<Failure, void>> syncDriverLocation(
+      String tripId, double lat, double lng) async {
     try {
       await firestore.collection(collectionName).doc(tripId).update({
         'driverLocation': GeoPoint(lat, lng),
@@ -65,7 +70,7 @@ mixin TripTrackingRepository on TripRepositoryBase {
   }
 
   Future<Either<Failure, void>> cancelTrip({
-    required String tripId, 
+    required String tripId,
     required bool isDriver,
   }) async {
     try {
@@ -73,7 +78,8 @@ mixin TripTrackingRepository on TripRepositoryBase {
       WriteBatch currentBatch = firestore.batch();
       int operationCount = 0;
 
-      DocumentReference tripRef = firestore.collection(collectionName).doc(tripId);
+      DocumentReference tripRef =
+          firestore.collection(collectionName).doc(tripId);
       currentBatch.update(tripRef, {
         'status': 'cancelled',
         'cancelledBy': isDriver ? 'driver' : 'passenger',
@@ -82,8 +88,10 @@ mixin TripTrackingRepository on TripRepositoryBase {
       operationCount++;
 
       if (isDriver) {
-        QuerySnapshot bookingsSnapshot = await firestore.collection('trip_bookings')
-            .where('tripId', isEqualTo: tripId).get();
+        QuerySnapshot bookingsSnapshot = await firestore
+            .collection('trip_bookings')
+            .where('tripId', isEqualTo: tripId)
+            .get();
 
         for (var doc in bookingsSnapshot.docs) {
           if (operationCount >= 500) {

@@ -32,7 +32,8 @@ class TripBookingCubit extends Cubit<TripBookingState> {
 
     result.fold(
       (failure) => emit(TripBookingError(failure.message ?? "فشل الحجز")),
-      (_) => emit(const TripBookingSuccess("تم إرسال طلب الحجز للكابتن بنجاح!")),
+      (_) =>
+          emit(const TripBookingSuccess("تم إرسال طلب الحجز للكابتن بنجاح!")),
     );
   }
 }

@@ -40,48 +40,63 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> loadUserProfile() async {
     emit(state.copyWith(status: ProfileStatus.loading));
     final result = await _getUserProfileUseCase();
-    if (isClosed) return; 
-    
+    if (isClosed) return;
+
     result.fold(
-      (failure) => emit(state.copyWith(status: ProfileStatus.error, errorMessage: failure.message)),
+      (failure) => emit(state.copyWith(
+          status: ProfileStatus.error, errorMessage: failure.message)),
       (profile) => emit(state.copyWith(
         status: ProfileStatus.loaded,
         userName: profile.name,
         userEmail: profile.email,
-        userPhone: profile.phone,       
-        nationalId: profile.nationalId, 
+        userPhone: profile.phone,
+        nationalId: profile.nationalId,
         profileImageUrl: profile.profileImageUrl,
         activeRole: profile.activeRole,
-        userRoles: profile.roles, 
+        userRoles: profile.roles,
       )),
     );
   }
 
-  Future<void> updateProfile({required String name, required String phone, String? nationalId, File? newProfileImage}) async {
+  Future<void> updateProfile(
+      {required String name,
+      required String phone,
+      String? nationalId,
+      File? newProfileImage}) async {
     emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
     final result = await _updateUserProfileUseCase(
-      name: name, phone: phone, nationalId: nationalId, newProfileImage: newProfileImage, currentImageUrl: state.profileImageUrl,
+      name: name,
+      phone: phone,
+      nationalId: nationalId,
+      newProfileImage: newProfileImage,
+      currentImageUrl: state.profileImageUrl,
     );
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
+      (failure) => emit(state.copyWith(
+          actionStatus: ProfileActionStatus.error,
+          errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(actionStatus: ProfileActionStatus.success, successMessage: 'تم التحديث بنجاح!'));
-        loadUserProfile(); 
+        emit(state.copyWith(
+            actionStatus: ProfileActionStatus.success,
+            successMessage: 'تم التحديث بنجاح!'));
+        loadUserProfile();
       },
     );
   }
 
   Future<void> switchUserRole(String newRole) async {
-    emit(state.copyWith(activeRole: newRole)); 
-    
+    emit(state.copyWith(activeRole: newRole));
+
     final result = await _switchUserRoleUseCase(newRole);
     if (isClosed) return;
-    
+
     result.fold(
       (failure) {
-        emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message));
+        emit(state.copyWith(
+            actionStatus: ProfileActionStatus.error,
+            errorMessage: failure.message));
         loadUserProfile();
       },
       (_) {
@@ -90,26 +105,36 @@ class ProfileCubit extends Cubit<ProfileState> {
     );
   }
 
-  Future<String> uploadDocument({required String role, required String docName, required File file}) async {
+  Future<String> uploadDocument(
+      {required String role,
+      required String docName,
+      required File file}) async {
     // 🟢 التعديل هنا: إرسال المتغيرات بأسمائها (Named Arguments)
-    final result = await _uploadDocumentUseCase(role: role, docName: docName, file: file);
+    final result =
+        await _uploadDocumentUseCase(role: role, docName: docName, file: file);
     return result.fold(
       (failure) => throw Exception(failure.message),
       (url) => url,
     );
   }
 
-  Future<void> submitRoleRegistration({required String role, required Map<String, dynamic> profileData}) async {
+  Future<void> submitRoleRegistration(
+      {required String role, required Map<String, dynamic> profileData}) async {
     emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
-    
+
     // 🟢 التعديل هنا: إرسال المتغيرات بأسمائها (Named Arguments)
-    final result = await _submitRoleRegistrationUseCase(role: role, profileData: profileData);
+    final result = await _submitRoleRegistrationUseCase(
+        role: role, profileData: profileData);
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
+      (failure) => emit(state.copyWith(
+          actionStatus: ProfileActionStatus.error,
+          errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(actionStatus: ProfileActionStatus.success, successMessage: 'تم تفعيل الحساب بنجاح!'));
+        emit(state.copyWith(
+            actionStatus: ProfileActionStatus.success,
+            successMessage: 'تم تفعيل الحساب بنجاح!'));
         switchUserRole(role);
       },
     );
@@ -117,18 +142,22 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   Future<void> sendSupportTicket({required String message}) async {
     emit(state.copyWith(actionStatus: ProfileActionStatus.loading));
-    
+
     final result = await _repository.sendSupportTicket(
-      name: state.userName, 
-      email: state.userEmail, 
+      name: state.userName,
+      email: state.userEmail,
       message: message,
     );
-    
+
     if (isClosed) return;
-    
+
     result.fold(
-      (failure) => emit(state.copyWith(actionStatus: ProfileActionStatus.error, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(actionStatus: ProfileActionStatus.success, successMessage: 'تم إرسال رسالتك للدعم الفني بنجاح ✅')),
+      (failure) => emit(state.copyWith(
+          actionStatus: ProfileActionStatus.error,
+          errorMessage: failure.message)),
+      (_) => emit(state.copyWith(
+          actionStatus: ProfileActionStatus.success,
+          successMessage: 'تم إرسال رسالتك للدعم الفني بنجاح ✅')),
     );
   }
 

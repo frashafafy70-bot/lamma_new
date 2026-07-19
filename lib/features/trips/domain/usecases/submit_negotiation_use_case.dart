@@ -6,7 +6,11 @@ class SubmitNegotiationUseCase {
   final TripRepository repository;
   SubmitNegotiationUseCase(this.repository);
 
-  Future<Either<Failure, void>> call({required String docId, required double offerPrice, required bool isDriver}) async {
-    return await repository.submitNegotiation(docId: docId, offerPrice: offerPrice, isDriver: isDriver);
+  Future<Either<Failure, void>> call(
+      {required String docId,
+      required double offerPrice,
+      required bool isDriver}) async {
+    return await repository.submitNegotiation(
+        docId: docId, offerPrice: offerPrice, isDriver: isDriver);
   }
 }

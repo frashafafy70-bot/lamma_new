@@ -4,11 +4,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 import '../../domain/usecases/get_available_travels_usecase.dart';
 import '../../domain/usecases/book_seat_in_driver_post_usecase.dart'; // 🟢 الـ UseCase الصحيحة
-import 'available_travels_state.dart'; 
+import 'available_travels_state.dart';
 
 class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   final GetAvailableTravelsUseCase _getAvailableTravelsUseCase;
-  final BookSeatInDriverPostUseCase _bookSeatInDriverPostUseCase; // 🟢 تمرير الـ UseCase هنا
+  final BookSeatInDriverPostUseCase
+      _bookSeatInDriverPostUseCase; // 🟢 تمرير الـ UseCase هنا
 
   Position? _passengerPosition;
   bool _showOnlyNearby = false;
@@ -51,8 +52,8 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
 
     try {
       _passengerPosition = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
-      );
+          locationSettings:
+              const LocationSettings(accuracy: LocationAccuracy.high));
       _fetchInitialTrips();
     } catch (e) {
       _fetchInitialTrips();
@@ -62,7 +63,8 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   void toggleNearby(bool val) {
     if (_passengerPosition == null && val) {
       if (isClosed) return;
-      emit(AvailableTravelsError('يرجى تفعيل الموقع (GPS) لاستخدام هذه الميزة', trips: state.trips));
+      emit(AvailableTravelsError('يرجى تفعيل الموقع (GPS) لاستخدام هذه الميزة',
+          trips: state.trips));
       _getPassengerLocation();
       return;
     }
@@ -84,7 +86,9 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       if (isClosed) return;
 
       result.fold(
-        (failure) => emit(AvailableTravelsError('حدث خطأ في تحميل الرحلات المتاحة.', trips: state.trips)),
+        (failure) => emit(AvailableTravelsError(
+            'حدث خطأ في تحميل الرحلات المتاحة.',
+            trips: state.trips)),
         (trips) {
           _rawTrips = trips;
           _hasReachedMax = trips.length < _limit;
@@ -92,7 +96,8 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
         },
       );
     } catch (e) {
-      if (!isClosed) emit(AvailableTravelsError('حدث خطأ غير متوقع', trips: state.trips));
+      if (!isClosed)
+        emit(AvailableTravelsError('حدث خطأ غير متوقع', trips: state.trips));
     }
   }
 
@@ -106,7 +111,8 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
 
     try {
       final lastTrip = _rawTrips.isNotEmpty ? _rawTrips.last : null;
-      final result = await _getAvailableTravelsUseCase(limit: _limit, lastTrip: lastTrip);
+      final result =
+          await _getAvailableTravelsUseCase(limit: _limit, lastTrip: lastTrip);
 
       if (isClosed) return;
 
@@ -114,7 +120,8 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
         (failure) {
           _isFetchingMore = false;
           if (state is AvailableTravelsLoaded) {
-            emit((state as AvailableTravelsLoaded).copyWith(isFetchingMore: false));
+            emit((state as AvailableTravelsLoaded)
+                .copyWith(isFetchingMore: false));
           }
         },
         (newTrips) {
@@ -161,7 +168,7 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
         distance = Geolocator.distanceBetween(
           _passengerPosition!.latitude,
           _passengerPosition!.longitude,
-          trip.fromLocation!.latitude, 
+          trip.fromLocation!.latitude,
           trip.fromLocation!.longitude,
         );
       }
@@ -185,14 +192,15 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
   // 🟢 دالة الحجز المربوطة بالدومين الصحيح
   Future<bool> bookDriverPost(String tripId, {int seatsToBook = 1}) async {
     String targetDriverId = '';
-    
+
     // استخراج معرّف السائق من الرحلة المحفوظة في القائمة
     try {
       // ⚠️ استبدل `.id` بـ `.docId` لو ده اسم المتغير عندك في TripEntity
-      final trip = _rawTrips.firstWhere((t) => t.id == tripId); 
+      final trip = _rawTrips.firstWhere((t) => t.id == tripId);
       targetDriverId = trip.driverId ?? '';
     } catch (e) {
-      emit(AvailableTravelsError('الرحلة غير موجودة أو تم حذفها', trips: state.trips));
+      emit(AvailableTravelsError('الرحلة غير موجودة أو تم حذفها',
+          trips: state.trips));
       return false;
     }
 
@@ -202,10 +210,12 @@ class AvailableTravelsCubit extends Cubit<AvailableTravelsState> {
       passengerId: _currentUserId,
       seatsToBook: seatsToBook,
     );
-    
+
     return result.fold(
       (failure) {
-        emit(AvailableTravelsError('حدث خطأ أثناء الحجز، يرجى المحاولة مرة أخرى', trips: state.trips));
+        emit(AvailableTravelsError(
+            'حدث خطأ أثناء الحجز، يرجى المحاولة مرة أخرى',
+            trips: state.trips));
         return false;
       },
       (_) => true,

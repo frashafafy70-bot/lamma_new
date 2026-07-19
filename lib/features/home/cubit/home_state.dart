@@ -2,6 +2,7 @@ import '../domain/entities/service_category_entity.dart';
 import '../domain/entities/order_summary_entity.dart';
 
 enum HomeStatus { initial, loading, loaded, error }
+
 enum HomeActionStatus { initial, success, error, registrationRequired }
 
 class HomeState {
@@ -9,7 +10,7 @@ class HomeState {
   final HomeStatus status;
   final HomeActionStatus actionStatus;
   final List<ServiceCategoryEntity> categories;
-  final List<OrderSummaryEntity> activeOrders; 
+  final List<OrderSummaryEntity> activeOrders;
   final String? errorMessage;
   final String? successMessage;
   final String? pendingRegistrationRole;
@@ -58,8 +59,10 @@ class HomeState {
       successMessage: successMessage,
       pendingRegistrationRole: pendingRegistrationRole,
       radarBadgeCount: radarBadgeCount ?? this.radarBadgeCount,
-      activeTripsBadgeCount: activeTripsBadgeCount ?? this.activeTripsBadgeCount,
-      clientRequestsBadgeCount: clientRequestsBadgeCount ?? this.clientRequestsBadgeCount,
+      activeTripsBadgeCount:
+          activeTripsBadgeCount ?? this.activeTripsBadgeCount,
+      clientRequestsBadgeCount:
+          clientRequestsBadgeCount ?? this.clientRequestsBadgeCount,
     );
   }
 }

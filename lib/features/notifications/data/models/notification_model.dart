@@ -14,7 +14,7 @@ class NotificationModel extends NotificationEntity {
     // 🟢 حماية الوقت من خطأ الـ FieldValue
     var rawTimestamp = json['timestamp'];
     DateTime parsedTimestamp = DateTime.now();
-    
+
     if (rawTimestamp is Timestamp) {
       parsedTimestamp = rawTimestamp.toDate();
     }

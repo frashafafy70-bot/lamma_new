@@ -5,21 +5,26 @@ abstract class PassengerRequestState {}
 class PassengerRequestInitial extends PassengerRequestState {}
 
 class LocationLoading extends PassengerRequestState {}
+
 class LocationLoaded extends PassengerRequestState {
   final LatLng position;
   LocationLoaded(this.position);
 }
+
 class LocationError extends PassengerRequestState {
   final String message;
   LocationError(this.message);
 }
+
 class LocationPermissionDenied extends PassengerRequestState {}
 
 class AddressLoading extends PassengerRequestState {}
+
 class AddressLoaded extends PassengerRequestState {
   final String address;
   AddressLoaded(this.address);
 }
+
 class AddressError extends PassengerRequestState {
   final String message;
   AddressError(this.message);

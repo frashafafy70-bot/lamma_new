@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:auto_route/auto_route.dart'; // 🟢 تم إضافة استدعاء مكتبة auto_route
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,14 +14,15 @@ import '../../cubit/auth_state.dart';
 import '../../../home/home_page.dart';
 
 // 🟢 استدعي هنا الصفحة اللي المستخدم بيكتب فيها الباسورد والايميل (غالباً اسمها EmailSignUpPage)
-import 'email_sign_up_page.dart'; 
+import 'email_sign_up_page.dart';
 
+@RoutePage() // 🟢 الكلمة دي هي اللي بتخلي الـ Route يتولد
 class OtpPage extends StatefulWidget {
   final String verificationId;
   final String name;
   final String email; // 🟢 تم إضافة الإيميل هنا
   final String phone;
-  final String role; 
+  final String role;
 
   const OtpPage({
     super.key,
@@ -28,7 +30,7 @@ class OtpPage extends StatefulWidget {
     required this.name,
     required this.email, // 🟢 تم استقبال الإيميل
     required this.phone,
-    required this.role, 
+    required this.role,
   });
 
   @override
@@ -36,7 +38,8 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   final Color primaryNavy = const Color(0xFF0F172A);
@@ -57,11 +60,13 @@ class _OtpPageState extends State<OtpPage> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.only(bottom: 20.h, left: 20.w, right: 20.w),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -79,9 +84,9 @@ class _OtpPageState extends State<OtpPage> {
 
     // 🟢 هنا التعديل: بننادي على دالة التحقق من الـ OTP فقط، مش دالة استكمال التسجيل
     context.read<AuthCubit>().verifyOtp(
-      verificationId: widget.verificationId,
-      smsCode: smsCode,
-    );
+          verificationId: widget.verificationId,
+          smsCode: smsCode,
+        );
   }
 
   void _onChanged(String value, int index) {
@@ -109,22 +114,27 @@ class _OtpPageState extends State<OtpPage> {
           listener: (context, state) {
             if (state is AuthError) {
               _showFloatingSnackBar(state.message, Colors.red);
-            } 
+            }
             // 🟢 لو الحساب قديم وموجود، هيدخل الرئيسية علطول
             else if (state is AuthSuccess) {
-              _showFloatingSnackBar(state.message ?? l10n.loginSuccess, Colors.green);
-              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
-            } 
+              _showFloatingSnackBar(
+                  state.message ?? l10n.loginSuccess, Colors.green);
+              Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                  (route) => false);
+            }
             // 🟢 لو ده حساب جديد (الـ OTP صح بس لسه مفيش باسورد)، هيوجهه لصفحة استكمال البيانات
             else if (state is AuthNeedsPasswordAndProfile) {
               _showFloatingSnackBar(l10n.otpVerifiedNeedPassword, Colors.green);
-              
+
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EmailSignUpPage( 
+                  builder: (context) => EmailSignUpPage(
                     name: widget.name,
-                    email: widget.email, // 🟢 تم تمرير الإيميل للصفحة اللي بعدها
+                    email:
+                        widget.email, // 🟢 تم تمرير الإيميل للصفحة اللي بعدها
                     phone: widget.phone,
                     role: widget.role,
                   ),
@@ -139,7 +149,8 @@ class _OtpPageState extends State<OtpPage> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 30.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -151,38 +162,42 @@ class _OtpPageState extends State<OtpPage> {
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           Navigator.pop(context);
                         },
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: primaryNavy),
+                        icon: Icon(Icons.arrow_back_ios_new_rounded,
+                            color: primaryNavy),
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    
                     Container(
                       padding: EdgeInsets.all(20.w),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: primaryNavy.withValues(alpha: 0.05),
                       ),
-                      child: Icon(Icons.mark_email_read_rounded, size: 70.sp, color: primaryNavy),
+                      child: Icon(Icons.mark_email_read_rounded,
+                          size: 70.sp, color: primaryNavy),
                     ),
                     SizedBox(height: 24.h),
-                    
                     Text(
                       l10n.verifyPhoneTitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 28.sp, fontWeight: FontWeight.bold, color: primaryNavy),
+                      style: TextStyle(
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.bold,
+                          color: primaryNavy),
                     ),
                     SizedBox(height: 12.h),
-                    
                     Text(
                       l10n.verifyPhoneSubtitle(widget.phone),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, color: Colors.grey.shade600, height: 1.5),
+                      style: TextStyle(
+                          fontSize: 15.sp,
+                          color: Colors.grey.shade600,
+                          height: 1.5),
                       textDirection: TextDirection.rtl,
                     ),
                     SizedBox(height: 40.h),
-
                     Directionality(
-                      textDirection: TextDirection.ltr, 
+                      textDirection: TextDirection.ltr,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(6, (index) {
@@ -193,11 +208,19 @@ class _OtpPageState extends State<OtpPage> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12.r),
                               border: Border.all(
-                                color: _focusNodes[index].hasFocus ? accentGold : Colors.grey.shade300,
+                                color: _focusNodes[index].hasFocus
+                                    ? accentGold
+                                    : Colors.grey.shade300,
                                 width: _focusNodes[index].hasFocus ? 2 : 1,
                               ),
                               boxShadow: _focusNodes[index].hasFocus
-                                  ? [BoxShadow(color: accentGold.withValues(alpha: 0.2), blurRadius: 8, spreadRadius: 1)]
+                                  ? [
+                                      BoxShadow(
+                                          color:
+                                              accentGold.withValues(alpha: 0.2),
+                                          blurRadius: 8,
+                                          spreadRadius: 1)
+                                    ]
                                   : [],
                             ),
                             child: TextField(
@@ -207,8 +230,13 @@ class _OtpPageState extends State<OtpPage> {
                               textAlign: TextAlign.center,
                               maxLength: 1,
                               enabled: !isLoading,
-                              style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: primaryNavy),
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: TextStyle(
+                                  fontSize: 22.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryNavy),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
                               decoration: const InputDecoration(
                                 counterText: "",
                                 border: InputBorder.none,
@@ -219,40 +247,58 @@ class _OtpPageState extends State<OtpPage> {
                         }),
                       ),
                     ),
-                    
                     SizedBox(height: 40.h),
-
                     SizedBox(
                       height: 56.h,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryNavy,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r)),
                           elevation: 0,
                         ),
                         onPressed: isLoading ? null : () => _verifyOtp(context),
                         child: isLoading
-                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text(l10n.verifyAndActivate, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ? SizedBox(
+                                height: 24.h,
+                                width: 24.h,
+                                child: const CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5))
+                            : Text(l10n.verifyAndActivate,
+                                style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
                       ),
                     ),
-
                     SizedBox(height: 32.h),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(l10n.didntReceiveCode, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600)),
+                        Text(l10n.didntReceiveCode,
+                            style: TextStyle(
+                                fontSize: 14.sp, color: Colors.grey.shade600)),
                         TextButton(
-                          onPressed: isLoading ? null : () {
-                            _showFloatingSnackBar(l10n.resendingCode, primaryNavy);
-                            context.read<AuthCubit>().sendSignUpOtp(phone: widget.phone);
-                            for (var controller in _controllers) {
-                              controller.clear();
-                            }
-                            FocusScope.of(context).requestFocus(_focusNodes[0]);
-                          },
-                          child: Text(l10n.resendCode, style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: primaryNavy, decoration: TextDecoration.underline)),
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  _showFloatingSnackBar(
+                                      l10n.resendingCode, primaryNavy);
+                                  context
+                                      .read<AuthCubit>()
+                                      .sendSignUpOtp(phone: widget.phone);
+                                  for (var controller in _controllers) {
+                                    controller.clear();
+                                  }
+                                  FocusScope.of(context)
+                                      .requestFocus(_focusNodes[0]);
+                                },
+                          child: Text(l10n.resendCode,
+                              style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryNavy,
+                                  decoration: TextDecoration.underline)),
                         ),
                       ],
                     ),

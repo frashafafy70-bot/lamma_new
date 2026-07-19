@@ -17,7 +17,7 @@ class TripEntity extends Equatable {
   final String? vehicleType;
   final String? pickup;
   final String? destination;
-  
+
   // استخدام كلاس الإحداثيات النظيف
   final LocationCoordinates? pickupLocation;
   final LocationCoordinates? destinationLocation;
@@ -25,14 +25,14 @@ class TripEntity extends Equatable {
   final String? toCity;
   final LocationCoordinates? fromLocation;
   final LocationCoordinates? toLocation;
-  
+
   final String? time;
   final DateTime? travelDate;
   final String? tripType;
-  
+
   // أرقام صحيحة للمقاعد
-  final int? availableSeats; 
-  
+  final int? availableSeats;
+
   // تحويل جميع القيم المالية إلى double لسهولة العمليات الحسابية
   final double? suggestedPrice;
   final double? price;
@@ -41,11 +41,11 @@ class TripEntity extends Equatable {
   final double? finalPrice;
   final double? negotiationPrice;
   final double? errandCost;
-  
+
   final String? lastNegotiator;
   final String? errandDetails;
   final String? audioUrl;
-  
+
   // الاعتماد على الـ Enum
   final TripStatus status;
   final DateTime? createdAt;

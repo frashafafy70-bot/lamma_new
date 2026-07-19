@@ -5,7 +5,7 @@ enum NotificationStatus { initial, loading, loaded, error }
 class NotificationState {
   final int unreadNotificationsCount;
   final bool hasNewNotification;
-  final List<NotificationEntity> notifications; 
+  final List<NotificationEntity> notifications;
   final NotificationStatus status;
   final String? errorMessage;
 
@@ -25,7 +25,8 @@ class NotificationState {
     String? errorMessage,
   }) {
     return NotificationState(
-      unreadNotificationsCount: unreadNotificationsCount ?? this.unreadNotificationsCount,
+      unreadNotificationsCount:
+          unreadNotificationsCount ?? this.unreadNotificationsCount,
       hasNewNotification: hasNewNotification ?? this.hasNewNotification,
       notifications: notifications ?? this.notifications,
       status: status ?? this.status,

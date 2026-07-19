@@ -1,6 +1,6 @@
 import 'package:get_it/get_it.dart';
 
-// 🟢 استدعاءات الـ Repositories 
+// 🟢 استدعاءات الـ Repositories
 import 'package:lamma_new/features/home/domain/repositories/home_repository.dart';
 import 'package:lamma_new/features/home/data/repositories/home_repository_impl.dart';
 
@@ -22,7 +22,7 @@ void initHome() {
     sl.registerLazySingleton<HomeRepository>(
       () => HomeRepositoryImpl(
         firestore: sl(), // يجلب FirebaseFirestore من الـ Injection الرئيسي
-        auth: sl(),      // يجلب FirebaseAuth من الـ Injection الرئيسي
+        auth: sl(), // يجلب FirebaseAuth من الـ Injection الرئيسي
       ),
     );
   }

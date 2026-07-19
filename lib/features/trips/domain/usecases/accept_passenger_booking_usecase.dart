@@ -6,7 +6,11 @@ class AcceptPassengerBookingUseCase {
   final TripRepository repository;
   AcceptPassengerBookingUseCase(this.repository);
 
-  Future<Either<Failure, void>> call({required String bookingId, required String tripId, required int seatsToDeduct}) async {
-    return await repository.acceptPassengerBooking(bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct);
+  Future<Either<Failure, void>> call(
+      {required String bookingId,
+      required String tripId,
+      required int seatsToDeduct}) async {
+    return await repository.acceptPassengerBooking(
+        bookingId: bookingId, tripId: tripId, seatsToDeduct: seatsToDeduct);
   }
 }

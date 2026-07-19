@@ -8,13 +8,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:lamma_new/core/theme/app_colors.dart';
-import 'package:lamma_new/core/constants/app_constants.dart'; 
+import 'package:lamma_new/core/constants/app_constants.dart';
 // 🟢 استدعاء الـ Cubit
 import 'package:lamma_new/features/trips/cubit/driver/driver_active_trips_cubit.dart';
 
 class DriverLiveMap extends StatefulWidget {
   final String tripId;
-  final double? targetLat; 
+  final double? targetLat;
   final double? targetLng;
 
   const DriverLiveMap({
@@ -31,10 +31,11 @@ class DriverLiveMap extends StatefulWidget {
 class _DriverLiveMapState extends State<DriverLiveMap> {
   GoogleMapController? _mapController;
   StreamSubscription<Position>? _positionStream;
-  
-  LatLng _currentDriverPosition = const LatLng(AppConstants.fallbackLatitude, AppConstants.fallbackLongitude); 
+
+  LatLng _currentDriverPosition = const LatLng(
+      AppConstants.fallbackLatitude, AppConstants.fallbackLongitude);
   bool _isLoading = true;
-  bool _isFollowingDriver = true; 
+  bool _isFollowingDriver = true;
 
   final Set<Marker> _markers = {};
 
@@ -86,7 +87,9 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
       if (permission == LocationPermission.denied) return;
     }
 
-    Position initialPos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+    Position initialPos = await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.high));
     _updateDriverLocation(initialPos);
 
     _positionStream = Geolocator.getPositionStream(
@@ -101,7 +104,7 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
 
   void _updateDriverLocation(Position position) {
     if (!mounted) return;
-    
+
     LatLng newPos = LatLng(position.latitude, position.longitude);
 
     setState(() {
@@ -113,7 +116,8 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
         Marker(
           markerId: const MarkerId('driver_car'),
           position: newPos,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'موقعي'),
         ),
       );
@@ -122,33 +126,39 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
     if (_isFollowingDriver && _mapController != null) {
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: newPos, zoom: 17.5, tilt: 40), 
+          CameraPosition(target: newPos, zoom: 17.5, tilt: 40),
         ),
       );
     }
 
     // 🟢 استدعاء الـ Cubit بدلاً من Firestore المباشر
-    context.read<DriverActiveTripsCubit>().syncLocation(widget.tripId, newPos.latitude, newPos.longitude);
+    context
+        .read<DriverActiveTripsCubit>()
+        .syncLocation(widget.tripId, newPos.latitude, newPos.longitude);
   }
 
   void _showError(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.error));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg, style: const TextStyle(fontFamily: 'Cairo')),
+          backgroundColor: AppColors.error));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primaryDark));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryDark));
     }
 
     return Stack(
       children: [
         GoogleMap(
-          initialCameraPosition: CameraPosition(target: _currentDriverPosition, zoom: 17.5, tilt: 40),
+          initialCameraPosition: CameraPosition(
+              target: _currentDriverPosition, zoom: 17.5, tilt: 40),
           style: _premiumMapStyle,
-          myLocationEnabled: false, 
+          myLocationEnabled: false,
           zoomControlsEnabled: false,
           compassEnabled: true,
           mapToolbarEnabled: false,
@@ -158,26 +168,29 @@ class _DriverLiveMapState extends State<DriverLiveMap> {
             setState(() => _isFollowingDriver = false);
           },
         ),
-
         Positioned(
           bottom: 20.h,
           right: 16.w,
           child: FloatingActionButton(
             heroTag: 'recenter_driver_map',
-            backgroundColor: _isFollowingDriver ? AppColors.primaryDark : Colors.white,
+            backgroundColor:
+                _isFollowingDriver ? AppColors.primaryDark : Colors.white,
             onPressed: () {
               setState(() => _isFollowingDriver = true);
               if (_mapController != null) {
                 _mapController!.animateCamera(
                   CameraUpdate.newCameraPosition(
-                    CameraPosition(target: _currentDriverPosition, zoom: 17.5, tilt: 40),
+                    CameraPosition(
+                        target: _currentDriverPosition, zoom: 17.5, tilt: 40),
                   ),
                 );
               }
             },
             child: Icon(
-              Icons.my_location_rounded, 
-              color: _isFollowingDriver ? AppColors.accentGold : AppColors.primaryDark,
+              Icons.my_location_rounded,
+              color: _isFollowingDriver
+                  ? AppColors.accentGold
+                  : AppColors.primaryDark,
             ),
           ),
         ),

@@ -27,33 +27,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _nationalIdController;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _isLoading = false; 
-  
+  bool _isLoading = false;
+
   // 🟢 متغير لحفظ الصورة المختارة محلياً قبل رفعها
-  File? _pickedImage; 
+  File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    
+
     final profileState = context.read<ProfileCubit>().state;
     final currentUser = FirebaseAuth.instance.currentUser;
-    
+
     _nameController = TextEditingController(text: profileState.userName);
-    
-    String currentPhone = (profileState.userPhone != null && profileState.userPhone!.isNotEmpty)
-        ? profileState.userPhone!
-        : (currentUser?.phoneNumber ?? '');
-        
+
+    String currentPhone =
+        (profileState.userPhone != null && profileState.userPhone!.isNotEmpty)
+            ? profileState.userPhone!
+            : (currentUser?.phoneNumber ?? '');
+
     if (currentPhone.startsWith('+20')) {
       currentPhone = currentPhone.replaceFirst('+20', '0');
     } else if (currentPhone.startsWith('20') && currentPhone.length > 10) {
       currentPhone = currentPhone.replaceFirst('20', '0');
     }
-    
+
     _phoneController = TextEditingController(text: currentPhone);
-    _nationalIdController = TextEditingController(text: profileState.nationalId ?? ''); 
+    _nationalIdController =
+        TextEditingController(text: profileState.nationalId ?? '');
   }
 
   @override
@@ -84,7 +86,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   Text(
                     'اختر صورة الحساب',
                     style: TextStyle(
-                      fontFamily: 'Cairo',
                       fontSize: 16.sp,
                       fontWeight: FontWeight.bold,
                       color: primaryNavy,
@@ -147,7 +148,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             SizedBox(height: 8.h),
             Text(
               label,
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 12.sp, color: primaryNavy),
+              style: TextStyle(fontSize: 12.sp, color: primaryNavy),
             ),
           ],
         ),
@@ -161,9 +162,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: 70, // ضغط جودة الصورة لسرعة الرفع وتقليل استهلاك المساحة
-        maxWidth: 500,    // تحديد أقصى عرض متناسق مع مساحة الملف الشخصي
+        maxWidth: 500, // تحديد أقصى عرض متناسق مع مساحة الملف الشخصي
       );
-      
+
       if (pickedFile != null) {
         setState(() {
           _pickedImage = File(pickedFile.path);
@@ -183,32 +184,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       // 🟢 استدعاء دالة تحديث الحساب الفعالة في الـ ProfileCubit وتمرير الملف الجديد لها
       await context.read<ProfileCubit>().updateProfile(
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        nationalId: _nationalIdController.text.trim().isEmpty ? null : _nationalIdController.text.trim(),
-        newProfileImage: _pickedImage, // تمرير ملف الصورة الجديد (لو اختاره، وإلا سيرسل null ويحافظ على الحالية)
-      );
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            nationalId: _nationalIdController.text.trim().isEmpty
+                ? null
+                : _nationalIdController.text.trim(),
+            newProfileImage:
+                _pickedImage, // تمرير ملف الصورة الجديد (لو اختاره، وإلا سيرسل null ويحافظ على الحالية)
+          );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم حفظ التعديلات بنجاح ✅', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-          )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('تم حفظ التعديلات بنجاح ✅',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+        ));
         Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('حدث خطأ أثناء الحفظ، يرجى المحاولة لاحقاً ❌', style: TextStyle(fontFamily: 'Cairo')),
-          backgroundColor: Colors.red.shade800,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-        )
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('حدث خطأ أثناء الحفظ، يرجى المحاولة لاحقاً ❌',
+            style: TextStyle(fontFamily: 'Cairo')),
+        backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+      ));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -217,7 +221,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl, 
+      textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -227,14 +231,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
           title: Text(
             'تعديل البيانات الشخصية',
             style: TextStyle(
-              fontFamily: 'Cairo',
               color: primaryNavy,
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
           leading: IconButton(
-            icon: Icon(Icons.arrow_forward_rounded, color: primaryNavy, size: 24.sp),
+            icon: Icon(Icons.arrow_forward_rounded,
+                color: primaryNavy, size: 24.sp),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -272,8 +276,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 return CircleAvatar(
                                   radius: 50.r,
                                   backgroundColor: Colors.grey.shade100,
-                                  backgroundImage: imgUrl.isNotEmpty ? NetworkImage(imgUrl) : null,
-                                  child: imgUrl.isEmpty ? Icon(Icons.person, size: 50.sp, color: Colors.grey.shade400) : null,
+                                  backgroundImage: imgUrl.isNotEmpty
+                                      ? NetworkImage(imgUrl)
+                                      : null,
+                                  child: imgUrl.isEmpty
+                                      ? Icon(Icons.person,
+                                          size: 50.sp,
+                                          color: Colors.grey.shade400)
+                                      : null,
                                 );
                               }
                             },
@@ -281,7 +291,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                         // زر الكاميرا للتعديل والاختيار
                         InkWell(
-                          onTap: () => _showImageSourcePicker(context), // 🟢 فتح قائمة الخيارات عند الضغط
+                          onTap: () => _showImageSourcePicker(
+                              context), // 🟢 فتح قائمة الخيارات عند الضغط
                           borderRadius: BorderRadius.circular(50.r),
                           child: Container(
                             padding: EdgeInsets.all(8.w),
@@ -290,22 +301,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 3),
                             ),
-                            child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18.sp),
+                            child: Icon(Icons.camera_alt_rounded,
+                                color: Colors.white, size: 18.sp),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 40.h),
-                  
+
                   _buildCustomTextField(
                     label: 'الاسم بالكامل',
                     icon: Icons.person,
                     controller: _nameController,
                     keyboardType: TextInputType.name,
                   ),
-                  
+
                   _buildCustomTextField(
                     label: 'رقم الهاتف',
                     icon: Icons.phone_android_rounded,
@@ -313,7 +325,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     keyboardType: TextInputType.phone,
                     isPhone: true,
                   ),
-                  
+
                   _buildCustomTextField(
                     label: 'الرقم القومي (اختياري)',
                     icon: Icons.credit_card_rounded,
@@ -340,7 +352,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           : Text(
                               'حفظ التعديلات',
                               style: TextStyle(
-                                fontFamily: 'Cairo',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16.sp,
                                 color: Colors.white,
@@ -382,7 +393,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Text(
                   label,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 10.sp,
                     color: Colors.grey.shade600,
                     fontWeight: FontWeight.w600,
@@ -391,10 +401,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 TextFormField(
                   controller: controller,
                   keyboardType: keyboardType,
-                  textDirection: isPhone ? TextDirection.ltr : TextDirection.rtl,
-                  textAlign: TextAlign.right, 
+                  textDirection:
+                      isPhone ? TextDirection.ltr : TextDirection.rtl,
+                  textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
                     color: primaryNavy,
@@ -403,10 +413,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                     border: InputBorder.none,
-                    errorStyle: TextStyle(fontFamily: 'Cairo', height: 0.5),
+                    errorStyle: TextStyle(height: 0.5),
                   ),
                   validator: (value) {
-                    if (label != 'الرقم القومي (اختياري)' && (value == null || value.trim().isEmpty)) {
+                    if (label != 'الرقم القومي (اختياري)' &&
+                        (value == null || value.trim().isEmpty)) {
                       return 'هذا الحقل مطلوب';
                     }
                     if (isPhone && value != null && value.trim().length < 11) {

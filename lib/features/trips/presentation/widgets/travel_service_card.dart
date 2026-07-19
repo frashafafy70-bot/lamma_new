@@ -7,7 +7,7 @@ class TravelServiceCard extends StatelessWidget {
   final VoidCallback onAddTravelTap;
 
   const TravelServiceCard({
-    super.key, 
+    super.key,
     required this.onAddTravelTap,
   });
 
@@ -18,7 +18,8 @@ class TravelServiceCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       // 🔴 تم إزالة الـ margin من هنا الاعتماد على SizedBox في الرئيسية
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h), // 🔴 تقليل لـ 16
+      padding: EdgeInsets.symmetric(
+          horizontal: 16.w, vertical: 16.h), // 🔴 تقليل لـ 16
       decoration: BoxDecoration(
         color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(20.r),
@@ -56,8 +57,7 @@ class TravelServiceCard extends StatelessWidget {
                     Text(
                       localizations.travel_preBooking,
                       style: TextStyle(
-                        fontFamily: 'Cairo',
-                        color: Colors.blueAccent.shade100, 
+                        color: Colors.blueAccent.shade100,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.bold,
                       ),
@@ -72,14 +72,13 @@ class TravelServiceCard extends StatelessWidget {
               ),
             ],
           ),
-          
+
           SizedBox(height: 12.h), // 🔴 تقليل المسافات
-          
+
           Center(
             child: Text(
               localizations.travel_travelingSoon,
               style: TextStyle(
-                fontFamily: 'Cairo',
                 color: Colors.white,
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
@@ -92,15 +91,14 @@ class TravelServiceCard extends StatelessWidget {
               localizations.travel_travelDescription,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'Cairo',
                 color: AppColors.textMuted.shade400,
                 fontSize: 12.sp,
               ),
             ),
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           Container(
             width: double.infinity,
             height: 48.h, // 🔴 ارتفاع الزرار متناسق مع كارت الرادار
@@ -121,7 +119,6 @@ class TravelServiceCard extends StatelessWidget {
                     Text(
                       localizations.travel_addTravelTrip,
                       style: TextStyle(
-                        fontFamily: 'Cairo',
                         fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primaryDark,
@@ -129,8 +126,8 @@ class TravelServiceCard extends StatelessWidget {
                     ),
                     SizedBox(width: 8.w),
                     Icon(
-                      Icons.edit_calendar_rounded, 
-                      color: AppColors.primaryDark, 
+                      Icons.edit_calendar_rounded,
+                      color: AppColors.primaryDark,
                       size: 20.sp,
                     ),
                   ],

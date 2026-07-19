@@ -13,7 +13,6 @@ void main() {
   );
 
   group('UserModel Tests', () {
-    
     test('should be a subclass of UserEntity', () {
       expect(tUserModel, isA<UserEntity>());
     });
@@ -43,7 +42,8 @@ void main() {
       expect(result.activeRole, tUserModel.activeRole);
     });
 
-    test('should return a model with default values when JSON fields are empty', () {
+    test('should return a model with default values when JSON fields are empty',
+        () {
       final Map<String, dynamic> emptyJsonMap = {};
 
       final result = UserModel.fromJson(emptyJsonMap);
@@ -52,8 +52,8 @@ void main() {
       expect(result.name, '');
       expect(result.email, '');
       expect(result.phone, '');
-      expect(result.roles, ['passenger']); 
-      expect(result.activeRole, 'passenger'); 
+      expect(result.roles, ['passenger']);
+      expect(result.activeRole, 'passenger');
     });
 
     test('should return a JSON map containing proper data', () {
@@ -70,6 +70,5 @@ void main() {
 
       expect(result, expectedMap);
     });
-    
   });
 }

@@ -41,7 +41,8 @@ class _OrderInputWidgetState extends State<OrderInputWidget> {
     try {
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
-        String filePath = '${directory.path}/order_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        String filePath =
+            '${directory.path}/order_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
         await _audioRecorder.start(
           const RecordConfig(encoder: AudioEncoder.aacLc),
@@ -141,9 +142,11 @@ class _OrderInputWidgetState extends State<OrderInputWidget> {
           ),
         ],
       ),
-      child: _isRecording 
-          ? _buildRecordingUI() 
-          : (_recordedAudio != null ? _buildRecordedAudioUI() : _buildTextInputUI()),
+      child: _isRecording
+          ? _buildRecordingUI()
+          : (_recordedAudio != null
+              ? _buildRecordedAudioUI()
+              : _buildTextInputUI()),
     );
   }
 
@@ -153,17 +156,19 @@ class _OrderInputWidgetState extends State<OrderInputWidget> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(width: 12.w),
-        Icon(Icons.shopping_bag_outlined, color: AppColors.accentGold, size: 24.sp),
+        Icon(Icons.shopping_bag_outlined,
+            color: AppColors.accentGold, size: 24.sp),
         SizedBox(width: 8.w),
         Expanded(
           child: TextField(
             controller: widget.controller,
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp),
+            style: TextStyle(fontSize: 14.sp),
             maxLines: 3,
             minLines: 1,
             decoration: InputDecoration(
               hintText: 'اكتب طلباتك بالتفصيل...',
-              hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, color: Colors.grey.shade400),
+              hintStyle:
+                  TextStyle(fontSize: 13.sp, color: Colors.grey.shade400),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(vertical: 16.h),
             ),
@@ -189,17 +194,23 @@ class _OrderInputWidgetState extends State<OrderInputWidget> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 26.sp),
+            icon: Icon(Icons.delete_outline_rounded,
+                color: AppColors.error, size: 26.sp),
             onPressed: _cancelRecording,
           ),
           Row(
             children: [
               Text(
                 _formatDuration(_recordDuration),
-                style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, color: AppColors.error, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 16.sp,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.bold),
               ),
               SizedBox(width: 8.w),
-              Icon(Icons.mic, color: AppColors.error, size: 24.sp), // ممكن تضيف أنيميشن وميض هنا
+              Icon(Icons.mic,
+                  color: AppColors.error,
+                  size: 24.sp), // ممكن تضيف أنيميشن وميض هنا
             ],
           ),
           GestureDetector(
@@ -222,23 +233,29 @@ class _OrderInputWidgetState extends State<OrderInputWidget> {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.close_rounded, color: AppColors.error, size: 24.sp),
+            icon:
+                Icon(Icons.close_rounded, color: AppColors.error, size: 24.sp),
             onPressed: _deleteRecordedAudio, // مسح الريكورد والرجوع للكتابة
           ),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.audiotrack_rounded, color: AppColors.royalGreen, size: 24.sp),
+                Icon(Icons.audiotrack_rounded,
+                    color: AppColors.royalGreen, size: 24.sp),
                 SizedBox(width: 8.w),
                 Text(
                   'تم تسجيل الطلب الصوتي',
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: AppColors.primaryDark, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
-          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24.sp),
+          Icon(Icons.check_circle_rounded,
+              color: AppColors.success, size: 24.sp),
         ],
       ),
     );

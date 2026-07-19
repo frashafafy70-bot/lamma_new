@@ -21,7 +21,8 @@ class ProfileModel extends ProfileEntity {
           roles: roles,
         );
 
-  factory ProfileModel.fromJson(Map<String, dynamic> json, String uid, String email) {
+  factory ProfileModel.fromJson(
+      Map<String, dynamic> json, String uid, String email) {
     return ProfileModel(
       uid: uid,
       name: json['name'] ?? 'مستخدم لَمَّة',
@@ -31,7 +32,8 @@ class ProfileModel extends ProfileEntity {
       phone: json['phone'] ?? '',
       nationalId: json['nationalId'] ?? '',
       // 🟢 قراءة مصفوفة الأدوار من الفايربيز بشكل آمن
-      roles: json['roles'] != null ? List<String>.from(json['roles']) : ['client'],
+      roles:
+          json['roles'] != null ? List<String>.from(json['roles']) : ['client'],
     );
   }
 }

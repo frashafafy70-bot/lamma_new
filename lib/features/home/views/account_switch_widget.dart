@@ -22,11 +22,31 @@ class AccountSwitchWidget extends StatelessWidget {
   List<Map<String, dynamic>> _getRoles(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return [
-      {'key': 'client', 'name': l10n.clientRoleName, 'icon': Icons.person_rounded},
-      {'key': 'driver', 'name': l10n.captainRoleName, 'icon': Icons.local_taxi_rounded}, 
-      {'key': 'lawyer', 'name': l10n.lawyerRoleName, 'icon': Icons.gavel_rounded},
-      {'key': 'doctor', 'name': l10n.doctorRoleName, 'icon': Icons.medical_services_rounded},
-      {'key': 'nurse', 'name': l10n.nurseRoleName, 'icon': Icons.healing_rounded},
+      {
+        'key': 'client',
+        'name': l10n.clientRoleName,
+        'icon': Icons.person_rounded
+      },
+      {
+        'key': 'driver',
+        'name': l10n.captainRoleName,
+        'icon': Icons.local_taxi_rounded
+      },
+      {
+        'key': 'lawyer',
+        'name': l10n.lawyerRoleName,
+        'icon': Icons.gavel_rounded
+      },
+      {
+        'key': 'doctor',
+        'name': l10n.doctorRoleName,
+        'icon': Icons.medical_services_rounded
+      },
+      {
+        'key': 'nurse',
+        'name': l10n.nurseRoleName,
+        'icon': Icons.healing_rounded
+      },
     ];
   }
 
@@ -41,10 +61,11 @@ class AccountSwitchWidget extends StatelessWidget {
 
     final currentRoleData = roles.firstWhere(
       (role) => role['key'] == safeCurrentRole,
-      orElse: () => roles.first, 
+      orElse: () => roles.first,
     );
 
-    final otherRoles = roles.where((role) => role['key'] != safeCurrentRole).toList();
+    final otherRoles =
+        roles.where((role) => role['key'] != safeCurrentRole).toList();
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -54,14 +75,14 @@ class AccountSwitchWidget extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.accentGold),
-            onPressed: () => Navigator.pop(context), 
+            icon: const Icon(Icons.arrow_back_rounded,
+                color: AppColors.accentGold),
+            onPressed: () => Navigator.pop(context),
           ),
           title: Text(
-            l10n.accountSwitchTitle, 
+            l10n.accountSwitchTitle,
             style: TextStyle(
               color: Colors.white,
-              fontFamily: 'Cairo',
               fontWeight: FontWeight.bold,
               fontSize: 18.sp,
             ),
@@ -77,37 +98,31 @@ class AccountSwitchWidget extends StatelessWidget {
                 l10n.currentRoleLabel,
                 style: TextStyle(
                   color: AppColors.textMuted.shade400,
-                  fontFamily: 'Cairo',
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               SizedBox(height: 12.h),
-              
               _buildCurrentRoleCard(
                 context: context,
                 roleName: currentRoleData['name'],
                 icon: currentRoleData['icon'],
               ),
-
-              SizedBox(height: 32.h), 
-
+              SizedBox(height: 32.h),
               Text(
                 l10n.switchToOtherRole,
                 style: TextStyle(
                   color: AppColors.textMuted.shade400,
-                  fontFamily: 'Cairo',
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               SizedBox(height: 12.h),
-
               ...List.generate(otherRoles.length, (index) {
                 final role = otherRoles[index];
                 return TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 400 + (index * 150)), 
+                  duration: Duration(milliseconds: 400 + (index * 150)),
                   curve: Curves.easeOutQuart,
                   builder: (context, value, child) {
                     return Transform.translate(
@@ -133,47 +148,48 @@ class AccountSwitchWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentRoleCard({required BuildContext context, required String roleName, required IconData icon}) {
+  Widget _buildCurrentRoleCard(
+      {required BuildContext context,
+      required String roleName,
+      required IconData icon}) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h), 
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.accentGold.withValues(alpha: 0.15),
-            AppColors.accentGold.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: AppColors.accentGold.withValues(alpha: 0.8),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.accentGold.withValues(alpha: 0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ]
-      ),
+          gradient: LinearGradient(
+            colors: [
+              AppColors.accentGold.withValues(alpha: 0.15),
+              AppColors.accentGold.withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: AppColors.accentGold.withValues(alpha: 0.8),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accentGold.withValues(alpha: 0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
+          ]),
       child: Row(
         children: [
           Container(
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-              color: AppColors.accentGold,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.accentGold.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                )
-              ]
-            ),
+                color: AppColors.accentGold,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentGold.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  )
+                ]),
             child: Icon(
               icon,
               color: AppColors.primaryDark,
@@ -187,7 +203,6 @@ class AccountSwitchWidget extends StatelessWidget {
               Text(
                 roleName,
                 style: TextStyle(
-                  fontFamily: 'Cairo',
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
                   color: AppColors.accentGold,
@@ -196,7 +211,6 @@ class AccountSwitchWidget extends StatelessWidget {
               Text(
                 l10n.activeNow,
                 style: TextStyle(
-                  fontFamily: 'Cairo',
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
                   color: Colors.white70,
@@ -222,7 +236,7 @@ class AccountSwitchWidget extends StatelessWidget {
     required IconData icon,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Padding(
       padding: EdgeInsets.only(bottom: 14.h),
       child: Material(
@@ -231,51 +245,52 @@ class AccountSwitchWidget extends StatelessWidget {
           onTap: () {
             final profileCubit = context.read<ProfileCubit>();
             final profileState = profileCubit.state;
-            
+
             // جلب مصفوفة الأدوار من الـ State الحالية
             final userRoles = profileState.userRoles;
-            
+
             // 🚨 [اختبار الكشف] يطبع الأدوار الحالية في الـ Debug Console عند الضغط
             print("==========================================================");
-            print("======== 🚨 الأدوار الحالية لليوزر في الـ State: $userRoles ========");
+            print(
+                "======== 🚨 الأدوار الحالية لليوزر في الـ State: $userRoles ========");
             print("==========================================================");
-            
-            bool isRoleVerified = userRoles.contains(roleKey) || 
-                                  (roleKey == 'driver' && userRoles.contains('captain'));
-            
-            String fullName = profileState.userName.isNotEmpty 
-                ? profileState.userName 
-                : l10n.lammaDefaultUserName; 
+
+            bool isRoleVerified = userRoles.contains(roleKey) ||
+                (roleKey == 'driver' && userRoles.contains('captain'));
+
+            String fullName = profileState.userName.isNotEmpty
+                ? profileState.userName
+                : l10n.lammaDefaultUserName;
 
             if (roleKey == 'driver') {
               if (isRoleVerified) {
                 Navigator.pop(context, roleKey);
               } else {
-                RoleRegistrationSheets.showDriver(context, profileCubit, fullName);
+                RoleRegistrationSheets.showDriver(
+                    context, profileCubit, fullName);
               }
-            } 
-            else if (roleKey == 'lawyer') {
+            } else if (roleKey == 'lawyer') {
               if (isRoleVerified) {
                 Navigator.pop(context, roleKey);
               } else {
-                RoleRegistrationSheets.showLawyer(context, profileCubit, fullName);
+                RoleRegistrationSheets.showLawyer(
+                    context, profileCubit, fullName);
               }
-            }
-            else if (roleKey == 'doctor') {
+            } else if (roleKey == 'doctor') {
               if (isRoleVerified) {
                 Navigator.pop(context, roleKey);
               } else {
-                RoleRegistrationSheets.showDoctor(context, profileCubit, fullName);
+                RoleRegistrationSheets.showDoctor(
+                    context, profileCubit, fullName);
               }
-            }
-            else if (roleKey == 'nurse') {
+            } else if (roleKey == 'nurse') {
               if (isRoleVerified) {
                 Navigator.pop(context, roleKey);
               } else {
-                RoleRegistrationSheets.showNurse(context, profileCubit, fullName);
+                RoleRegistrationSheets.showNurse(
+                    context, profileCubit, fullName);
               }
-            }
-            else {
+            } else {
               Navigator.pop(context, roleKey);
             }
           },
@@ -302,7 +317,7 @@ class AccountSwitchWidget extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.white, 
+                    color: Colors.white,
                     size: 22.sp,
                   ),
                 ),
@@ -310,7 +325,6 @@ class AccountSwitchWidget extends StatelessWidget {
                 Text(
                   roleName,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
                     color: Colors.white.withValues(alpha: 0.95),
@@ -325,7 +339,7 @@ class AccountSwitchWidget extends StatelessWidget {
                   ),
                   child: Icon(
                     Icons.arrow_forward_ios_rounded,
-                    color: AppColors.accentGold.withValues(alpha: 0.8), 
+                    color: AppColors.accentGold.withValues(alpha: 0.8),
                     size: 14.sp,
                   ),
                 ),

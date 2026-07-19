@@ -39,13 +39,16 @@ class _CustomTextFieldState extends State<CustomTextField> {
       validator: widget.validator,
       decoration: InputDecoration(
         hintText: widget.hintText,
-        prefixIcon: Icon(widget.prefixIcon, color: Theme.of(context).primaryColor),
-        
+        prefixIcon:
+            Icon(widget.prefixIcon, color: Theme.of(context).primaryColor),
+
         // إضافة أيقونة العين التفاعلية في نهاية الحقل فقط إذا كان حقل كلمة مرور
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
-                  _obscureText ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  _obscureText
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: Colors.grey,
                 ),
                 onPressed: () {
@@ -59,11 +62,21 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
         filled: true,
         fillColor: Theme.of(context).cardColor,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                BorderSide(color: Theme.of(context).primaryColor, width: 1.5)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 1)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 1.5)),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       ),
     );
   }

@@ -585,7 +585,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchPrompt => 'Set your route and press search to start';
 
   @override
-  String tripRoute(String from, Object to) {
+  String tripRoute(String from, String to) {
     return '$from ➔ $to';
   }
 
@@ -1046,4 +1046,98 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get detailsAndMap => 'Details & Map';
+
+  @override
+  String get clientLocationNotAvailable =>
+      'Client location is not available currently';
+
+  @override
+  String get cannotOpenGoogleMaps => 'Cannot open Google Maps';
+
+  @override
+  String get tripDataNotAvailable =>
+      'Sorry, trip data is not available or has been cancelled.';
+
+  @override
+  String get trackTripTitle => 'Track Trip';
+
+  @override
+  String get unspecifiedDestination => 'Unspecified destination';
+
+  @override
+  String agreedPrice(String price) {
+    return 'Agreed price: $price EGP';
+  }
+
+  @override
+  String get iArrivedToClient => 'I arrived at the client';
+
+  @override
+  String get startTripBtn => 'Start Trip';
+
+  @override
+  String get tripEndedBtn => 'Trip Ended';
+
+  @override
+  String get endTripBtn => 'End Trip';
+
+  @override
+  String get driverMarkerTitle => 'Driver';
+
+  @override
+  String get statusPendingSearching => 'Searching for a captain...';
+
+  @override
+  String get statusNegotiatingPrice => 'Negotiating the price...';
+
+  @override
+  String get statusAcceptedGettingReady =>
+      'Request accepted, captain is getting ready...';
+
+  @override
+  String get statusOnTheWay => 'Captain is on the way...';
+
+  @override
+  String get statusCaptainArrived => 'Captain is outside!';
+
+  @override
+  String get statusTripInProgress => 'Trip is currently in progress...';
+
+  @override
+  String get statusArrivedSafely => 'Arrived safely!';
+
+  @override
+  String get statusTripCancelled => 'Trip cancelled';
+
+  @override
+  String get tripEndedSuccessfully => 'Trip ended successfully!';
+
+  @override
+  String rateCaptain(String name) {
+    return 'How do you rate Captain $name?';
+  }
+
+  @override
+  String get addCommentOptional => 'Add a comment (optional)...';
+
+  @override
+  String get skipBtn => 'Skip';
+
+  @override
+  String get lammaCaptain => 'Lamma Captain';
+
+  @override
+  String get noPlateBoard => 'No plate';
+
+  @override
+  String get toDestination => 'To:';
+
+  @override
+  String get destinationPlaceholder => 'Destination';
+
+  @override
+  String get priceLabel => 'Price:';
+
+  @override
+  String get cancelTripBtn => 'Cancel Trip';
 }

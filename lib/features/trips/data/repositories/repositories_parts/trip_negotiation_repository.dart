@@ -1,7 +1,6 @@
 part of 'trip_repository_impl.dart';
 
 mixin TripNegotiationRepository on TripRepositoryBase {
-
   Future<Either<Failure, void>> submitNegotiation({
     required String docId,
     required double offerPrice,

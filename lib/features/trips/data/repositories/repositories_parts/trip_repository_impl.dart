@@ -10,6 +10,7 @@ import 'package:dartz/dartz.dart';
 // 🟢 مسارات مطلقة
 import 'package:lamma_new/core/errors/failures.dart';
 import 'package:lamma_new/features/trips/domain/repositories/trip_repository.dart';
+import 'package:lamma_new/features/trips/domain/repositories/booking_repository.dart'; // 🟢 تمت إضافة الـ Import هنا
 import 'package:lamma_new/features/trips/data/models/trip_model.dart';
 import 'package:lamma_new/features/trips/domain/entities/trip_entity.dart';
 
@@ -65,14 +66,15 @@ abstract class TripRepositoryBase {
 }
 
 class TripRepositoryImpl extends TripRepositoryBase
-    with 
-        TripCoreRepository, 
-        TripBookingRepositoryMixin, 
-        TripNegotiationRepository, 
-        TripTrackingRepository, 
-        TripQueriesRepository 
-    implements TripRepository { 
-    
+    with
+        TripCoreRepository,
+        TripBookingRepositoryMixin,
+        TripNegotiationRepository,
+        TripTrackingRepository,
+        TripQueriesRepository
+    implements TripRepository, BookingRepository {
+  // 🟢 تم التعديل هنا بإضافة BookingRepository
+
   @override
   final FirebaseFirestore firestore;
   @override

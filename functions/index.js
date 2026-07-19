@@ -106,11 +106,23 @@ exports.sendChatNotification = functions.firestore
             if (!tripDoc.exists) return null;
 
             const tripData = tripDoc.data();
-            const driverId = tripData.driverId || '';
             const passengerId = tripData.passengerId || '';
+            const driverId = tripData.driverId || '';
 
-            const receiverId = senderId === driverId ? passengerId : driverId;
-            if (!receiverId) return null;
+            // التعديل المنطقي لتحديد المستلم بشكل دقيق
+            let receiverId = '';
+            if (senderId === passengerId) {
+                // إذا كان المرسل هو العميل، فالرسالة تذهب للكابتن
+                receiverId = driverId;
+            } else {
+                // إذا كان المرسل أي شخص آخر (كابتن رسمي أو يتفاوض)، تذهب للعميل
+                receiverId = passengerId;
+            }
+
+            if (!receiverId) {
+                console.log('لا يوجد مستلم محدد للإشعار، إجهاض العملية.');
+                return null;
+            }
 
             const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
             const senderDoc = await admin.firestore().collection('users').doc(senderId).get();
@@ -127,7 +139,8 @@ exports.sendChatNotification = functions.firestore
                 token: receiverDoc.data().fcmToken,
                 notification: {
                     title: senderName,
-                    body: bodyText
+                    body: bodyText,
+                    android_channel_id: "lamma_alerts_channel_v2" 
                 },
                 android: {
                     priority: "high",

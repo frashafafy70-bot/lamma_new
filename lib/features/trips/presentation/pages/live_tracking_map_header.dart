@@ -30,7 +30,7 @@ class LatLngTween extends Tween<LatLng> {
 class LiveTrackingMapHeader extends StatefulWidget {
   final GeoPoint? passengerLocation;
   final GeoPoint? driverLocation;
-  final Set<Polyline> polylines; 
+  final Set<Polyline> polylines;
 
   const LiveTrackingMapHeader({
     super.key,
@@ -43,7 +43,8 @@ class LiveTrackingMapHeader extends StatefulWidget {
   State<LiveTrackingMapHeader> createState() => _LiveTrackingMapHeaderState();
 }
 
-class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with SingleTickerProviderStateMixin {
+class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
 
@@ -65,7 +66,8 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
     );
 
     if (widget.driverLocation != null) {
-      _currentDriverPosition = LatLng(widget.driverLocation!.latitude, widget.driverLocation!.longitude);
+      _currentDriverPosition = LatLng(
+          widget.driverLocation!.latitude, widget.driverLocation!.longitude);
     }
   }
 
@@ -90,15 +92,18 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
     super.didUpdateWidget(oldWidget);
 
     if (widget.driverLocation != null) {
-      LatLng newDriverLoc = LatLng(widget.driverLocation!.latitude, widget.driverLocation!.longitude);
-      
-      if (_currentDriverPosition != null && _currentDriverPosition != newDriverLoc) {
+      LatLng newDriverLoc = LatLng(
+          widget.driverLocation!.latitude, widget.driverLocation!.longitude);
+
+      if (_currentDriverPosition != null &&
+          _currentDriverPosition != newDriverLoc) {
         _markerRotation = _getBearing(_currentDriverPosition!, newDriverLoc);
 
         Animation<LatLng> animation = LatLngTween(
           begin: _currentDriverPosition,
           end: newDriverLoc,
-        ).animate(CurvedAnimation(parent: _animationController!, curve: Curves.linear));
+        ).animate(CurvedAnimation(
+            parent: _animationController!, curve: Curves.linear));
 
         animation.addListener(() {
           setState(() {
@@ -112,7 +117,6 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
         if (!_isFirstCameraMove) {
           _mapController?.animateCamera(CameraUpdate.newLatLng(newDriverLoc));
         }
-
       } else if (_currentDriverPosition == null) {
         _currentDriverPosition = newDriverLoc;
         _updateMarkers();
@@ -128,7 +132,8 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
 
     double dLon = lon2 - lon1;
     double y = math.sin(dLon) * math.cos(lat2);
-    double x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    double x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
     double bearing = math.atan2(y, x) * 180.0 / math.pi;
     return (bearing + 360.0) % 360.0;
   }
@@ -136,7 +141,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
     _updateMarkers();
-    
+
     Future.delayed(const Duration(milliseconds: 300), () {
       _zoomToFitMarkers();
     });
@@ -152,9 +157,12 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
         _markers.add(
           Marker(
             markerId: const MarkerId('passenger_marker'),
-            position: LatLng(widget.passengerLocation!.latitude, widget.passengerLocation!.longitude),
-            infoWindow: InfoWindow(title: _myLocationTitle), // 🟢 استخدام المتغير الجاهز
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+            position: LatLng(widget.passengerLocation!.latitude,
+                widget.passengerLocation!.longitude),
+            infoWindow: InfoWindow(
+                title: _myLocationTitle), // 🟢 استخدام المتغير الجاهز
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueYellow),
           ),
         );
       }
@@ -164,10 +172,12 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
           Marker(
             markerId: const MarkerId('driver_marker'),
             position: _currentDriverPosition!,
-            rotation: _markerRotation, 
-            anchor: const Offset(0.5, 0.5), 
-            infoWindow: InfoWindow(title: _driverTitle), // 🟢 استخدام المتغير الجاهز
-            icon: MapService().carMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), 
+            rotation: _markerRotation,
+            anchor: const Offset(0.5, 0.5),
+            infoWindow:
+                InfoWindow(title: _driverTitle), // 🟢 استخدام المتغير الجاهز
+            icon: MapService().carMarker ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           ),
         );
       }
@@ -178,8 +188,10 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
     if (_mapController == null) return;
 
     if (widget.passengerLocation != null && widget.driverLocation != null) {
-      LatLng pLoc = LatLng(widget.passengerLocation!.latitude, widget.passengerLocation!.longitude);
-      LatLng dLoc = LatLng(widget.driverLocation!.latitude, widget.driverLocation!.longitude);
+      LatLng pLoc = LatLng(widget.passengerLocation!.latitude,
+          widget.passengerLocation!.longitude);
+      LatLng dLoc = LatLng(
+          widget.driverLocation!.latitude, widget.driverLocation!.longitude);
 
       LatLngBounds bounds;
       if (pLoc.latitude > dLoc.latitude) {
@@ -189,13 +201,13 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
       }
 
       _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60.h));
-      _isFirstCameraMove = false; 
-
+      _isFirstCameraMove = false;
     } else if (widget.passengerLocation != null) {
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
-            target: LatLng(widget.passengerLocation!.latitude, widget.passengerLocation!.longitude),
+            target: LatLng(widget.passengerLocation!.latitude,
+                widget.passengerLocation!.longitude),
             zoom: 17.5,
             tilt: 45.0,
           ),
@@ -209,7 +221,8 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
   Widget build(BuildContext context) {
     LatLng defaultCenter = const LatLng(30.0444, 31.2357);
     if (widget.passengerLocation != null) {
-      defaultCenter = LatLng(widget.passengerLocation!.latitude, widget.passengerLocation!.longitude);
+      defaultCenter = LatLng(widget.passengerLocation!.latitude,
+          widget.passengerLocation!.longitude);
     }
 
     return Container(
@@ -232,7 +245,7 @@ class _LiveTrackingMapHeaderState extends State<LiveTrackingMapHeader> with Sing
           tilt: 45.0,
         ),
         markers: _markers,
-        polylines: widget.polylines, 
+        polylines: widget.polylines,
         onMapCreated: _onMapCreated,
       ),
     );

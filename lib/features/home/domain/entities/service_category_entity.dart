@@ -2,7 +2,7 @@ class ServiceCategoryEntity {
   final String id;
   final String title;
   final String iconUrl;
-  final String routeName; 
+  final String routeName;
 
   ServiceCategoryEntity({
     required this.id,

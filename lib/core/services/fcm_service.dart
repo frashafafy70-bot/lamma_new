@@ -1,4 +1,4 @@
-import 'package:firebase_messaging/firebase_messaging.dart'; 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -19,8 +19,8 @@ class FCMService {
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         await _messaging.setForegroundNotificationPresentationOptions(
-          alert: true, 
-          badge: true, 
+          alert: true,
+          badge: true,
           sound: true,
         );
 
@@ -28,7 +28,7 @@ class FCMService {
         if (token != null) {
           _updateTokenInDatabase(token);
         }
-        
+
         _messaging.onTokenRefresh.listen(_updateTokenInDatabase);
 
         FirebaseAuth.instance.authStateChanges().listen((User? user) async {
@@ -41,7 +41,8 @@ class FCMService {
         });
 
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          debugPrint('Got a foreground message: ${message.notification?.title}');
+          debugPrint(
+              'Got a foreground message: ${message.notification?.title}');
           NotificationService.showChicNotification(message);
         });
 

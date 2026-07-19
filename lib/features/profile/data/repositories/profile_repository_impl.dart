@@ -3,7 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/constants/firebase_constants.dart';
@@ -28,23 +28,25 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<Either<Failure, ProfileEntity>> getUserProfile() async {
     try {
       User? user = _auth.currentUser;
-      if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
+      if (user == null)
+        return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
       DocumentSnapshot doc = await _firestore
           .collection(FirebaseConstants.usersCollection)
           .doc(user.uid)
-          .get(const GetOptions(source: Source.serverAndCache)); 
+          .get(const GetOptions(source: Source.serverAndCache));
 
       if (doc.exists) {
         var data = doc.data() as Map<String, dynamic>;
-        
+
         final prefs = await SharedPreferences.getInstance();
         String? cachedRole = prefs.getString('cached_active_role');
-        
+
         if (cachedRole != null) {
-           data['activeRole'] = cachedRole; 
+          data['activeRole'] = cachedRole;
         } else {
-           await prefs.setString('cached_active_role', data['activeRole'] ?? 'client');
+          await prefs.setString(
+              'cached_active_role', data['activeRole'] ?? 'client');
         }
 
         return Right(ProfileModel.fromJson(data, user.uid, user.email ?? ''));
@@ -66,18 +68,23 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }) async {
     try {
       User? user = _auth.currentUser;
-      if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
+      if (user == null)
+        return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
       String finalImageUrl = currentImageUrl;
 
       if (newProfileImage != null) {
-        Reference ref = _storage.ref().child('${FirebaseConstants.usersCollection}/${user.uid}/profile.jpg');
+        Reference ref = _storage.ref().child(
+            '${FirebaseConstants.usersCollection}/${user.uid}/profile.jpg');
         UploadTask uploadTask = ref.putFile(newProfileImage);
         TaskSnapshot snapshot = await uploadTask;
         finalImageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).update({
+      await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid)
+          .update({
         'name': name,
         'phone': phone,
         'nationalId': nationalId ?? '',
@@ -94,12 +101,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<Either<Failure, Unit>> switchUserRole(String newRole) async {
     try {
       User? user = _auth.currentUser;
-      if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
+      if (user == null)
+        return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_active_role', newRole);
 
-      await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).set({
+      await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid)
+          .set({
         'activeRole': newRole,
         'roles': FieldValue.arrayUnion(['client', newRole])
       }, SetOptions(merge: true));
@@ -111,15 +122,20 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> submitRoleRegistration(String role, Map<String, dynamic> profileData) async {
+  Future<Either<Failure, Unit>> submitRoleRegistration(
+      String role, Map<String, dynamic> profileData) async {
     try {
       User? user = _auth.currentUser;
-      if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
+      if (user == null)
+        return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_active_role', role);
 
-      await _firestore.collection(FirebaseConstants.usersCollection).doc(user.uid).set({
+      await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid)
+          .set({
         'activeRole': role,
         'roles': FieldValue.arrayUnion([role]),
         'documents': {role: profileData}
@@ -132,10 +148,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
-  Future<Either<Failure, String>> uploadDocument(String role, String docName, File file) async {
+  Future<Either<Failure, String>> uploadDocument(
+      String role, String docName, File file) async {
     try {
       User? user = _auth.currentUser;
-      if (user == null) return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
+      if (user == null)
+        return Left(ServerFailure(message: 'المستخدم غير مسجل الدخول'));
 
       Reference ref = _storage
           .ref()
@@ -148,7 +166,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
       UploadTask uploadTask = ref.putFile(file);
       TaskSnapshot snapshot = await uploadTask;
       String url = await snapshot.ref.getDownloadURL();
-      
+
       return Right(url);
     } catch (e) {
       return Left(ServerFailure(message: 'حدث خطأ أثناء رفع المستند'));
@@ -157,11 +175,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   // 🟢 إضافة كود الفايربيز الخاص بالدعم الفني هنا
   @override
-  Future<Either<Failure, Unit>> sendSupportTicket({
-    required String name, 
-    required String email, 
-    required String message
-  }) async {
+  Future<Either<Failure, Unit>> sendSupportTicket(
+      {required String name,
+      required String email,
+      required String message}) async {
     try {
       String uid = _auth.currentUser?.uid ?? 'unknown';
       await _firestore.collection('support_tickets').add({

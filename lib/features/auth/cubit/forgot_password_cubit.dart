@@ -43,7 +43,8 @@ class ForgotPasswordCubit extends Cubit<ForgotPasswordState> {
       }
       emit(ForgotPasswordError(message: errorMessage));
     } catch (e) {
-      emit(ForgotPasswordError(message: 'تأكد من اتصالك بالإنترنت وحاول مجدداً'));
+      emit(ForgotPasswordError(
+          message: 'تأكد من اتصالك بالإنترنت وحاول مجدداً'));
     }
   }
 }

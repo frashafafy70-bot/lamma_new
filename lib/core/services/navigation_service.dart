@@ -1,34 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:lamma_new/features/trips/presentation/pages/trip_chat_page.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_active_trips_tab.dart';
-import 'package:lamma_new/features/trips/presentation/pages/driver_tabs/driver_radar_tab.dart';
-import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_trip_tracking_page.dart';
+// 🟢 استدعاء ملف الـ Router (عشان يتعرف على أسماء المسارات المولدة)
+import 'package:lamma_new/core/routes/app_router.dart';
 
 class NavigationService {
   // المفتاح المركزي للتطبيق
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   // دالة الشات
   static void navigateToTripChat(String tripId) {
-    if (navigatorKey.currentState != null) {
-      navigatorKey.currentState!.push(
-        MaterialPageRoute(builder: (_) => TripChatPage(tripId: tripId)),
-      );
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      // 🟢 توجيه باستخدام auto_route
+      context.router.push(TripChatRoute(tripId: tripId));
     }
   }
 
   // اللوجيك الذكي للتوجيه بناءً على البيانات القادمة من الإشعار
-  static Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
+  static Future<void> handleNotificationRouting(
+      Map<String, dynamic> data) async {
     // جلب الـ ID سواء كان رقم رحلة أو رقم حجز مقعد
     String? id = data['tripId'] ?? data['bookingId'];
-    String? type = data['type']; 
+    String? type = data['type'];
 
     debugPrint("🔔 توجيه الإشعار - النوع: $type, المعرف: $id");
 
-    if (id == null || navigatorKey.currentState == null) return;
+    final context = navigatorKey.currentContext;
+    if (id == null || context == null) return;
 
     // 🟢 نجيب الـ ID بتاع المستخدم الحالي (عشان نباصيه لصفحة العميل)
     String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -44,22 +46,25 @@ class NavigationService {
         if (currentUserId.isEmpty) return;
 
         try {
-          var doc = await FirebaseFirestore.instance.collection('trips').doc(id).get();
+          var doc = await FirebaseFirestore.instance
+              .collection('trips')
+              .doc(id)
+              .get();
           if (doc.exists) {
             var tripData = doc.data()!;
             if (tripData['driverId'] == currentUserId) {
-              // 🚕 المستخدم هو الكابتن -> يروح لرحلاته النشطة
-              navigatorKey.currentState!.push(MaterialPageRoute(
-                builder: (_) => const DriverActiveTripsTab(), 
-              ));
+              // 🚕 المستخدم هو الكابتن -> يروح للرادار (واللي جواه رحلاته النشطة كـ Tab)
+              context.router.push(const DriverRadarRoute());
             } else {
-              // 👤 المستخدم هو العميل -> يروح لصفحة تتبع الرحلة الخاصة به
-              navigatorKey.currentState!.push(MaterialPageRoute(
-                builder: (_) => PassengerTripTrackingPage(
+              // 👤 المستخدم هو العميل
+              // 🛑 نتأكد إن الحالة مش تفاوض أو قيد الانتظار قبل ما نفتح التتبع
+              if (tripData['status'] != 'negotiating' &&
+                  tripData['status'] != 'pending') {
+                context.router.push(PassengerTripTrackingRoute(
                   tripId: id,
-                  passengerId: currentUserId, // 🟢 تم تمرير معرف العميل هنا
-                ),
-              ));
+                  passengerId: currentUserId,
+                ));
+              }
             }
           }
         } catch (e) {
@@ -69,25 +74,19 @@ class NavigationService {
 
       case 'new_trip_request':
         // 📡 إشعار الرادار (للكابتن) -> يروح للرادار
-        navigatorKey.currentState!.push(MaterialPageRoute(
-          builder: (_) => const DriverRadarTab(),
-        ));
+        context.router.push(const DriverRadarRoute());
         break;
 
       case 'new_booking':
-        // 💺 طلب حجز مقعد جديد (للكابتن) -> يروح لرحلاته النشطة
-        navigatorKey.currentState!.push(MaterialPageRoute(
-          builder: (_) => const DriverActiveTripsTab(),
-        ));
+        // 💺 طلب حجز مقعد جديد (للكابتن) -> يروح للرادار
+        context.router.push(const DriverRadarRoute());
         break;
 
       case 'booking_accepted':
         // 🎉 تم قبول الحجز (للعميل) -> يروح لتتبع رحلته
-        navigatorKey.currentState!.push(MaterialPageRoute(
-          builder: (_) => PassengerTripTrackingPage(
-            tripId: id,
-            passengerId: currentUserId, // 🟢 وتم تمريره هنا كمان
-          ),
+        context.router.push(PassengerTripTrackingRoute(
+          tripId: id,
+          passengerId: currentUserId,
         ));
         break;
 

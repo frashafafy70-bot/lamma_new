@@ -250,7 +250,7 @@
         "type": "String"
       },
       "to": {
-        "type": "Object"
+        "type": "String"
       }
     }
   },
@@ -449,5 +449,48 @@
   "agreeWithPrice": "موافق بالسعر",
   "negotiateBtn": "تفاوض",
   "activateActiveTrip": "تفعيل الرحلة النشطة",
-  "detailsAndMap": "التفاصيل والخريطة"
+  "detailsAndMap": "التفاصيل والخريطة",
+  "clientLocationNotAvailable": "موقع العميل غير متوفر حالياً",
+  "cannotOpenGoogleMaps": "لا يمكن فتح خرائط جوجل",
+  "tripDataNotAvailable": "عفواً، بيانات الرحلة غير متاحة أو تم إلغاؤها.",
+  "trackTripTitle": "تتبع الرحلة",
+  "unspecifiedDestination": "وجهة غير محددة",
+  "agreedPrice": "السعر المتفق عليه: {price} جنيه",
+  "@agreedPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "iArrivedToClient": "أنا وصلت للعميل",
+  "startTripBtn": "بدء الرحلة",
+  "tripEndedBtn": "تم إنهاء الرحلة",
+  "endTripBtn": "إنهاء الرحلة",
+  "driverMarkerTitle": "السائق",
+  "statusPendingSearching": "جاري البحث عن كابتن...",
+  "statusNegotiatingPrice": "جاري التفاوض على السعر...",
+  "statusAcceptedGettingReady": "تم قبول الطلب، الكابتن يتجهز...",
+  "statusOnTheWay": "الكابتن في الطريق إليك...",
+  "statusCaptainArrived": "الكابتن بالخارج!",
+  "statusTripInProgress": "الرحلة جارية الآن...",
+  "statusArrivedSafely": "وصلت بالسلامة!",
+  "statusTripCancelled": "تم إلغاء الرحلة",
+  "tripEndedSuccessfully": "الرحلة انتهت بنجاح!",
+  "rateCaptain": "ما تقييمك للكابتن {name}؟",
+  "@rateCaptain": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addCommentOptional": "أضف تعليقاً (اختياري)...",
+  "skipBtn": "تخطي",
+  "lammaCaptain": "كابتن لَمّة",
+  "noPlateBoard": "بدون لوحة",
+  "toDestination": "إلى:",
+  "destinationPlaceholder": "الوجهة",
+  "priceLabel": "السعر:",
+  "cancelTripBtn": "إلغاء الرحلة"
 }

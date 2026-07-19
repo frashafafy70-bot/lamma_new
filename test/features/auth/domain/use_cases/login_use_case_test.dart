@@ -31,28 +31,28 @@ void main() {
   );
 
   group('LoginUseCase Tests', () {
-    
-    test('should return UserEntity from the repository when login is successful', () async {
+    test(
+        'should return UserEntity from the repository when login is successful',
+        () async {
       // Arrange (تجهيز المشهد):
       // بنقول للدوبلير لما يطلب منك دالة login بالمتغيرات دي بالاسم، رجع tUserEntity
       when(() => mockAuthRepository.login(
-            email: any(named: 'email'), 
-            password: any(named: 'password')
-          )).thenAnswer((_) async => tUserEntity);
+              email: any(named: 'email'), password: any(named: 'password')))
+          .thenAnswer((_) async => tUserEntity);
 
-      // Act (التنفيذ): 
+      // Act (التنفيذ):
       // تشغيل الدالة بنفس الطريقة اللي مكتوبة في كلاسك الأساسي
-      final result = await useCase.call(email: tEmail, password: tPassword); 
+      final result = await useCase.call(email: tEmail, password: tPassword);
 
       // Assert (التأكد من النتيجة):
       expect(result, tUserEntity);
-      
+
       // التأكد من إن الدالة اتكلمت مع الـ Repository فعلاً مرة واحدة وبنفس الداتا
-      verify(() => mockAuthRepository.login(email: tEmail, password: tPassword)).called(1);
-      
+      verify(() => mockAuthRepository.login(email: tEmail, password: tPassword))
+          .called(1);
+
       // التأكد إنه معملش أي أكشنز تانية غير المطلوبة
       verifyNoMoreInteractions(mockAuthRepository);
     });
-
   });
 }

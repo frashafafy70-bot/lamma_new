@@ -11,14 +11,13 @@ final sl = GetIt.instance;
 void initNotificationModule() {
   // 1. Repositories
   sl.registerLazySingleton<NotificationRepository>(
-    () => NotificationRepositoryImpl(firestore: sl())
-  );
+      () => NotificationRepositoryImpl(firestore: sl()));
 
   // 2. Use Cases
   sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
 
   // 3. Cubit
   sl.registerFactory(() => NotificationCubit(
-    getNotificationsUseCase: sl(),
-  ));
+        getNotificationsUseCase: sl(),
+      ));
 }

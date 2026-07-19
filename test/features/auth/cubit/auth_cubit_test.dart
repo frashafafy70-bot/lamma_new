@@ -14,11 +14,19 @@ import 'package:lamma_new/features/auth/domain/repositories/auth_repository.dart
 
 // 1. الدوبلير بتاعنا لكل كلاس
 class MockLoginUseCase extends Mock implements LoginUseCase {}
+
 class MockSignUpUseCase extends Mock implements SignUpUseCase {}
+
 class MockSignOutUseCase extends Mock implements SignOutUseCase {}
-class MockLoginWithGoogleUseCase extends Mock implements LoginWithGoogleUseCase {}
+
+class MockLoginWithGoogleUseCase extends Mock
+    implements LoginWithGoogleUseCase {}
+
 class MockSendSignUpOtpUseCase extends Mock implements SendSignUpOtpUseCase {}
-class MockVerifyOtpAndSignUpUseCase extends Mock implements VerifyOtpAndSignUpUseCase {}
+
+class MockVerifyOtpAndSignUpUseCase extends Mock
+    implements VerifyOtpAndSignUpUseCase {}
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 void main() {
@@ -67,7 +75,6 @@ void main() {
   );
 
   group('AuthCubit Tests', () {
-    
     test('initial state should be AuthInitial', () {
       expect(authCubit.state, isA<AuthInitial>());
     });
@@ -88,7 +95,8 @@ void main() {
       await authCubit.login(email: tEmail, password: tPassword);
 
       // Verify
-      verify(() => mockLoginUseCase.call(email: tEmail, password: tPassword)).called(1);
+      verify(() => mockLoginUseCase.call(email: tEmail, password: tPassword))
+          .called(1);
     });
 
     test('emits [AuthLoading, AuthError] when login fails', () async {
@@ -107,9 +115,11 @@ void main() {
       await authCubit.login(email: tEmail, password: tPassword);
     });
 
-    test('emits [AuthLoading, AuthLoggedOut] when signOut is successful', () async {
+    test('emits [AuthLoading, AuthLoggedOut] when signOut is successful',
+        () async {
       // Arrange
-      when(() => mockSignOutUseCase.call()).thenAnswer((_) async => Future.value());
+      when(() => mockSignOutUseCase.call())
+          .thenAnswer((_) async => Future.value());
 
       // Assert
       final expectedStates = [
@@ -127,14 +137,18 @@ void main() {
       'emits [AuthLoading, AuthSuccess] when signUp is successful',
       build: () {
         when(() => mockSignUpUseCase.call(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          name: any(named: 'name'),
-          phone: any(named: 'phone'),
-        )).thenAnswer((_) async => tUserEntity);
+              email: any(named: 'email'),
+              password: any(named: 'password'),
+              name: any(named: 'name'),
+              phone: any(named: 'phone'),
+            )).thenAnswer((_) async => tUserEntity);
         return authCubit;
       },
-      act: (cubit) => cubit.signUp(email: tEmail, password: tPassword, name: 'Ahmed', phone: '01012345678'),
+      act: (cubit) => cubit.signUp(
+          email: tEmail,
+          password: tPassword,
+          name: 'Ahmed',
+          phone: '01012345678'),
       expect: () => [
         isA<AuthLoading>(),
         isA<AuthSuccess>(),
@@ -146,12 +160,13 @@ void main() {
       'emits [AuthLoading, AuthOtpSent] when sendSignUpOtp is successful',
       build: () {
         when(() => mockSendSignUpOtpUseCase.call(
-          phone: any(named: 'phone'),
-          onCodeSent: any(named: 'onCodeSent'),
-          onError: any(named: 'onError'),
-        )).thenAnswer((invocation) async {
+              phone: any(named: 'phone'),
+              onCodeSent: any(named: 'onCodeSent'),
+              onError: any(named: 'onError'),
+            )).thenAnswer((invocation) async {
           // محاكاة إرسال الكود بنجاح
-          final onCodeSent = invocation.namedArguments[#onCodeSent] as Function(String);
+          final onCodeSent =
+              invocation.namedArguments[#onCodeSent] as Function(String);
           onCodeSent('123456');
         });
         return authCubit;
@@ -168,14 +183,14 @@ void main() {
       'emits [AuthLoading, AuthSuccess] when verifyOtpAndCompleteSignUp is successful',
       build: () {
         when(() => mockVerifyOtpAndSignUpUseCase.call(
-          verificationId: any(named: 'verificationId'),
-          smsCode: any(named: 'smsCode'),
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          name: any(named: 'name'),
-          phone: any(named: 'phone'),
-          role: any(named: 'role'),
-        )).thenAnswer((_) async => tUserEntity);
+              verificationId: any(named: 'verificationId'),
+              smsCode: any(named: 'smsCode'),
+              email: any(named: 'email'),
+              password: any(named: 'password'),
+              name: any(named: 'name'),
+              phone: any(named: 'phone'),
+              role: any(named: 'role'),
+            )).thenAnswer((_) async => tUserEntity);
         return authCubit;
       },
       act: (cubit) => cubit.verifyOtpAndCompleteSignUp(
@@ -192,6 +207,5 @@ void main() {
         isA<AuthSuccess>(),
       ],
     );
-
   }); // نهاية جروب الاختبارات
 }

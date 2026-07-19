@@ -1,14 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lamma_new/core/theme/app_colors.dart'; 
-
+import 'package:lamma_new/core/theme/app_colors.dart';
+import 'package:lamma_new/features/trips/utils/passenger_utils.dart';
 import 'package:lamma_new/features/trips/cubit/passenger/passenger_request_cubit.dart';
-import 'package:lamma_new/features/trips/presentation/pages/passenger_tabs/passenger_trip_tracking_page.dart';
+// تأكد من استيراد امتداد اللغة الخاص بك هنا، غالباً يكون:
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RideServiceForm extends StatelessWidget {
   final String vehicleType;
@@ -20,8 +20,8 @@ class RideServiceForm extends StatelessWidget {
   final Function(String) onOpenMapSelection;
   final VoidCallback onSubmit;
   final bool isSubmittingTrip;
-  
-  final Color primaryGreen; 
+
+  final Color primaryGreen;
   final Color accentGold;
 
   const RideServiceForm({
@@ -41,40 +41,35 @@ class RideServiceForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // استخدمنا امتداد اللغة l10n
+    final l10n = context.l10n;
+
     return BlocListener<PassengerRequestCubit, PassengerRequestState>(
       listener: (context, state) {
         if (state is TripSubmitSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(
-                'تم إرسال طلبك بنجاح! جاري البحث عن كابتن... 🚀', 
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              content: Text(
+                l10n.requestSentSuccess,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              backgroundColor: AppColors.royalGreen,
+              backgroundColor: primaryGreen,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-            ),
-          );
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PassengerTripTrackingPage(
-                tripId: state.tripId,
-                passengerId: FirebaseAuth.instance.currentUser?.uid ?? '', // 🟢 تم إضافة passengerId
-              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r)),
             ),
           );
         } else if (state is TripSubmitError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                state.message, 
-                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                state.message,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               backgroundColor: Colors.red.shade800,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r)),
             ),
           );
         }
@@ -83,68 +78,67 @@ class RideServiceForm extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'اختر نوع المركبة:', 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark)
-          ),
+          Text(l10n.carType,
+              style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryNavy)),
           SizedBox(height: 16.h),
-          
           Row(
             children: [
-              Expanded(child: _buildVehicleCard('توكتوك', 'assets/images/tuktuk.png')),
+              Expanded(
+                  child: _buildVehicleCard(
+                      context, l10n.tuktukVehicle, 'assets/images/tuktuk.png')),
               SizedBox(width: 12.w),
-              Expanded(child: _buildVehicleCard('موتوسيكل', 'assets/images/motorcycle.png')),
+              Expanded(
+                  child: _buildVehicleCard(
+                      context, l10n.motorcycleVehicle, 'assets/images/motorcycle.png')),
               SizedBox(width: 12.w),
-              Expanded(child: _buildVehicleCard('سيارة', 'assets/images/car.png')),
+              Expanded(
+                  child: _buildVehicleCard(
+                      context, l10n.carVehicle, 'assets/images/car.png')),
             ],
           ),
           SizedBox(height: 24.h),
-          
           _buildSeparateLocationInput(
-            prefixText: 'من :',
-            label: 'موقعي الحالي', 
-            controller: pickupController, 
-            icon: Icons.my_location_rounded, 
-            iconColor: AppColors.accentGold, 
-            onMapTap: () {
-              FocusScope.of(context).unfocus(); 
-              onOpenMapSelection('pickup');
-            }
-          ),
-          
+              context: context,
+              prefixText: l10n.pickupLocation,
+              label: l10n.pickupLocationLabel,
+              controller: pickupController,
+              icon: Icons.my_location_rounded,
+              iconColor: accentGold,
+              onMapTap: () {
+                FocusScope.of(context).unfocus();
+                onOpenMapSelection('pickup');
+              }),
           _buildSeparateLocationInput(
-            prefixText: 'إلى :',
-            label: 'وجهة الوصول', 
-            controller: destinationController, 
-            icon: Icons.location_on_rounded, 
-            iconColor: AppColors.primaryDark, 
-            onMapTap: () {
-              FocusScope.of(context).unfocus();
-              onOpenMapSelection('destination');
-            }
-          ),
-          
-          _buildPriceInputDisplay(),
-
+              context: context,
+              prefixText: l10n.toDestination,
+              label: l10n.destinationLocation,
+              controller: destinationController,
+              icon: Icons.location_on_rounded,
+              iconColor: AppColors.primaryNavy,
+              onMapTap: () {
+                FocusScope.of(context).unfocus();
+                onOpenMapSelection('destination');
+              }),
+          _buildPriceInputDisplay(context),
           SizedBox(height: 16.h),
-
-          _buildPremiumQuickPriceChips(),
-          
+          _buildPremiumQuickPriceChips(context),
           SizedBox(height: 28.h),
-          
           Container(
             width: double.infinity,
             height: 55.h,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primaryDark, AppColors.royalGreen],
+              gradient: LinearGradient(
+                colors: [AppColors.primaryNavy, primaryGreen],
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
               ),
               borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryDark.withValues(alpha: 0.25),
+                  color: AppColors.primaryNavy.withValues(alpha: 0.25),
                   blurRadius: 15,
                   spreadRadius: 2,
                   offset: const Offset(0, 8),
@@ -153,21 +147,26 @@ class RideServiceForm extends StatelessWidget {
             ),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent, 
+                backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r)),
               ),
-              onPressed: isSubmittingTrip ? null : () {
-                HapticFeedback.mediumImpact(); 
-                onSubmit();
-              },
-              child: isSubmittingTrip 
-                  ? const CircularProgressIndicator(color: Colors.white) 
-                  : Text(
-                      'إرسال الطلب للكباتن', 
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)
-                    ),
+              onPressed: isSubmittingTrip
+                  ? null
+                  : () {
+                      HapticFeedback.mediumImpact();
+                      onSubmit();
+                    },
+              child: isSubmittingTrip
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(l10n.sendRequestBtn,
+                      style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5)),
             ),
           ),
         ],
@@ -175,32 +174,37 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceInputDisplay() {
+  Widget _buildPriceInputDisplay(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.accentGold.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))
-        ]
-      ),
+          color: accentGold.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+              color: accentGold.withValues(alpha: 0.3), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ]),
       child: Row(
         children: [
           Container(
             padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
-              color: AppColors.accentGold.withValues(alpha: 0.15),
+              color: accentGold.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.payments_rounded, color: AppColors.accentGold, size: 24.sp),
+            child: Icon(Icons.payments_rounded,
+                color: accentGold, size: 24.sp),
           ),
           SizedBox(width: 16.w),
-          Text(
-            'السعر :', 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600)
-          ),
+          Text(context.l10n.priceLabel,
+              style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600)),
           SizedBox(width: 12.w),
           Expanded(
             child: TextField(
@@ -209,19 +213,20 @@ class RideServiceForm extends StatelessWidget {
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'Cairo', 
-                fontSize: 24.sp, 
-                fontWeight: FontWeight.w900, 
-                color: AppColors.primaryDark
-              ),
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primaryNavy),
               decoration: InputDecoration(
                 hintText: '0',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
-                suffixText: 'ج.م',
-                suffixStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppColors.accentGold),
+                suffixText: context.l10n.currencyEGP,
+                suffixStyle: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                    color: accentGold),
               ),
             ),
           ),
@@ -230,10 +235,10 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumQuickPriceChips() {
+  Widget _buildPremiumQuickPriceChips(BuildContext context) {
     return Row(
       children: [
-        _buildActionButton('مسح', 0, isClear: true),
+        _buildActionButton(context.l10n.delete, 0, isClear: true),
         SizedBox(width: 6.w),
         _buildActionButton('- 5', -5, isNegative: true),
         SizedBox(width: 6.w),
@@ -246,10 +251,11 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(String label, int amount, {bool isClear = false, bool isNegative = false}) {
-    Color bgColor = AppColors.accentGold.withValues(alpha: 0.1);
-    Color borderColor = AppColors.accentGold.withValues(alpha: 0.3);
-    Color textColor = AppColors.primaryDark;
+  Widget _buildActionButton(String label, int amount,
+      {bool isClear = false, bool isNegative = false}) {
+    Color bgColor = accentGold.withValues(alpha: 0.1);
+    Color borderColor = accentGold.withValues(alpha: 0.3);
+    Color textColor = AppColors.primaryNavy;
 
     if (isClear) {
       bgColor = Colors.red.withValues(alpha: 0.08);
@@ -264,13 +270,13 @@ class RideServiceForm extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          HapticFeedback.lightImpact(); 
+          HapticFeedback.lightImpact();
           if (isClear) {
             priceController.text = '';
           } else {
             int currentPrice = int.tryParse(priceController.text) ?? 0;
             int newPrice = currentPrice + amount;
-            if (newPrice < 0) newPrice = 0; 
+            if (newPrice < 0) newPrice = 0;
             priceController.text = newPrice.toString();
           }
         },
@@ -285,11 +291,7 @@ class RideServiceForm extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontFamily: 'Cairo', 
-              fontWeight: FontWeight.bold, 
-              fontSize: 14.sp,
-              color: textColor
-            ),
+                fontWeight: FontWeight.bold, fontSize: 14.sp, color: textColor),
           ),
         ),
       ),
@@ -297,39 +299,50 @@ class RideServiceForm extends StatelessWidget {
   }
 
   Widget _buildSeparateLocationInput({
-    required String prefixText, 
-    required String label, 
-    required TextEditingController controller, 
-    required IconData icon, 
-    required Color iconColor, 
+    required BuildContext context,
+    required String prefixText,
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required Color iconColor,
     required VoidCallback onMapTap,
   }) {
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.primaryDark.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))
-        ]
-      ),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16.r),
+          border:
+              Border.all(color: AppColors.primaryNavy.withValues(alpha: 0.06)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ]),
       child: Row(
         children: [
-          Text(
-            prefixText, 
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 13.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600)
-          ),
+          Text(prefixText,
+              style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600)),
           SizedBox(width: 8.w),
           Expanded(
             child: TextField(
               controller: controller,
               readOnly: false,
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+              style: TextStyle(
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryNavy),
               decoration: InputDecoration(
                 hintText: label,
-                hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400, fontWeight: FontWeight.w600),
+                hintStyle: TextStyle(
+                    fontSize: 14.sp,
+                    color: Colors.grey.shade400,
+                    fontWeight: FontWeight.w600),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 12.h),
@@ -341,10 +354,15 @@ class RideServiceForm extends StatelessWidget {
             onTap: onMapTap,
             child: Container(
               padding: EdgeInsets.all(8.w),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                boxShadow: const [
+                  BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2))
+                ],
               ),
               child: Icon(icon, color: iconColor, size: 20.sp),
             ),
@@ -354,7 +372,8 @@ class RideServiceForm extends StatelessWidget {
     );
   }
 
-  Widget _buildVehicleCard(String title, String imagePath) {
+  Widget _buildVehicleCard(
+      BuildContext context, String title, String imagePath) {
     return _Floating3DVehicleCard(
       title: title,
       imagePath: imagePath,
@@ -384,7 +403,8 @@ class _Floating3DVehicleCard extends StatefulWidget {
   State<_Floating3DVehicleCard> createState() => _Floating3DVehicleCardState();
 }
 
-class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with SingleTickerProviderStateMixin {
+class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
   bool isPressed = false;
@@ -392,8 +412,11 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
   @override
   void initState() {
     super.initState();
-    _floatController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _floatAnimation = Tween<double>(begin: -4.0, end: 4.0).animate(CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
+    _floatController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -4.0, end: 4.0).animate(
+        CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
   }
 
   @override
@@ -405,8 +428,13 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
   @override
   Widget build(BuildContext context) {
     IconData fallbackIcon = Icons.directions_car_rounded;
-    if (widget.title == 'توكتوك') fallbackIcon = Icons.electric_rickshaw_rounded;
-    if (widget.title == 'موتوسيكل') fallbackIcon = Icons.motorcycle_rounded;
+    // تم ربط التحقق من اسم المركبة بملف الترجمة أيضاً
+    if (widget.title == context.l10n.tuktukVehicle) {
+      fallbackIcon = Icons.electric_rickshaw_rounded;
+    }
+    if (widget.title == context.l10n.motorcycleVehicle) {
+      fallbackIcon = Icons.motorcycle_rounded;
+    }
 
     return GestureDetector(
       onTapDown: (_) => setState(() => isPressed = true),
@@ -424,17 +452,28 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
           curve: Curves.easeOutCubic,
           padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
           decoration: BoxDecoration(
-            color: widget.isSelected ? AppColors.primaryDark : Colors.white,
+            color: widget.isSelected
+                ? AppColors.primaryNavy
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20.r),
             border: Border.all(
-              color: widget.isSelected ? AppColors.accentGold : AppColors.primaryDark.withValues(alpha: 0.1),
+              color: widget.isSelected
+                  ? AppColors.accentGold
+                  : AppColors.primaryNavy.withValues(alpha: 0.1),
               width: widget.isSelected ? 2 : 1,
             ),
-            boxShadow: widget.isSelected ? [BoxShadow(color: AppColors.primaryDarkLight, blurRadius: 10, offset: const Offset(0, 4))] : [],
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                        color: AppColors.primaryNavy.withOpacity(0.5),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ]
+                : [],
           ),
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 300),
-            opacity: widget.isSelected ? 1.0 : 0.5, 
+            opacity: widget.isSelected ? 1.0 : 0.5,
             child: Column(
               children: [
                 ClipRRect(
@@ -443,7 +482,11 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
                     animation: _floatAnimation,
                     builder: (context, child) {
                       return Transform.translate(
-                        offset: Offset(0, widget.isSelected ? _floatAnimation.value : (_floatAnimation.value / 2)),
+                        offset: Offset(
+                            0,
+                            widget.isSelected
+                                ? _floatAnimation.value
+                                : (_floatAnimation.value / 2)),
                         child: child,
                       );
                     },
@@ -452,18 +495,22 @@ class _Floating3DVehicleCardState extends State<_Floating3DVehicleCard> with Sin
                       height: 50.h,
                       width: double.infinity,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Icon(fallbackIcon, size: 45.sp, color: AppColors.primaryDark.withValues(alpha: 0.3)),
-                    ), 
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                          fallbackIcon,
+                          size: 45.sp,
+                          color: AppColors.primaryNavy.withValues(alpha: 0.3)),
+                    ),
                   ),
                 ),
                 SizedBox(height: 12.h),
                 Text(
                   widget.title,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontWeight: FontWeight.bold,
                     fontSize: 13.sp,
-                    color: widget.isSelected ? Colors.white : AppColors.primaryDark,
+                    color: widget.isSelected
+                        ? Colors.white
+                        : AppColors.primaryNavy,
                   ),
                 ),
               ],

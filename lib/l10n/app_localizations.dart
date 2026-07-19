@@ -1182,7 +1182,7 @@ abstract class AppLocalizations {
   ///
   /// In ar, this message translates to:
   /// **'{from} ➔ {to}'**
-  String tripRoute(String from, Object to);
+  String tripRoute(String from, String to);
 
   /// No description provided for @tripDetailsSubtitle.
   ///
@@ -2047,6 +2047,180 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'التفاصيل والخريطة'**
   String get detailsAndMap;
+
+  /// No description provided for @clientLocationNotAvailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع العميل غير متوفر حالياً'**
+  String get clientLocationNotAvailable;
+
+  /// No description provided for @cannotOpenGoogleMaps.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن فتح خرائط جوجل'**
+  String get cannotOpenGoogleMaps;
+
+  /// No description provided for @tripDataNotAvailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'عفواً، بيانات الرحلة غير متاحة أو تم إلغاؤها.'**
+  String get tripDataNotAvailable;
+
+  /// No description provided for @trackTripTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتبع الرحلة'**
+  String get trackTripTitle;
+
+  /// No description provided for @unspecifiedDestination.
+  ///
+  /// In ar, this message translates to:
+  /// **'وجهة غير محددة'**
+  String get unspecifiedDestination;
+
+  /// No description provided for @agreedPrice.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر المتفق عليه: {price} جنيه'**
+  String agreedPrice(String price);
+
+  /// No description provided for @iArrivedToClient.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنا وصلت للعميل'**
+  String get iArrivedToClient;
+
+  /// No description provided for @startTripBtn.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء الرحلة'**
+  String get startTripBtn;
+
+  /// No description provided for @tripEndedBtn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنهاء الرحلة'**
+  String get tripEndedBtn;
+
+  /// No description provided for @endTripBtn.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء الرحلة'**
+  String get endTripBtn;
+
+  /// No description provided for @driverMarkerTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'السائق'**
+  String get driverMarkerTitle;
+
+  /// No description provided for @statusPendingSearching.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاري البحث عن كابتن...'**
+  String get statusPendingSearching;
+
+  /// No description provided for @statusNegotiatingPrice.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاري التفاوض على السعر...'**
+  String get statusNegotiatingPrice;
+
+  /// No description provided for @statusAcceptedGettingReady.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول الطلب، الكابتن يتجهز...'**
+  String get statusAcceptedGettingReady;
+
+  /// No description provided for @statusOnTheWay.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكابتن في الطريق إليك...'**
+  String get statusOnTheWay;
+
+  /// No description provided for @statusCaptainArrived.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكابتن بالخارج!'**
+  String get statusCaptainArrived;
+
+  /// No description provided for @statusTripInProgress.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلة جارية الآن...'**
+  String get statusTripInProgress;
+
+  /// No description provided for @statusArrivedSafely.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت بالسلامة!'**
+  String get statusArrivedSafely;
+
+  /// No description provided for @statusTripCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الرحلة'**
+  String get statusTripCancelled;
+
+  /// No description provided for @tripEndedSuccessfully.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلة انتهت بنجاح!'**
+  String get tripEndedSuccessfully;
+
+  /// No description provided for @rateCaptain.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما تقييمك للكابتن {name}؟'**
+  String rateCaptain(String name);
+
+  /// No description provided for @addCommentOptional.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف تعليقاً (اختياري)...'**
+  String get addCommentOptional;
+
+  /// No description provided for @skipBtn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطي'**
+  String get skipBtn;
+
+  /// No description provided for @lammaCaptain.
+  ///
+  /// In ar, this message translates to:
+  /// **'كابتن لَمّة'**
+  String get lammaCaptain;
+
+  /// No description provided for @noPlateBoard.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون لوحة'**
+  String get noPlateBoard;
+
+  /// No description provided for @toDestination.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى:'**
+  String get toDestination;
+
+  /// No description provided for @destinationPlaceholder.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجهة'**
+  String get destinationPlaceholder;
+
+  /// No description provided for @priceLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر:'**
+  String get priceLabel;
+
+  /// No description provided for @cancelTripBtn.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الرحلة'**
+  String get cancelTripBtn;
 }
 
 class _AppLocalizationsDelegate

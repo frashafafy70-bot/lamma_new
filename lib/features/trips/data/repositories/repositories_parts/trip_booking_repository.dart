@@ -1,12 +1,11 @@
 part of 'trip_repository_impl.dart';
 
 mixin TripBookingRepositoryMixin on TripRepositoryBase {
-
   Future<Either<Failure, List<TripEntity>>> searchTrips({
     required String fromCity,
     required String toCity,
   }) async {
-    final String cacheKey = 'cached_trips_${fromCity}_$toCity'; 
+    final String cacheKey = 'cached_trips_${fromCity}_$toCity';
 
     try {
       Query query = firestore
@@ -18,7 +17,7 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
 
       final snapshot = await query.get();
       List<TripModel> searchResults = [];
-      List<Map<String, dynamic>> cacheData = []; 
+      List<Map<String, dynamic>> cacheData = [];
 
       for (var doc in snapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
@@ -35,12 +34,12 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
 
       await prefs.setString(cacheKey, json.encode(cacheData));
       return Right(searchResults);
-      
     } on FirebaseException catch (e) {
       if (e.code == 'network-request-failed') {
-        return _getCachedTrips(cacheKey); 
+        return _getCachedTrips(cacheKey);
       }
-      return Left(ServerFailure(message: 'خطأ في الاتصال بالخادم: ${e.message}'));
+      return Left(
+          ServerFailure(message: 'خطأ في الاتصال بالخادم: ${e.message}'));
     } on SocketException catch (_) {
       return _getCachedTrips(cacheKey);
     } catch (e) {
@@ -48,7 +47,8 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
     }
   }
 
-  Either<Failure, List<TripModel>> _getCachedTrips(String cacheKey, {String? fallbackError}) {
+  Either<Failure, List<TripModel>> _getCachedTrips(String cacheKey,
+      {String? fallbackError}) {
     try {
       final cachedString = prefs.getString(cacheKey);
       if (cachedString != null) {
@@ -86,7 +86,8 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
         if (!snapshot.exists) throw Exception("عذراً، الرحلة غير متاحة.");
 
         final tripData = snapshot.data()!;
-        final int currentAvailableSeats = int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
+        final int currentAvailableSeats =
+            int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
 
         if (currentAvailableSeats < requestedSeats) {
           throw Exception("لا يوجد مقاعد كافية.");
@@ -95,7 +96,7 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
         final int newSeatsCount = currentAvailableSeats - requestedSeats;
         transaction.update(tripRef, {
           'availableSeats': newSeatsCount.toString(),
-          if (newSeatsCount == 0) 'status': 'in_progress', 
+          if (newSeatsCount == 0) 'status': 'in_progress',
         });
 
         transaction.set(bookingRef, {
@@ -103,19 +104,21 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
           'driverId': driverId,
           'passengerId': passengerId,
           'passengerName': passengerName,
-          'requestedSeats': requestedSeats.toString(), 
+          'requestedSeats': requestedSeats.toString(),
           'price': tripData['seatPrice'] ?? tripData['price'] ?? '0',
-          'status': 'pending', 
+          'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
         });
       });
 
       return const Right(null);
     } on FirebaseException catch (e) {
-      if (e.code == 'network-request-failed') return Left(ServerFailure(message: 'غير متصل بالإنترنت.'));
+      if (e.code == 'network-request-failed')
+        return Left(ServerFailure(message: 'غير متصل بالإنترنت.'));
       return Left(ServerFailure(message: 'فشل في الحجز.'));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString().replaceAll('Exception: ', '').trim()));
+      return Left(ServerFailure(
+          message: e.toString().replaceAll('Exception: ', '').trim()));
     }
   }
 
@@ -133,12 +136,15 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
         if (!tripSnapshot.exists) throw Exception('الرحلة غير موجودة');
 
         var tripData = tripSnapshot.data() as Map<String, dynamic>;
-        int currentSeats = int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
+        int currentSeats =
+            int.tryParse(tripData['availableSeats']?.toString() ?? '0') ?? 0;
 
-        if (currentSeats < seatsToDeduct) throw Exception('لا يوجد مقاعد كافية');
-        
+        if (currentSeats < seatsToDeduct)
+          throw Exception('لا يوجد مقاعد كافية');
+
         transaction.update(bookingRef, {'status': 'accepted'});
-        transaction.update(tripRef, {'availableSeats': (currentSeats - seatsToDeduct).toString()});
+        transaction.update(tripRef,
+            {'availableSeats': (currentSeats - seatsToDeduct).toString()});
       });
       return const Right(null);
     } catch (e) {
@@ -153,7 +159,8 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
   }) async {
     try {
       await firestore.runTransaction((transaction) async {
-        transaction.delete(firestore.collection('trip_bookings').doc(bookingId));
+        transaction
+            .delete(firestore.collection('trip_bookings').doc(bookingId));
         transaction.update(firestore.collection(collectionName).doc(tripId), {
           'bookedPassengersIds': FieldValue.arrayRemove([passengerId])
         });
@@ -173,8 +180,9 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
   }) async {
     try {
       await firestore.runTransaction((transaction) async {
-        transaction.delete(firestore.collection('trip_bookings').doc(bookingId));
-        
+        transaction
+            .delete(firestore.collection('trip_bookings').doc(bookingId));
+
         final tripRef = firestore.collection(collectionName).doc(tripId);
         final updateData = <String, dynamic>{
           'bookedPassengersIds': FieldValue.arrayRemove([passengerId])
@@ -183,8 +191,13 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
         if (wasAccepted) {
           final tripSnapshot = await transaction.get(tripRef);
           if (tripSnapshot.exists) {
-            int currentSeats = int.tryParse((tripSnapshot.data() as Map)['availableSeats']?.toString() ?? '0') ?? 0;
-            updateData['availableSeats'] = (currentSeats + seatsToReturn).toString();
+            int currentSeats = int.tryParse(
+                    (tripSnapshot.data() as Map)['availableSeats']
+                            ?.toString() ??
+                        '0') ??
+                0;
+            updateData['availableSeats'] =
+                (currentSeats + seatsToReturn).toString();
           }
         }
         transaction.update(tripRef, updateData);
@@ -228,7 +241,8 @@ mixin TripBookingRepositoryMixin on TripRepositoryBase {
   }) async {
     try {
       await firestore.runTransaction((transaction) async {
-        DocumentReference bookingRef = firestore.collection('trip_bookings').doc(bookingId);
+        DocumentReference bookingRef =
+            firestore.collection('trip_bookings').doc(bookingId);
         transaction.update(bookingRef, {
           'requestedSeats': newSeats,
           'travelDate': Timestamp.fromDate(travelDate),

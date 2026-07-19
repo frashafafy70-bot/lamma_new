@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../data/models/trip_model.dart'; 
+import '../../data/models/trip_model.dart';
 
 class ServiceCardWidget extends StatelessWidget {
   final TripEntity serviceData;
@@ -46,19 +46,16 @@ class ServiceCardWidget extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 16.w),
-              
               Expanded(
                 child: Text(
                   serviceName,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
               ),
-              
               Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: Colors.grey.shade400,

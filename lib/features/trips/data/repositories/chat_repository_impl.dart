@@ -19,23 +19,24 @@ class ChatRepositoryImpl implements ChatRepository {
         .limit(limit)
         .snapshots()
         .map((snapshot) {
-      
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        
+
         MessageType messageType = MessageType.text;
         if (data['type'] == 'audio') messageType = MessageType.audio;
         if (data['type'] == 'image') messageType = MessageType.image;
 
         return ChatMessageEntity(
           id: doc.id,
-          senderId: data['senderId'] ?? '', 
+          senderId: data['senderId'] ?? '',
           text: data['text'] ?? '',
           type: messageType,
           imageUrl: data['imageUrl'],
           audioUrl: data['audioUrl'],
           // 🟢 تأمين وقت الـ null أثناء الرفع المبدئي للرسالة
-          timestamp: data['timestamp'] != null ? (data['timestamp'] as Timestamp).toDate() : DateTime.now(),
+          timestamp: data['timestamp'] != null
+              ? (data['timestamp'] as Timestamp).toDate()
+              : DateTime.now(),
           isRead: data['isRead'] ?? false,
         );
       }).toList();
@@ -43,8 +44,15 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> sendTextMessage({required String tripId, required String senderId, required String text}) async {
-    await _firestore.collection(FirebaseConstants.tripsCollection).doc(tripId).collection('messages').add({
+  Future<void> sendTextMessage(
+      {required String tripId,
+      required String senderId,
+      required String text}) async {
+    await _firestore
+        .collection(FirebaseConstants.tripsCollection)
+        .doc(tripId)
+        .collection('messages')
+        .add({
       'text': text,
       'imageUrl': '',
       'audioUrl': '',
@@ -57,12 +65,19 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> sendImageMessage({required String tripId, required String senderId, required File imageFile}) async {
+  Future<void> sendImageMessage(
+      {required String tripId,
+      required String senderId,
+      required File imageFile}) async {
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
     Reference ref = _storage.ref().child('trip_chats/$tripId/$fileName.jpg');
     String imageUrl = await (await ref.putFile(imageFile)).ref.getDownloadURL();
 
-    await _firestore.collection(FirebaseConstants.tripsCollection).doc(tripId).collection('messages').add({
+    await _firestore
+        .collection(FirebaseConstants.tripsCollection)
+        .doc(tripId)
+        .collection('messages')
+        .add({
       'text': '',
       'imageUrl': imageUrl,
       'audioUrl': '',
@@ -74,12 +89,20 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> sendAudioMessage({required String tripId, required String senderId, required File audioFile}) async {
+  Future<void> sendAudioMessage(
+      {required String tripId,
+      required String senderId,
+      required File audioFile}) async {
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    Reference ref = _storage.ref().child('trip_chats/$tripId/audios/$fileName.m4a');
+    Reference ref =
+        _storage.ref().child('trip_chats/$tripId/audios/$fileName.m4a');
     String audioUrl = await (await ref.putFile(audioFile)).ref.getDownloadURL();
 
-    await _firestore.collection(FirebaseConstants.tripsCollection).doc(tripId).collection('messages').add({
+    await _firestore
+        .collection(FirebaseConstants.tripsCollection)
+        .doc(tripId)
+        .collection('messages')
+        .add({
       'text': '',
       'imageUrl': '',
       'audioUrl': audioUrl,
@@ -91,7 +114,8 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> markMessagesAsRead({required String tripId, required String currentUserId}) async {
+  Future<void> markMessagesAsRead(
+      {required String tripId, required String currentUserId}) async {
     var unreadMessages = await _firestore
         .collection(FirebaseConstants.tripsCollection)
         .doc(tripId)
@@ -110,20 +134,26 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Map<String, String>> getOtherPartyInfo({required String tripId, required String currentUserId}) async {
+  Future<Map<String, String>> getOtherPartyInfo(
+      {required String tripId, required String currentUserId}) async {
     try {
       var tripDoc = await _firestore.collection('trips').doc(tripId).get();
       String otherUserId = '';
       if (tripDoc.exists) {
         var tripData = tripDoc.data() as Map<String, dynamic>;
         String driverId = tripData['driverId'] ?? '';
-        String passengerId = tripData['passengerId'] ?? tripData['userId'] ?? '';
+        String passengerId =
+            tripData['passengerId'] ?? tripData['userId'] ?? '';
         if (currentUserId == driverId) {
           if (passengerId.isNotEmpty) {
             otherUserId = passengerId;
           } else {
-            var bookings = await _firestore.collection('trip_bookings')
-                .where('tripId', isEqualTo: tripId).where('driverId', isEqualTo: currentUserId).limit(1).get();
+            var bookings = await _firestore
+                .collection('trip_bookings')
+                .where('tripId', isEqualTo: tripId)
+                .where('driverId', isEqualTo: currentUserId)
+                .limit(1)
+                .get();
             if (bookings.docs.isNotEmpty) {
               otherUserId = bookings.docs.first.data()['passengerId'] ?? '';
             }
@@ -133,14 +163,16 @@ class ChatRepositoryImpl implements ChatRepository {
         }
       }
       if (otherUserId.isNotEmpty) {
-         var userDoc = await _firestore.collection('users').doc(otherUserId).get();
-         if (userDoc.exists) {
-            var userData = userDoc.data() as Map<String, dynamic>;
-            return {
-              'name': userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر',
-              'phone': userData['phone'] ?? userData['phoneNumber'] ?? '',
-            };
-         }
+        var userDoc =
+            await _firestore.collection('users').doc(otherUserId).get();
+        if (userDoc.exists) {
+          var userData = userDoc.data() as Map<String, dynamic>;
+          return {
+            'name':
+                userData['name'] ?? userData['displayName'] ?? 'الطرف الآخر',
+            'phone': userData['phone'] ?? userData['phoneNumber'] ?? '',
+          };
+        }
       }
       return {'name': 'مستخدم لَمَّة', 'phone': ''};
     } catch (e) {
@@ -149,7 +181,8 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> sendChatNotification({required String tripId, required String message}) async {
+  Future<void> sendChatNotification(
+      {required String tripId, required String message}) async {
     // ضع لوجيك إرسال الإشعار هنا
   }
 }

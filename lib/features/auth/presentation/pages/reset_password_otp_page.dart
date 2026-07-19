@@ -27,12 +27,14 @@ class ResetPasswordOtpPage extends StatefulWidget {
 }
 
 class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
-  final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers =
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-  
+
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
-  
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
   bool _isPasswordObscured = true;
   bool _isConfirmObscured = true;
 
@@ -41,8 +43,12 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
 
   @override
   void dispose() {
-    for (var controller in _otpControllers) { controller.dispose(); }
-    for (var node in _focusNodes) { node.dispose(); }
+    for (var controller in _otpControllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -52,11 +58,13 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.only(bottom: 20.h, left: 20.w, right: 20.w),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -65,7 +73,7 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
   void _submitNewPassword(BuildContext context) {
     FocusScope.of(context).unfocus();
     final l10n = AppLocalizations.of(context)!;
-    
+
     String smsCode = _otpControllers.map((c) => c.text).join();
     String newPassword = _newPasswordController.text;
     String confirmPassword = _confirmPasswordController.text;
@@ -74,7 +82,7 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
       _showFloatingSnackBar(l10n.otpLengthError, Colors.red.shade800);
       return;
     }
-    
+
     if (newPassword.length < 6) {
       _showFloatingSnackBar(l10n.passwordLengthError, Colors.red.shade800);
       return;
@@ -87,18 +95,21 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
 
     // 🟢 إرسال البيانات للـ Cubit ليتولى هو المهمة
     context.read<AuthCubit>().verifyOtpAndResetPassword(
-      verificationId: widget.verificationId,
-      smsCode: smsCode,
-      newPassword: newPassword,
-    );
+          verificationId: widget.verificationId,
+          smsCode: smsCode,
+          newPassword: newPassword,
+        );
   }
 
   void _onOtpChanged(String value, int index) {
     if (value.isNotEmpty) {
-      if (index < 5) FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
-      else FocusScope.of(context).requestFocus(_focusNodes[5]); 
+      if (index < 5)
+        FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+      else
+        FocusScope.of(context).requestFocus(_focusNodes[5]);
     } else {
-      if (index > 0) FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+      if (index > 0)
+        FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
     }
   }
 
@@ -117,13 +128,13 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
-            _showFloatingSnackBar(state.message ?? l10n.passwordResetSuccess, Colors.green);
-            
+            _showFloatingSnackBar(
+                state.message ?? l10n.passwordResetSuccess, Colors.green);
+
             // 🟢 التعديل الأهم: قفلنا التوجيه العنيف اللي كان بيعمل تضارب
             // وبداله بنقفل كل الشاشات الفرعية ونرجع للأساس، وبما إننا عملنا SignOut في الـ Cubit
             // ملف main.dart هيعرض الـ LoginPage تلقائياً بنظافة!
             Navigator.of(context).popUntil((route) => route.isFirst);
-            
           } else if (state is AuthError) {
             _showFloatingSnackBar(state.message, Colors.red.shade800);
           }
@@ -139,18 +150,25 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.password_rounded, size: 70.sp, color: primaryNavy),
+                    Icon(Icons.password_rounded,
+                        size: 70.sp, color: primaryNavy),
                     SizedBox(height: 16.h),
                     Text(
                       l10n.setNewPasswordTitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 26.sp, fontWeight: FontWeight.bold, color: primaryNavy),
+                      style: TextStyle(
+                          fontSize: 26.sp,
+                          fontWeight: FontWeight.bold,
+                          color: primaryNavy),
                     ),
                     SizedBox(height: 8.h),
                     Text(
                       l10n.setNewPasswordSubtitle(widget.phone),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade600, height: 1.5),
+                      style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey.shade600,
+                          height: 1.5),
                       textDirection: TextDirection.rtl,
                     ),
                     SizedBox(height: 32.h),
@@ -168,11 +186,19 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12.r),
                               border: Border.all(
-                                color: _focusNodes[index].hasFocus ? accentGold : Colors.grey.shade300,
+                                color: _focusNodes[index].hasFocus
+                                    ? accentGold
+                                    : Colors.grey.shade300,
                                 width: _focusNodes[index].hasFocus ? 2 : 1,
                               ),
                               boxShadow: _focusNodes[index].hasFocus
-                                  ? [BoxShadow(color: accentGold.withValues(alpha: 0.2), blurRadius: 8, spreadRadius: 1)]
+                                  ? [
+                                      BoxShadow(
+                                          color:
+                                              accentGold.withValues(alpha: 0.2),
+                                          blurRadius: 8,
+                                          spreadRadius: 1)
+                                    ]
                                   : [],
                             ),
                             child: TextField(
@@ -182,9 +208,15 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                               textAlign: TextAlign.center,
                               maxLength: 1,
                               enabled: !isLoading,
-                              style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: primaryNavy),
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              decoration: const InputDecoration(counterText: "", border: InputBorder.none),
+                              style: TextStyle(
+                                  fontSize: 22.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryNavy),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              decoration: const InputDecoration(
+                                  counterText: "", border: InputBorder.none),
                               onChanged: (value) => _onOtpChanged(value, index),
                             ),
                           );
@@ -208,16 +240,23 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                           enabled: !isLoading,
                           textDirection: TextDirection.ltr,
                           textAlign: TextAlign.left,
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                          style: TextStyle(fontSize: 15.sp),
                           decoration: InputDecoration(
                             hintText: l10n.newPasswordHint,
-                            hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
+                            hintStyle: TextStyle(
+                                fontSize: 14.sp, color: Colors.grey.shade400),
                             prefixIcon: IconButton(
-                              icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
-                              onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
+                              icon: Icon(
+                                  _isPasswordObscured
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey.shade600),
+                              onPressed: () => setState(() =>
+                                  _isPasswordObscured = !_isPasswordObscured),
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, vertical: 16.h),
                           ),
                         ),
                       ),
@@ -239,16 +278,23 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                           enabled: !isLoading,
                           textDirection: TextDirection.ltr,
                           textAlign: TextAlign.left,
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 15.sp),
+                          style: TextStyle(fontSize: 15.sp),
                           decoration: InputDecoration(
                             hintText: l10n.confirmPasswordHint,
-                            hintStyle: TextStyle(fontFamily: 'Cairo', fontSize: 14.sp, color: Colors.grey.shade400),
+                            hintStyle: TextStyle(
+                                fontSize: 14.sp, color: Colors.grey.shade400),
                             prefixIcon: IconButton(
-                              icon: Icon(_isConfirmObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
-                              onPressed: () => setState(() => _isConfirmObscured = !_isConfirmObscured),
+                              icon: Icon(
+                                  _isConfirmObscured
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey.shade600),
+                              onPressed: () => setState(() =>
+                                  _isConfirmObscured = !_isConfirmObscured),
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, vertical: 16.h),
                           ),
                         ),
                       ),
@@ -260,13 +306,24 @@ class _ResetPasswordOtpPageState extends State<ResetPasswordOtpPage> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryNavy,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r)),
                           elevation: 0,
                         ),
-                        onPressed: isLoading ? null : () => _submitNewPassword(context),
+                        onPressed: isLoading
+                            ? null
+                            : () => _submitNewPassword(context),
                         child: isLoading
-                            ? SizedBox(height: 24.h, width: 24.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text(l10n.saveAndLogin, style: TextStyle(fontFamily: 'Cairo', fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ? SizedBox(
+                                height: 24.h,
+                                width: 24.h,
+                                child: const CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5))
+                            : Text(l10n.saveAndLogin,
+                                style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
                       ),
                     ),
                   ],

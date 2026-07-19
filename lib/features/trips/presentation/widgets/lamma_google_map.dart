@@ -33,11 +33,10 @@ class MapScreen extends StatelessWidget {
               ],
             ),
           ),
-          
           const Expanded(
             child: LammaGoogleMap(
               initialCameraPosition: initialPosition,
-              showCenterPin: true, 
+              showCenterPin: true,
             ),
           ),
         ],
@@ -55,22 +54,22 @@ class LammaGoogleMap extends StatefulWidget {
   final Set<Polyline> polylines;
   final void Function(GoogleMapController)? onMapCreated;
   final void Function(CameraPosition)? onCameraMove;
-  final VoidCallback? onCameraIdle; 
-  final void Function(LatLng)? onTap; 
-  final bool showCenterPin; 
-  final EdgeInsets mapPadding; 
+  final VoidCallback? onCameraIdle;
+  final void Function(LatLng)? onTap;
+  final bool showCenterPin;
+  final EdgeInsets mapPadding;
 
   const LammaGoogleMap({
-    super.key, 
+    super.key,
     required this.initialCameraPosition,
     this.markers = const {},
     this.polylines = const {},
     this.onMapCreated,
     this.onCameraMove,
-    this.onCameraIdle, 
-    this.onTap, 
-    this.showCenterPin = false, 
-    this.mapPadding = EdgeInsets.zero, 
+    this.onCameraIdle,
+    this.onTap,
+    this.showCenterPin = false,
+    this.mapPadding = EdgeInsets.zero,
   });
 
   @override
@@ -78,7 +77,7 @@ class LammaGoogleMap extends StatefulWidget {
 }
 
 class _LammaGoogleMapState extends State<LammaGoogleMap> {
-  bool _isCameraMoving = false; 
+  bool _isCameraMoving = false;
 
   final String _lammaLightStyle = '''
   [
@@ -107,11 +106,11 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
           padding: widget.mapPadding,
           zoomControlsEnabled: false,
           mapToolbarEnabled: false,
-          myLocationEnabled: true, 
-          myLocationButtonEnabled: true, 
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
           compassEnabled: false,
-          style: _lammaLightStyle, 
-          onTap: widget.onTap, 
+          style: _lammaLightStyle,
+          onTap: widget.onTap,
           onMapCreated: (GoogleMapController controller) {
             if (widget.onMapCreated != null) {
               widget.onMapCreated!(controller);
@@ -132,28 +131,35 @@ class _LammaGoogleMapState extends State<LammaGoogleMap> {
             }
           },
         ),
-        
         if (widget.showCenterPin)
           AnimatedOpacity(
-            opacity: _isCameraMoving ? 0.0 : 1.0, 
+            opacity: _isCameraMoving ? 0.0 : 1.0,
             duration: const Duration(milliseconds: 200),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B4332), 
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))
-                    ]
-                  ),
-                  child: const Text('تأكيد الموقع هنا', style: TextStyle(color: Color(0xFFD4AF37), fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold)),
+                      color: const Color(0xFF1B4332),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2))
+                      ]),
+                  child: const Text('تأكيد الموقع هنا',
+                      style: TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
-                const Icon(Icons.location_on, color: Color(0xFF1B4332), size: 42), 
-                const SizedBox(height: 42), 
+                const Icon(Icons.location_on,
+                    color: Color(0xFF1B4332), size: 42),
+                const SizedBox(height: 42),
               ],
             ),
           ),

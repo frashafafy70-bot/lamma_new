@@ -35,7 +35,7 @@ class PassengerCategorySelector extends StatelessWidget {
 
   Widget _buildCategoryChip(TripCategory category) {
     bool isSelected = selectedCategory == category;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -67,16 +67,18 @@ class PassengerCategorySelector extends StatelessWidget {
                 Icon(
                   category.icon,
                   size: 18.sp,
-                  color: isSelected ? AppColors.accentGold : Colors.grey.shade400,
+                  color:
+                      isSelected ? AppColors.accentGold : Colors.grey.shade400,
                 ),
                 SizedBox(width: 8.w),
                 Text(
                   category.displayTitle,
                   style: TextStyle(
-                    fontFamily: 'Cairo',
                     fontSize: 14.sp,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    color: isSelected ? AppColors.accentGold : Colors.grey.shade400,
+                    color: isSelected
+                        ? AppColors.accentGold
+                        : Colors.grey.shade400,
                   ),
                 ),
               ],

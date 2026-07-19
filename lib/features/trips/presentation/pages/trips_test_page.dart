@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:lamma_new/core/theme/app_colors.dart'; 
+import 'package:lamma_new/core/theme/app_colors.dart';
 import '../cubit/trip_cubit.dart';
 import '../cubit/trip_state.dart';
 
@@ -24,7 +24,7 @@ class _TripsTestPageState extends State<TripsTestPage> {
       appBar: AppBar(
         title: const Text(
           'اختبار المعمارية النظيفة (الرحلات)',
-          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primaryDark,
         foregroundColor: Colors.white,
@@ -36,8 +36,7 @@ class _TripsTestPageState extends State<TripsTestPage> {
             return const Center(
               child: CircularProgressIndicator(color: AppColors.primaryDark),
             );
-          }
-          else if (state is TripsError) {
+          } else if (state is TripsError) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -45,22 +44,20 @@ class _TripsTestPageState extends State<TripsTestPage> {
                   'حدث خطأ:\n${state.error}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontFamily: 'Cairo', 
-                    color: Colors.red, 
+                    color: Colors.red,
                     fontSize: 16,
                   ),
                 ),
               ),
             );
-          }
-          else if (state is TripsLoaded) {
+          } else if (state is TripsLoaded) {
             final trips = state.trips;
-            
+
             if (trips.isEmpty) {
               return const Center(
                 child: Text(
                   'لا توجد رحلات متاحة حالياً',
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 18),
+                  style: TextStyle(fontSize: 18),
                 ),
               );
             }
@@ -81,7 +78,6 @@ class _TripsTestPageState extends State<TripsTestPage> {
                     title: Text(
                       'من: ${trip.pickup ?? "غير محدد"} ➡️ إلى: ${trip.destination ?? "غير محدد"}',
                       style: const TextStyle(
-                        fontFamily: 'Cairo',
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -97,7 +93,8 @@ class _TripsTestPageState extends State<TripsTestPage> {
                         ],
                       ),
                     ),
-                    trailing: const Icon(Icons.directions_car, color: AppColors.primaryDark),
+                    trailing: const Icon(Icons.directions_car,
+                        color: AppColors.primaryDark),
                   ),
                 );
               },
